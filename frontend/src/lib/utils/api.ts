@@ -67,5 +67,9 @@ export const authApi = {
 
     validateToken: async () => {
         return api('/api/auth/validate');
+    },
+
+    checkUsername: async (username: string) => {
+        return api(`/api/auth/check-username/${username}`);
     }
 }; 
