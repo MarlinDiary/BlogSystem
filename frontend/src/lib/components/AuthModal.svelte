@@ -238,7 +238,7 @@
             ></button>
             <!-- 卡片 -->
             <div class="relative bg-white/70 dark:bg-zinc-800/70 backdrop-blur-[2px] rounded-lg shadow-2xl shadow-zinc-500/20 dark:shadow-zinc-900/30 w-full max-w-md {isClosing ? 'modal-closing' : 'modal-open'}">
-                <div class="p-6">
+                <div class="p-8">
                     <!-- 关闭按钮 -->
                     <button 
                         class="absolute top-4 right-4 text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors"
@@ -456,7 +456,6 @@
                                     class="mt-1 block w-full rounded-md border-zinc-300 bg-white/50 shadow-sm focus:border-zinc-500 focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800/50 dark:text-zinc-100 dark:focus:border-zinc-400 dark:focus:ring-zinc-400 resize-none"
                                     rows="3"
                                 ></textarea>
-                                <p class="mt-1 text-xs text-zinc-500 dark:text-zinc-400">选填</p>
                             </div>
                         {/if}
                         
