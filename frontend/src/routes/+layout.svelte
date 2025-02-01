@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
+	import { auth } from '$lib/stores/auth';
 	import '../app.css';
 	import Header from '$lib/components/Header.svelte';
 
@@ -10,6 +12,10 @@
 		{ href: '/publish', text: '发布' },
 		{ href: '/about', text: '关于' }
 	];
+
+	onMount(() => {
+		auth.initialize();
+	});
 </script>
 
 <div class="relative">

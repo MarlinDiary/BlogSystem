@@ -2,30 +2,35 @@
 <script lang="ts">
   import UserArrowLeft from './icons/UserArrowLeft.svelte';
   import '../styles/icon.css';
+  import { auth } from '../stores/auth';
+  import AuthModal from './AuthModal.svelte';
   
-  // 这里可以导入你的认证库
-  let isLoggedIn = false; // 根据你的认证状态管理
+  let showAuthModal = false;
+  let authMode: 'login' | 'register' = 'login';
   
   function handleAuth() {
-    if (isLoggedIn) {
-      // 登出逻辑
-      isLoggedIn = false;
+    if ($auth.isAuthenticated) {
+      auth.logout();
     } else {
-      // 登录逻辑
-      isLoggedIn = true;
+      showAuthModal = true;
+      authMode = 'login';
     }
+  }
+  
+  function handleCloseModal() {
+    showAuthModal = false;
   }
 </script>
 
 <div class="pointer-events-auto">
-  {#if isLoggedIn}
+  {#if $auth.isAuthenticated}
     <button
       class="group flex items-center h-10 w-10 rounded-full bg-white/90 p-0.5 shadow-lg shadow-zinc-800/5 ring-1 ring-zinc-900/5 backdrop-blur dark:bg-zinc-800/90 dark:ring-white/10 dark:hover:ring-white/20"
       on:click={handleAuth}
     >
       <img
-        src="/logo.png"
-        alt="用户头像"
+        src={$auth.user?.avatar || '/logo.png'}
+        alt={$auth.user?.username || '用户头像'}
         class="h-9 w-9 rounded-full bg-zinc-100 object-cover dark:bg-zinc-800"
       />
     </button>
@@ -37,4 +42,10 @@
       <UserArrowLeft className="h-5 w-5 stroke-zinc-500 transition group-hover:stroke-zinc-700 dark:group-hover:stroke-zinc-200" />
     </button>
   {/if}
-</div> 
+</div>
+
+<AuthModal 
+  isOpen={showAuthModal} 
+  mode={authMode}
+  on:close={handleCloseModal}
+/> 
