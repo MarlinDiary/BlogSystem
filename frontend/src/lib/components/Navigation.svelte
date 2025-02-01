@@ -11,14 +11,14 @@
   ];
 </script>
 
-<div class="flex flex-1 justify-end md:justify-center px-4 sm:px-8 lg:px-12 pt-8">
+<div class="flex flex-1 justify-end md:justify-center">
   <!-- 移动端导航 -->
   <div class="pointer-events-auto relative z-50 md:hidden">
     <NavigationMobile {navigationItems} />
   </div>
   
   <!-- 桌面端导航 -->
-  <div class="pointer-events-auto relative z-50 hidden md:block lg:px-8">
+  <div class="pointer-events-auto relative z-50 hidden md:block">
     <NavigationDesktop {navigationItems} />
   </div>
 </div> 
