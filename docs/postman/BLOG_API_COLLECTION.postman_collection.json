@@ -1,0 +1,2066 @@
+{
+	"info": {
+		"_postman_id": "1234567-89ab-cdef-0123-456789abcdef",
+		"name": "博客系统API",
+		"description": "博客系统的所有API测试集合，完全按照API文档编写",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:3000/api",
+			"type": "string"
+		},
+		{
+			"key": "token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "article_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "comment_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "user_id",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "1. 认证相关",
+			"item": [
+				{
+					"name": "1.1 用户注册",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"",
+									"// 保存token用于后续请求",
+									"if (jsonData.token) {",
+									"    pm.collectionVariables.set(\"token\", jsonData.token);",
+									"}",
+									"",
+									"// 测试响应状态码",
+									"pm.test(\"状态码为 201\", function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"// 测试响应格式",
+									"pm.test(\"响应格式为 JSON\", function () {",
+									"    pm.response.to.be.json;",
+									"});",
+									"",
+									"// 测试响应内容",
+									"pm.test(\"响应包含 token\", function () {",
+									"    pm.expect(jsonData).to.have.property('token');",
+									"    pm.expect(jsonData.token).to.be.a('string');",
+									"    pm.expect(jsonData.token).to.not.be.empty;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"testuser\",\n    \"password\": \"password123\",\n    \"realName\": \"测试用户\",\n    \"dateOfBirth\": \"1990-01-01\",\n    \"bio\": \"这是一个测试账号\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/register",
+							"host": ["{{base_url}}"],
+							"path": ["auth", "register"]
+						},
+						"description": "注册新用户，成功后返回JWT token"
+					}
+				},
+				{
+					"name": "1.2 用户登录",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"",
+									"// 保存token用于后续请求",
+									"if (jsonData.token) {",
+									"    pm.collectionVariables.set(\"token\", jsonData.token);",
+									"}",
+									"",
+									"// 测试响应状态码",
+									"pm.test(\"状态码为 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"// 测试响应格式",
+									"pm.test(\"响应格式为 JSON\", function () {",
+									"    pm.response.to.be.json;",
+									"});",
+									"",
+									"// 测试响应内容",
+									"pm.test(\"响应包含 token\", function () {",
+									"    pm.expect(jsonData).to.have.property('token');",
+									"    pm.expect(jsonData.token).to.be.a('string');",
+									"    pm.expect(jsonData.token).to.not.be.empty;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"testuser\",\n    \"password\": \"password123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/login",
+							"host": ["{{base_url}}"],
+							"path": ["auth", "login"]
+						},
+						"description": "用户登录，成功后返回JWT token"
+					}
+				},
+				{
+					"name": "1.3 用户登出",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// 测试响应状态码",
+									"pm.test(\"状态码为 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"// 测试响应格式",
+									"pm.test(\"响应格式为 JSON\", function () {",
+									"    pm.response.to.be.json;",
+									"});",
+									"",
+									"// 测试响应内容",
+									"pm.test(\"响应消息正确\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.message).to.eql('登出成功');",
+									"});",
+									"",
+									"// 清除token",
+									"pm.collectionVariables.set(\"token\", \"\");"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/auth/logout",
+							"host": ["{{base_url}}"],
+							"path": ["auth", "logout"]
+						},
+						"description": "用户登出，需要认证token"
+					}
+				},
+				{
+					"name": "1.4 检查用户名是否可用",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// 测试响应状态码",
+									"pm.test(\"状态码为 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"// 测试响应格式",
+									"pm.test(\"响应格式为 JSON\", function () {",
+									"    pm.response.to.be.json;",
+									"});",
+									"",
+									"// 测试响应内容",
+									"pm.test(\"响应包含可用性标志\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('available');",
+									"    pm.expect(jsonData.available).to.be.a('boolean');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/auth/check-username/testuser",
+							"host": ["{{base_url}}"],
+							"path": ["auth", "check-username", "testuser"]
+						},
+						"description": "检查用户名是否已被使用"
+					}
+				}
+			],
+			"description": "认证相关的所有API端点"
+		},
+		{
+			"name": "2. 用户相关",
+			"item": [
+				{
+					"name": "2.1 获取当前用户信息",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// 测试响应状态码",
+									"pm.test(\"状态码为 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"// 测试响应格式",
+									"pm.test(\"响应格式为 JSON\", function () {",
+									"    pm.response.to.be.json;",
+									"});",
+									"",
+									"// 测试响应内容",
+									"pm.test(\"响应包含用户信息\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('id');",
+									"    pm.expect(jsonData).to.have.property('username');",
+									"    pm.expect(jsonData).to.have.property('realName');",
+									"    pm.expect(jsonData).to.have.property('dateOfBirth');",
+									"    pm.expect(jsonData).to.have.property('bio');",
+									"    pm.expect(jsonData).to.have.property('avatarUrl');",
+									"    pm.expect(jsonData).to.have.property('createdAt');",
+									"",
+									"    // 保存用户ID供后续使用",
+									"    pm.collectionVariables.set(\"user_id\", jsonData.id);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/users/me",
+							"host": ["{{base_url}}"],
+							"path": ["users", "me"]
+						},
+						"description": "获取当前登录用户的详细信息"
+					}
+				},
+				{
+					"name": "2.2 更新用户信息",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// 测试响应状态码",
+									"pm.test(\"状态码为 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"// 测试响应格式",
+									"pm.test(\"响应格式为 JSON\", function () {",
+									"    pm.response.to.be.json;",
+									"});",
+									"",
+									"// 测试响应内容",
+									"pm.test(\"响应包含更新后的用户信息\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('bio').eql('更新后的个人简介');",
+									"    pm.expect(jsonData).to.have.property('realName').eql('新的真实姓名');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"realName\": \"新的真实姓名\",\n    \"dateOfBirth\": \"1990-01-01\",\n    \"bio\": \"更新后的个人简介\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/users/me",
+							"host": ["{{base_url}}"],
+							"path": ["users", "me"]
+						},
+						"description": "更新当前用户的信息"
+					}
+				},
+				{
+					"name": "2.3 上传用户头像",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// 测试响应状态码",
+									"pm.test(\"状态码为 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"// 测试响应格式",
+									"pm.test(\"响应格式为 JSON\", function () {",
+									"    pm.response.to.be.json;",
+									"});",
+									"",
+									"// 测试响应内容",
+									"pm.test(\"响应包含头像URL\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('avatarUrl');",
+									"    pm.expect(jsonData.avatarUrl).to.be.a('string');",
+									"    pm.expect(jsonData.avatarUrl).to.include('/uploads/avatars/');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "avatar",
+									"type": "file",
+									"src": "/path/to/avatar.jpg",
+									"description": "用户头像文件"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/users/avatar",
+							"host": ["{{base_url}}"],
+							"path": ["users", "avatar"]
+						},
+						"description": "上传用户头像图片"
+					}
+				},
+				{
+					"name": "2.4 获取用户列表",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// 测试响应状态码",
+									"pm.test(\"状态码为 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"// 测试响应格式",
+									"pm.test(\"响应格式为 JSON\", function () {",
+									"    pm.response.to.be.json;",
+									"});",
+									"",
+									"// 测试响应内容",
+									"pm.test(\"响应包含分页用户列表\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('items');",
+									"    pm.expect(jsonData).to.have.property('total');",
+									"    pm.expect(jsonData).to.have.property('page');",
+									"    pm.expect(jsonData).to.have.property('pageSize');",
+									"    ",
+									"    // 测试用户数据结构",
+									"    if (jsonData.items.length > 0) {",
+									"        const user = jsonData.items[0];",
+									"        pm.expect(user).to.have.property('id');",
+									"        pm.expect(user).to.have.property('username');",
+									"        pm.expect(user).to.have.property('realName');",
+									"        pm.expect(user).to.have.property('bio');",
+									"        pm.expect(user).to.have.property('avatarUrl');",
+									"        pm.expect(user).to.have.property('createdAt');",
+									"        pm.expect(user).to.have.property('articleCount');",
+									"        pm.expect(user).to.have.property('commentCount');",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/users?page=1&pageSize=10",
+							"host": ["{{base_url}}"],
+							"path": ["users"],
+							"query": [
+								{
+									"key": "page",
+									"value": "1",
+									"description": "页码"
+								},
+								{
+									"key": "pageSize",
+									"value": "10",
+									"description": "每页数量"
+								}
+							]
+						},
+						"description": "获取用户列表，支持分页"
+					}
+				},
+				{
+					"name": "2.5 获取用户详情",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// 测试响应状态码",
+									"pm.test(\"状态码为 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"// 测试响应格式",
+									"pm.test(\"响应格式为 JSON\", function () {",
+									"    pm.response.to.be.json;",
+									"});",
+									"",
+									"// 测试响应内容",
+									"pm.test(\"响应包含用户详情\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('id');",
+									"    pm.expect(jsonData).to.have.property('username');",
+									"    pm.expect(jsonData).to.have.property('realName');",
+									"    pm.expect(jsonData).to.have.property('bio');",
+									"    pm.expect(jsonData).to.have.property('avatarUrl');",
+									"    pm.expect(jsonData).to.have.property('createdAt');",
+									"    pm.expect(jsonData).to.have.property('articleCount');",
+									"    pm.expect(jsonData).to.have.property('commentCount');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/users/{{user_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["users", "{{user_id}}"]
+						},
+						"description": "获取指定用户的详细信息"
+					}
+				},
+				{
+					"name": "2.6 获取用户的文章列表",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// 测试响应状态码",
+									"pm.test(\"状态码为 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"// 测试响应格式",
+									"pm.test(\"响应格式为 JSON\", function () {",
+									"    pm.response.to.be.json;",
+									"});",
+									"",
+									"// 测试响应内容",
+									"pm.test(\"响应包含分页文章列表\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('items');",
+									"    pm.expect(jsonData).to.have.property('total');",
+									"    pm.expect(jsonData).to.have.property('page');",
+									"    pm.expect(jsonData).to.have.property('pageSize');",
+									"    ",
+									"    // 测试文章数据结构",
+									"    if (jsonData.items.length > 0) {",
+									"        const article = jsonData.items[0];",
+									"        pm.expect(article).to.have.property('id');",
+									"        pm.expect(article).to.have.property('title');",
+									"        pm.expect(article).to.have.property('content');",
+									"        pm.expect(article).to.have.property('imageUrl');",
+									"        pm.expect(article).to.have.property('status');",
+									"        pm.expect(article).to.have.property('viewCount');",
+									"        pm.expect(article).to.have.property('createdAt');",
+									"        pm.expect(article).to.have.property('updatedAt');",
+									"        pm.expect(article).to.have.property('commentCount');",
+									"        pm.expect(article).to.have.property('likeCount');",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/users/{{user_id}}/articles?page=1&pageSize=10",
+							"host": ["{{base_url}}"],
+							"path": ["users", "{{user_id}}", "articles"],
+							"query": [
+								{
+									"key": "page",
+									"value": "1",
+									"description": "页码"
+								},
+								{
+									"key": "pageSize",
+									"value": "10",
+									"description": "每页数量"
+								}
+							]
+						},
+						"description": "获取指定用户的文章列表"
+					}
+				},
+				{
+					"name": "2.7 获取用户的评论列表",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// 测试响应状态码",
+									"pm.test(\"状态码为 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"// 测试响应格式",
+									"pm.test(\"响应格式为 JSON\", function () {",
+									"    pm.response.to.be.json;",
+									"});",
+									"",
+									"// 测试响应内容",
+									"pm.test(\"响应包含分页评论列表\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('items');",
+									"    pm.expect(jsonData).to.have.property('total');",
+									"    pm.expect(jsonData).to.have.property('page');",
+									"    pm.expect(jsonData).to.have.property('pageSize');",
+									"    ",
+									"    // 测试评论数据结构",
+									"    if (jsonData.items.length > 0) {",
+									"        const comment = jsonData.items[0];",
+									"        pm.expect(comment).to.have.property('id');",
+									"        pm.expect(comment).to.have.property('content');",
+									"        pm.expect(comment).to.have.property('createdAt');",
+									"        pm.expect(comment).to.have.property('visibility');",
+									"        pm.expect(comment).to.have.property('article');",
+									"        pm.expect(comment.article).to.have.property('id');",
+									"        pm.expect(comment.article).to.have.property('title');",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/users/{{user_id}}/comments?page=1&pageSize=10",
+							"host": ["{{base_url}}"],
+							"path": ["users", "{{user_id}}", "comments"],
+							"query": [
+								{
+									"key": "page",
+									"value": "1",
+									"description": "页码"
+								},
+								{
+									"key": "pageSize",
+									"value": "10",
+									"description": "每页数量"
+								}
+							]
+						},
+						"description": "获取指定用户的评论列表"
+					}
+				}
+			],
+			"description": "用户相关的所有API端点"
+		},
+		{
+			"name": "3. 文章相关",
+			"item": [
+				{
+					"name": "3.1 获取文章列表",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// 测试响应状态码",
+									"pm.test(\"状态码为 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"// 测试响应格式",
+									"pm.test(\"响应格式为 JSON\", function () {",
+									"    pm.response.to.be.json;",
+									"});",
+									"",
+									"// 测试响应内容",
+									"pm.test(\"响应包含分页文章列表\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('items');",
+									"    pm.expect(jsonData).to.have.property('total');",
+									"    pm.expect(jsonData).to.have.property('page');",
+									"    pm.expect(jsonData).to.have.property('pageSize');",
+									"    ",
+									"    // 测试文章数据结构",
+									"    if (jsonData.items.length > 0) {",
+									"        const article = jsonData.items[0];",
+									"        pm.expect(article).to.have.property('id');",
+									"        pm.expect(article).to.have.property('title');",
+									"        pm.expect(article).to.have.property('content');",
+									"        pm.expect(article).to.have.property('htmlContent');",
+									"        pm.expect(article).to.have.property('imageUrl');",
+									"        pm.expect(article).to.have.property('status');",
+									"        pm.expect(article).to.have.property('viewCount');",
+									"        pm.expect(article).to.have.property('createdAt');",
+									"        pm.expect(article).to.have.property('updatedAt');",
+									"        pm.expect(article).to.have.property('author');",
+									"        pm.expect(article).to.have.property('commentCount');",
+									"        pm.expect(article).to.have.property('likeCount');",
+									"",
+									"        // 测试作者数据结构",
+									"        pm.expect(article.author).to.have.property('id');",
+									"        pm.expect(article.author).to.have.property('username');",
+									"        pm.expect(article.author).to.have.property('avatarUrl');",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/articles?page=1&pageSize=10&sort=createdAt&order=desc&status=published",
+							"host": ["{{base_url}}"],
+							"path": ["articles"],
+							"query": [
+								{
+									"key": "page",
+									"value": "1",
+									"description": "页码"
+								},
+								{
+									"key": "pageSize",
+									"value": "10",
+									"description": "每页数量"
+								},
+								{
+									"key": "sort",
+									"value": "createdAt",
+									"description": "排序字段"
+								},
+								{
+									"key": "order",
+									"value": "desc",
+									"description": "排序方向"
+								},
+								{
+									"key": "status",
+									"value": "published",
+									"description": "文章状态"
+								}
+							]
+						},
+						"description": "获取文章列表，支持分页、排序和筛选"
+					}
+				},
+				{
+					"name": "3.2 创建文章",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// 测试响应状态码",
+									"pm.test(\"状态码为 201\", function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"// 测试响应格式",
+									"pm.test(\"响应格式为 JSON\", function () {",
+									"    pm.response.to.be.json;",
+									"});",
+									"",
+									"// 测试响应内容",
+									"pm.test(\"响应包含新创建的文章\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('id');",
+									"    pm.expect(jsonData).to.have.property('title');",
+									"    pm.expect(jsonData).to.have.property('content');",
+									"    pm.expect(jsonData).to.have.property('htmlContent');",
+									"    ",
+									"    // 保存文章ID供后续使用",
+									"    pm.collectionVariables.set(\"article_id\", jsonData.id);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"title\": \"测试文章\",\n    \"content\": \"这是一篇测试文章的内容\",\n    \"htmlContent\": \"<p>这是一篇测试文章的内容</p>\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/articles",
+							"host": ["{{base_url}}"],
+							"path": ["articles"]
+						},
+						"description": "创建新文章"
+					}
+				},
+				{
+					"name": "3.3 获取文章详情",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// 测试响应状态码",
+									"pm.test(\"状态码为 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"// 测试响应格式",
+									"pm.test(\"响应格式为 JSON\", function () {",
+									"    pm.response.to.be.json;",
+									"});",
+									"",
+									"// 测试响应内容",
+									"pm.test(\"响应包含文章详情\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('id');",
+									"    pm.expect(jsonData).to.have.property('title');",
+									"    pm.expect(jsonData).to.have.property('content');",
+									"    pm.expect(jsonData).to.have.property('htmlContent');",
+									"    pm.expect(jsonData).to.have.property('imageUrl');",
+									"    pm.expect(jsonData).to.have.property('status');",
+									"    pm.expect(jsonData).to.have.property('viewCount');",
+									"    pm.expect(jsonData).to.have.property('createdAt');",
+									"    pm.expect(jsonData).to.have.property('updatedAt');",
+									"    pm.expect(jsonData).to.have.property('author');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/articles/{{article_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["articles", "{{article_id}}"]
+						},
+						"description": "获取文章详细信息"
+					}
+				},
+				{
+					"name": "3.4 更新文章",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// 测试响应状态码",
+									"pm.test(\"状态码为 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"// 测试响应格式",
+									"pm.test(\"响应格式为 JSON\", function () {",
+									"    pm.response.to.be.json;",
+									"});",
+									"",
+									"// 测试响应内容",
+									"pm.test(\"响应包含更新后的文章\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('title').eql('更新后的文章标题');",
+									"    pm.expect(jsonData).to.have.property('content').eql('更新后的文章内容');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"title\": \"更新后的文章标题\",\n    \"content\": \"更新后的文章内容\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/articles/{{article_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["articles", "{{article_id}}"]
+						},
+						"description": "更新文章内容"
+					}
+				},
+				{
+					"name": "3.5 删除文章",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// 测试响应状态码",
+									"pm.test(\"状态码为 204\", function () {",
+									"    pm.response.to.have.status(204);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/articles/{{article_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["articles", "{{article_id}}"]
+						},
+						"description": "删除文章"
+					}
+				},
+				{
+					"name": "3.6 上传文章封面",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// 测试响应状态码",
+									"pm.test(\"状态码为 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"// 测试响应格式",
+									"pm.test(\"响应格式为 JSON\", function () {",
+									"    pm.response.to.be.json;",
+									"});",
+									"",
+									"// 测试响应内容",
+									"pm.test(\"响应包含封面URL\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('imageUrl');",
+									"    pm.expect(jsonData.imageUrl).to.be.a('string');",
+									"    pm.expect(jsonData.imageUrl).to.include('/uploads/covers/');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "cover",
+									"type": "file",
+									"src": "/path/to/cover.jpg",
+									"description": "文章封面图片"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/articles/{{article_id}}/cover",
+							"host": ["{{base_url}}"],
+							"path": ["articles", "{{article_id}}", "cover"]
+						},
+						"description": "上传文章封面图片"
+					}
+				},
+				{
+					"name": "3.7 删除文章封面",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// 测试响应状态码",
+									"pm.test(\"状态码为 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"// 测试响应格式",
+									"pm.test(\"响应格式为 JSON\", function () {",
+									"    pm.response.to.be.json;",
+									"});",
+									"",
+									"// 测试响应内容",
+									"pm.test(\"响应包含成功消息\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('message').eql('封面已删除');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/articles/{{article_id}}/cover",
+							"host": ["{{base_url}}"],
+							"path": ["articles", "{{article_id}}", "cover"]
+						},
+						"description": "删除文章封面"
+					}
+				},
+				{
+					"name": "3.8 获取文章点赞状态",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// 测试响应状态码",
+									"pm.test(\"状态码为 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"// 测试响应格式",
+									"pm.test(\"响应格式为 JSON\", function () {",
+									"    pm.response.to.be.json;",
+									"});",
+									"",
+									"// 测试响应内容",
+									"pm.test(\"响应包含点赞信息\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('liked');",
+									"    pm.expect(jsonData).to.have.property('totalLikes');",
+									"    pm.expect(jsonData.liked).to.be.a('boolean');",
+									"    pm.expect(jsonData.totalLikes).to.be.a('number');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/articles/{{article_id}}/like",
+							"host": ["{{base_url}}"],
+							"path": ["articles", "{{article_id}}", "like"]
+						},
+						"description": "获取当前用户对文章的点赞状态"
+					}
+				},
+				{
+					"name": "3.9 点赞/取消点赞文章",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// 测试响应状态码",
+									"pm.test(\"状态码为 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"// 测试响应格式",
+									"pm.test(\"响应格式为 JSON\", function () {",
+									"    pm.response.to.be.json;",
+									"});",
+									"",
+									"// 测试响应内容",
+									"pm.test(\"响应包含点赞信息\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('liked');",
+									"    pm.expect(jsonData).to.have.property('totalLikes');",
+									"    pm.expect(jsonData.liked).to.be.a('boolean');",
+									"    pm.expect(jsonData.totalLikes).to.be.a('number');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/articles/{{article_id}}/like",
+							"host": ["{{base_url}}"],
+							"path": ["articles", "{{article_id}}", "like"]
+						},
+						"description": "点赞或取消点赞文章"
+					}
+				},
+				{
+					"name": "3.10 获取文章点赞用户列表",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// 测试响应状态码",
+									"pm.test(\"状态码为 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"// 测试响应格式",
+									"pm.test(\"响应格式为 JSON\", function () {",
+									"    pm.response.to.be.json;",
+									"});",
+									"",
+									"// 测试响应内容",
+									"pm.test(\"响应包含分页点赞用户列表\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('items');",
+									"    pm.expect(jsonData).to.have.property('total');",
+									"    pm.expect(jsonData).to.have.property('page');",
+									"    pm.expect(jsonData).to.have.property('pageSize');",
+									"    ",
+									"    // 测试用户数据结构",
+									"    if (jsonData.items.length > 0) {",
+									"        const item = jsonData.items[0];",
+									"        pm.expect(item).to.have.property('user');",
+									"        pm.expect(item.user).to.have.property('id');",
+									"        pm.expect(item.user).to.have.property('username');",
+									"        pm.expect(item.user).to.have.property('avatarUrl');",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/articles/{{article_id}}/likes?page=1&pageSize=10",
+							"host": ["{{base_url}}"],
+							"path": ["articles", "{{article_id}}", "likes"],
+							"query": [
+								{
+									"key": "page",
+									"value": "1",
+									"description": "页码"
+								},
+								{
+									"key": "pageSize",
+									"value": "10",
+									"description": "每页数量"
+								}
+							]
+						},
+						"description": "获取文章的点赞用户列表"
+					}
+				},
+				{
+					"name": "3.11 更新文章状态",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// 测试响应状态码",
+									"pm.test(\"状态码为 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"// 测试响应格式",
+									"pm.test(\"响应格式为 JSON\", function () {",
+									"    pm.response.to.be.json;",
+									"});",
+									"",
+									"// 测试响应内容",
+									"pm.test(\"响应包含更新后的文章\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('status').eql('published');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"status\": \"published\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/articles/{{article_id}}/status",
+							"host": ["{{base_url}}"],
+							"path": ["articles", "{{article_id}}", "status"]
+						},
+						"description": "更新文章状态"
+					}
+				},
+				{
+					"name": "3.12 增加文章浏览量",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// 测试响应状态码",
+									"pm.test(\"状态码为 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"// 测试响应格式",
+									"pm.test(\"响应格式为 JSON\", function () {",
+									"    pm.response.to.be.json;",
+									"});",
+									"",
+									"// 测试响应内容",
+									"pm.test(\"响应包含成功消息\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('message').eql('浏览量已更新');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"url": {
+							"raw": "{{base_url}}/articles/{{article_id}}/view",
+							"host": ["{{base_url}}"],
+							"path": ["articles", "{{article_id}}", "view"]
+						},
+						"description": "增加文章浏览量"
+					}
+				},
+				{
+					"name": "3.13 Markdown预览",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// 测试响应状态码",
+									"pm.test(\"状态码为 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"// 测试响应格式",
+									"pm.test(\"响应格式为 JSON\", function () {",
+									"    pm.response.to.be.json;",
+									"});",
+									"",
+									"// 测试响应内容",
+									"pm.test(\"响应包含HTML内容\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('html');",
+									"    pm.expect(jsonData.html).to.be.a('string');",
+									"    pm.expect(jsonData.html).to.include('<p>');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"content\": \"# 测试标题\\n这是一段测试内容\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/articles/preview",
+							"host": ["{{base_url}}"],
+							"path": ["articles", "preview"]
+						},
+						"description": "预览Markdown内容的HTML渲染结果"
+					}
+				}
+			],
+			"description": "文章相关的所有API端点"
+		},
+		{
+			"name": "4. 评论相关",
+			"item": [
+				{
+					"name": "4.1 获取文章评论",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// 测试响应状态码",
+									"pm.test(\"状态码为 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"// 测试响应格式",
+									"pm.test(\"响应格式为 JSON\", function () {",
+									"    pm.response.to.be.json;",
+									"});",
+									"",
+									"// 测试响应内容",
+									"pm.test(\"响应包含评论列表\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.be.an('array');",
+									"    ",
+									"    // 测试评论数据结构",
+									"    if (jsonData.length > 0) {",
+									"        const comment = jsonData[0];",
+									"        pm.expect(comment).to.have.property('id');",
+									"        pm.expect(comment).to.have.property('content');",
+									"        pm.expect(comment).to.have.property('createdAt');",
+									"        pm.expect(comment).to.have.property('parentId');",
+									"        pm.expect(comment).to.have.property('visibility');",
+									"        pm.expect(comment).to.have.property('user');",
+									"        pm.expect(comment).to.have.property('children');",
+									"",
+									"        // 测试用户数据结构",
+									"        pm.expect(comment.user).to.have.property('id');",
+									"        pm.expect(comment.user).to.have.property('username');",
+									"        pm.expect(comment.user).to.have.property('avatarUrl');",
+									"",
+									"        // 测试子评论数据结构",
+									"        pm.expect(comment.children).to.be.an('array');",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/comments/article/{{article_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["comments", "article", "{{article_id}}"]
+						},
+						"description": "获取文章的评论列表，支持嵌套结构"
+					}
+				},
+				{
+					"name": "4.2 发表评论",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// 测试响应状态码",
+									"pm.test(\"状态码为 201\", function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"// 测试响应格式",
+									"pm.test(\"响应格式为 JSON\", function () {",
+									"    pm.response.to.be.json;",
+									"});",
+									"",
+									"// 测试响应内容",
+									"pm.test(\"响应包含新创建的评论\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('id');",
+									"    pm.expect(jsonData).to.have.property('content');",
+									"    pm.expect(jsonData).to.have.property('articleId');",
+									"    pm.expect(jsonData).to.have.property('parentId');",
+									"    ",
+									"    // 保存评论ID供后续使用",
+									"    pm.collectionVariables.set(\"comment_id\", jsonData.id);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"articleId\": {{article_id}},\n    \"content\": \"这是一条测试评论\",\n    \"parentId\": null\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/comments",
+							"host": ["{{base_url}}"],
+							"path": ["comments"]
+						},
+						"description": "发表新评论，支持回复其他评论"
+					}
+				},
+				{
+					"name": "4.3 切换评论可见性",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// 测试响应状态码",
+									"pm.test(\"状态码为 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"// 测试响应格式",
+									"pm.test(\"响应格式为 JSON\", function () {",
+									"    pm.response.to.be.json;",
+									"});",
+									"",
+									"// 测试响应内容",
+									"pm.test(\"响应包含更新后的评论\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('id');",
+									"    pm.expect(jsonData).to.have.property('visibility');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/comments/{{comment_id}}/visibility",
+							"host": ["{{base_url}}"],
+							"path": ["comments", "{{comment_id}}", "visibility"]
+						},
+						"description": "切换评论的可见性状态"
+					}
+				},
+				{
+					"name": "4.4 删除评论",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// 测试响应状态码",
+									"pm.test(\"状态码为 204\", function () {",
+									"    pm.response.to.have.status(204);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/comments/{{comment_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["comments", "{{comment_id}}"]
+						},
+						"description": "删除评论"
+					}
+				}
+			],
+			"description": "评论相关的所有API端点"
+		},
+		{
+			"name": "5. 管理员相关",
+			"item": [
+				{
+					"name": "5.1 获取站点统计数据",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// 测试响应状态码",
+									"pm.test(\"状态码为 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"// 测试响应格式",
+									"pm.test(\"响应格式为 JSON\", function () {",
+									"    pm.response.to.be.json;",
+									"});",
+									"",
+									"// 测试响应内容",
+									"pm.test(\"响应包含统计数据\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    ",
+									"    // 测试用户统计",
+									"    pm.expect(jsonData).to.have.property('users');",
+									"    pm.expect(jsonData.users).to.have.property('total');",
+									"    pm.expect(jsonData.users).to.have.property('active');",
+									"    pm.expect(jsonData.users).to.have.property('banned');",
+									"",
+									"    // 测试文章统计",
+									"    pm.expect(jsonData).to.have.property('articles');",
+									"    pm.expect(jsonData.articles).to.have.property('total');",
+									"    pm.expect(jsonData.articles).to.have.property('published');",
+									"    pm.expect(jsonData.articles).to.have.property('pending');",
+									"    pm.expect(jsonData.articles).to.have.property('totalViews');",
+									"",
+									"    // 测试评论统计",
+									"    pm.expect(jsonData).to.have.property('comments');",
+									"    pm.expect(jsonData.comments).to.have.property('total');",
+									"    pm.expect(jsonData.comments).to.have.property('visible');",
+									"    pm.expect(jsonData.comments).to.have.property('hidden');",
+									"",
+									"    // 测试点赞统计",
+									"    pm.expect(jsonData).to.have.property('likes');",
+									"    pm.expect(jsonData.likes).to.have.property('total');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/admin/stats",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "stats"]
+						},
+						"description": "获取站点的统计数据"
+					}
+				},
+				{
+					"name": "5.2 获取所有用户列表",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// 测试响应状态码",
+									"pm.test(\"状态码为 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"// 测试响应格式",
+									"pm.test(\"响应格式为 JSON\", function () {",
+									"    pm.response.to.be.json;",
+									"});",
+									"",
+									"// 测试响应内容",
+									"pm.test(\"响应包含用户列表\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.be.an('array');",
+									"    ",
+									"    // 测试用户数据结构",
+									"    if (jsonData.length > 0) {",
+									"        const user = jsonData[0];",
+									"        pm.expect(user).to.have.property('id');",
+									"        pm.expect(user).to.have.property('username');",
+									"        pm.expect(user).to.have.property('realName');",
+									"        pm.expect(user).to.have.property('dateOfBirth');",
+									"        pm.expect(user).to.have.property('bio');",
+									"        pm.expect(user).to.have.property('avatarUrl');",
+									"        pm.expect(user).to.have.property('createdAt');",
+									"        pm.expect(user).to.have.property('articleCount');",
+									"        pm.expect(user).to.have.property('commentCount');",
+									"        pm.expect(user).to.have.property('hasAvatar');",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/admin/users",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "users"]
+						},
+						"description": "获取所有用户列表"
+					}
+				},
+				{
+					"name": "5.3 获取用户详情（管理员视图）",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// 测试响应状态码",
+									"pm.test(\"状态码为 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"// 测试响应格式",
+									"pm.test(\"响应格式为 JSON\", function () {",
+									"    pm.response.to.be.json;",
+									"});",
+									"",
+									"// 测试响应内容",
+									"pm.test(\"响应包含用户详情\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('id');",
+									"    pm.expect(jsonData).to.have.property('username');",
+									"    pm.expect(jsonData).to.have.property('realName');",
+									"    pm.expect(jsonData).to.have.property('dateOfBirth');",
+									"    pm.expect(jsonData).to.have.property('bio');",
+									"    pm.expect(jsonData).to.have.property('avatarUrl');",
+									"    pm.expect(jsonData).to.have.property('createdAt');",
+									"    pm.expect(jsonData).to.have.property('articleCount');",
+									"    pm.expect(jsonData).to.have.property('commentCount');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/admin/users/{{user_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "users", "{{user_id}}"]
+						},
+						"description": "获取用户详细信息（管理员视图）"
+					}
+				},
+				{
+					"name": "5.4 删除用户",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// 测试响应状态码",
+									"pm.test(\"状态码为 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"// 测试响应格式",
+									"pm.test(\"响应格式为 JSON\", function () {",
+									"    pm.response.to.be.json;",
+									"});",
+									"",
+									"// 测试响应内容",
+									"pm.test(\"响应包含成功消息\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('message').eql('用户删除成功');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/admin/users/{{user_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "users", "{{user_id}}"]
+						},
+						"description": "删除用户"
+					}
+				},
+				{
+					"name": "5.5 封禁用户",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// 测试响应状态码",
+									"pm.test(\"状态码为 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"// 测试响应格式",
+									"pm.test(\"响应格式为 JSON\", function () {",
+									"    pm.response.to.be.json;",
+									"});",
+									"",
+									"// 测试响应内容",
+									"pm.test(\"响应包含成功消息\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('message').eql('用户已被封禁');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"reason\": \"违反社区规则\",\n    \"duration\": 24\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/admin/users/{{user_id}}/ban",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "users", "{{user_id}}", "ban"]
+						},
+						"description": "封禁用户"
+					}
+				},
+				{
+					"name": "5.6 解封用户",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// 测试响应状态码",
+									"pm.test(\"状态码为 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"// 测试响应格式",
+									"pm.test(\"响应格式为 JSON\", function () {",
+									"    pm.response.to.be.json;",
+									"});",
+									"",
+									"// 测试响应内容",
+									"pm.test(\"响应包含成功消息\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('message').eql('用户已解封');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/admin/users/{{user_id}}/unban",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "users", "{{user_id}}", "unban"]
+						},
+						"description": "解封用户"
+					}
+				},
+				{
+					"name": "5.7 审核文章",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// 测试响应状态码",
+									"pm.test(\"状态码为 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"// 测试响应格式",
+									"pm.test(\"响应格式为 JSON\", function () {",
+									"    pm.response.to.be.json;",
+									"});",
+									"",
+									"// 测试响应内容",
+									"pm.test(\"响应包含成功消息\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('message').eql('文章审核完成');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"status\": \"published\",\n    \"reason\": \"内容符合规范\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/admin/articles/{{article_id}}/review",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "articles", "{{article_id}}", "review"]
+						},
+						"description": "审核文章"
+					}
+				},
+				{
+					"name": "5.8 删除文章（管理员）",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// 测试响应状态码",
+									"pm.test(\"状态码为 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"// 测试响应格式",
+									"pm.test(\"响应格式为 JSON\", function () {",
+									"    pm.response.to.be.json;",
+									"});",
+									"",
+									"// 测试响应内容",
+									"pm.test(\"响应包含成功消息\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('message').eql('文章已删除');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/admin/articles/{{article_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "articles", "{{article_id}}"]
+						},
+						"description": "管理员删除文章"
+					}
+				},
+				{
+					"name": "5.9 删除评论（管理员）",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// 测试响应状态码",
+									"pm.test(\"状态码为 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"// 测试响应格式",
+									"pm.test(\"响应格式为 JSON\", function () {",
+									"    pm.response.to.be.json;",
+									"});",
+									"",
+									"// 测试响应内容",
+									"pm.test(\"响应包含成功消息\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('message').eql('评论已删除');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/admin/comments/{{comment_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "comments", "{{comment_id}}"]
+						},
+						"description": "管理员删除评论"
+					}
+				},
+				{
+					"name": "5.10 批量删除评论",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// 测试响应状态码",
+									"pm.test(\"状态码为 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"// 测试响应格式",
+									"pm.test(\"响应格式为 JSON\", function () {",
+									"    pm.response.to.be.json;",
+									"});",
+									"",
+									"// 测试响应内容",
+									"pm.test(\"响应包含成功消息\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('message').eql('评论已批量删除');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"commentIds\": [1, 2, 3]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/admin/comments/batch-delete",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "comments", "batch-delete"]
+						},
+						"description": "批量删除评论"
+					}
+				},
+				{
+					"name": "5.11 批量删除文章",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// 测试响应状态码",
+									"pm.test(\"状态码为 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"// 测试响应格式",
+									"pm.test(\"响应格式为 JSON\", function () {",
+									"    pm.response.to.be.json;",
+									"});",
+									"",
+									"// 测试响应内容",
+									"pm.test(\"响应包含成功消息\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('message').eql('文章已批量删除');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"articleIds\": [1, 2, 3]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/admin/articles/batch-delete",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "articles", "batch-delete"]
+						},
+						"description": "批量删除文章"
+					}
+				}
+			],
+			"description": "管理员相关的所有API端点"
+		}
+	]
+} 
