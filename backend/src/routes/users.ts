@@ -1,0 +1,465 @@
+import { Router } from 'express';
+import { db } from '../db';
+import { users } from '../db/schema';
+import { eq, desc, and, sql } from 'drizzle-orm';
+import { authMiddleware, AuthRequest } from '../middleware/auth';
+import bcrypt from 'bcrypt';
+import path from 'path';
+import fs from 'fs';
+import { uploadAvatar } from '../middleware/upload';
+import { Response, NextFunction } from 'express';
+import { articles as articlesTable, articleLikes, comments } from '../db/schema';
+
+const router = Router();
+
+// 获取用户信息
+router.get('/me', authMiddleware, async (req: AuthRequest, res, next) => {
+  try {
+    const user = await db
+      .select({
+        id: users.id,
+        username: users.username,
+        realName: users.realName,
+        dateOfBirth: users.dateOfBirth,
+        bio: users.bio,
+        avatarUrl: users.avatarUrl,
+        createdAt: users.createdAt
+      })
+      .from(users)
+      .where(eq(users.id, req.userId!))
+      .get();
+
+    if (!user) {
+      return res.status(404).json({ message: '用户未找到' });
+    }
+
+    res.json(user);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// 更新用户信息
+router.put('/me', authMiddleware, async (req: AuthRequest, res, next) => {
+  try {
+    const { username, realName, dateOfBirth, bio, avatarUrl } = req.body;
+
+    // 如果要更新用户名，检查是否已存在
+    if (username) {
+      const existingUser = await db
+        .select()
+        .from(users)
+        .where(
+          and(
+            eq(users.username, username),
+            sql`${users.id} != ${req.userId!}`
+          )
+        )
+        .get();
+
+      if (existingUser) {
+        return res.status(400).json({ message: '用户名已被使用' });
+      }
+    }
+
+    const updatedUser = await db
+      .update(users)
+      .set({
+        ...(username && { username }),
+        realName,
+        dateOfBirth,
+        bio,
+        avatarUrl
+      })
+      .where(eq(users.id, req.userId!))
+      .returning();
+
+    res.json(updatedUser[0]);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// 删除用户
+router.delete('/me', authMiddleware, async (req: AuthRequest, res, next) => {
+  try {
+    const userId = req.userId;
+    
+    // 验证密码
+    const { password, deleteArticles = true, deleteComments = true } = req.body;
+    if (!password) {
+      return res.status(400).json({ message: '请提供密码以确认删除' });
+    }
+    
+    const user = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, userId!))
+      .get();
+    
+    if (!user || !await bcrypt.compare(password, user.password)) {
+      return res.status(401).json({ message: '密码错误' });
+    }
+
+    // 开启事务以确保数据一致性
+    await db.transaction(async (tx) => {
+      // 删除用户的所有点赞
+      await tx
+        .delete(articleLikes)
+        .where(eq(articleLikes.userId, userId!));
+      
+      if (deleteComments) {
+        // 删除用户的所有评论
+        await tx
+          .delete(comments)
+          .where(eq(comments.userId, userId!));
+      } else {
+        // 将评论标记为已删除用户
+        await tx
+          .update(comments)
+          .set({ userId: sql`NULL` })
+          .where(eq(comments.userId, userId!));
+      }
+      
+      if (deleteArticles) {
+        // 删除用户的所有文章
+        await tx
+          .delete(articlesTable)
+          .where(eq(articlesTable.authorId, userId!));
+      } else {
+        // 将文章标记为已删除用户
+        await tx
+          .update(articlesTable)
+          .set({ 
+            authorId: sql`NULL`,
+            status: 'pending' as const
+          })
+          .where(eq(articlesTable.authorId, userId!));
+      }
+      
+      // 最后删除用户
+      await tx
+        .delete(users)
+        .where(eq(users.id, userId!));
+    });
+    
+    // 删除用户头像文件
+    if (user.avatarUrl && !user.avatarUrl.includes('default.png')) {
+      const avatarPath = path.join(__dirname, '../../uploads/avatars', 
+        path.basename(user.avatarUrl));
+      fs.unlink(avatarPath, (err) => {
+        if (err) console.error('删除头像文件失败:', err);
+      });
+    }
+    
+    res.json({ message: '账号已删除' });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// 获取用户头像
+router.get('/:userId/avatar', async (req, res, next) => {
+  try {
+    const { userId } = req.params;
+    
+    const user = await db
+      .select({ avatarUrl: users.avatarUrl })
+      .from(users)
+      .where(eq(users.id, parseInt(userId)))
+      .get();
+
+    if (!user) {
+      return res.status(404).json({ message: '用户未找到' });
+    }
+
+    const avatarPath = user.avatarUrl 
+      ? path.join(__dirname, '../../uploads/avatars', user.avatarUrl)
+      : path.join(__dirname, '../../uploads/avatars/default.png');
+
+    // 检查文件是否存在
+    if (!fs.existsSync(avatarPath)) {
+      return res.status(404).json({ message: '头像文件未找到' });
+    }
+
+    // 设置正确的Content-Type
+    res.setHeader('Content-Type', 'image/jpeg');
+    
+    // 发送文件
+    res.sendFile(avatarPath);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// 检查用户状态中间件
+export const checkUserStatus = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const user = await db
+      .select({
+        id: users.id,
+        status: users.status,
+        banReason: users.banReason,
+        banExpireAt: users.banExpireAt
+      })
+      .from(users)
+      .where(eq(users.id, req.userId!))
+      .get();
+
+    if (!user) {
+      return res.status(404).json({ message: '用户未找到' });
+    }
+
+    if (user.status === 'banned') {
+      if (user.banExpireAt && new Date(user.banExpireAt) <= new Date()) {
+        // 解封过期的账号
+        await db
+          .update(users)
+          .set({ 
+            status: 'active',
+            banReason: null,
+            banExpireAt: null
+          })
+          .where(eq(users.id, req.userId!));
+      } else {
+        return res.status(403).json({ 
+          message: '账号已被封禁',
+          reason: user.banReason,
+          expireAt: user.banExpireAt
+        });
+      }
+    }
+    next();
+  } catch (error) {
+    next(error);
+  }
+};
+
+// 上传头像
+router.post('/avatar', authMiddleware, checkUserStatus, uploadAvatar, async (req: AuthRequest, res, next) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: '请选择头像图片' });
+    }
+
+    const user = await db
+      .select({
+        avatarUrl: users.avatarUrl
+      })
+      .from(users)
+      .where(eq(users.id, req.userId!))
+      .get();
+
+    if (!user) {
+      return res.status(404).json({ message: '用户未找到' });
+    }
+
+    // 删除旧头像
+    if (user.avatarUrl && !user.avatarUrl.includes('default.png')) {
+      const oldAvatarPath = path.join(__dirname, '../../uploads/avatars', 
+        path.basename(user.avatarUrl));
+      fs.unlink(oldAvatarPath, (err) => {
+        if (err) console.error('删除旧头像失败:', err);
+      });
+    }
+
+    const avatarUrl = `/uploads/avatars/${req.file.filename}`;
+    
+    await db
+      .update(users)
+      .set({ avatarUrl })
+      .where(eq(users.id, req.userId!));
+
+    res.json({ avatarUrl });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// 获取当前用户的文章列表
+router.get('/me/articles', authMiddleware, async (req: AuthRequest, res, next) => {
+  try {
+    const userArticles = await db
+      .select()
+      .from(articlesTable)
+      .where(eq(articlesTable.authorId, req.userId!))
+      .orderBy(desc(articlesTable.createdAt));
+    
+    res.json(userArticles);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// 获取用户列表（分页）
+router.get('/', async (req, res, next) => {
+  try {
+    const { page = 1, pageSize = 10 } = req.query;
+    const offset = (Number(page) - 1) * Number(pageSize);
+
+    // 并发查询：用户列表和总数
+    const [usersList, total] = await Promise.all([
+      db.select({
+        id: users.id,
+        username: users.username,
+        realName: users.realName,
+        bio: users.bio,
+        avatarUrl: users.avatarUrl,
+        createdAt: users.createdAt,
+        articleCount: sql<number>`count(distinct ${articlesTable.id})`,
+        commentCount: sql<number>`count(distinct ${comments.id})`
+      })
+        .from(users)
+        .leftJoin(articlesTable, eq(articlesTable.authorId, users.id))
+        .leftJoin(comments, eq(comments.userId, users.id))
+        .groupBy(users.id)
+        .orderBy(desc(users.createdAt))
+        .limit(Number(pageSize))
+        .offset(offset),
+      db.select({ count: sql<number>`count(*)` })
+        .from(users)
+    ]);
+
+    res.json({
+      items: usersList,
+      total: total[0].count,
+      page: Number(page),
+      pageSize: Number(pageSize)
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// 获取用户详情
+router.get('/:id', async (req, res, next) => {
+  try {
+    const userId = parseInt(req.params.id);
+    
+    if (isNaN(userId)) {
+      return res.status(400).json({ message: '无效的用户ID' });
+    }
+
+    const user = await db
+      .select({
+        id: users.id,
+        username: users.username,
+        realName: users.realName,
+        bio: users.bio,
+        avatarUrl: users.avatarUrl,
+        createdAt: users.createdAt,
+        articleCount: sql<number>`count(distinct ${articlesTable.id})`,
+        commentCount: sql<number>`count(distinct ${comments.id})`
+      })
+      .from(users)
+      .leftJoin(articlesTable, eq(articlesTable.authorId, users.id))
+      .leftJoin(comments, eq(comments.userId, users.id))
+      .where(eq(users.id, userId))
+      .groupBy(users.id)
+      .get();
+
+    if (!user) {
+      return res.status(404).json({ message: '用户不存在' });
+    }
+
+    res.json(user);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// 获取用户的文章列表
+router.get('/:id/articles', async (req, res, next) => {
+  try {
+    const userId = parseInt(req.params.id);
+    const { page = 1, pageSize = 10 } = req.query;
+    const offset = (Number(page) - 1) * Number(pageSize);
+
+    if (isNaN(userId)) {
+      return res.status(400).json({ message: '无效的用户ID' });
+    }
+
+    // 并发查询：文章列表和总数
+    const [articlesList, total] = await Promise.all([
+      db.select({
+        id: articlesTable.id,
+        title: articlesTable.title,
+        content: articlesTable.content,
+        imageUrl: articlesTable.imageUrl,
+        status: articlesTable.status,
+        viewCount: articlesTable.viewCount,
+        createdAt: articlesTable.createdAt,
+        updatedAt: articlesTable.updatedAt,
+        commentCount: sql<number>`count(distinct ${comments.id})`,
+        likeCount: sql<number>`count(distinct ${articleLikes.id})`
+      })
+        .from(articlesTable)
+        .leftJoin(comments, eq(comments.articleId, articlesTable.id))
+        .leftJoin(articleLikes, eq(articleLikes.articleId, articlesTable.id))
+        .where(eq(articlesTable.authorId, userId))
+        .groupBy(articlesTable.id)
+        .orderBy(desc(articlesTable.createdAt))
+        .limit(Number(pageSize))
+        .offset(offset),
+      db.select({ count: sql<number>`count(*)` })
+        .from(articlesTable)
+        .where(eq(articlesTable.authorId, userId))
+    ]);
+
+    res.json({
+      items: articlesList,
+      total: total[0].count,
+      page: Number(page),
+      pageSize: Number(pageSize)
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// 获取用户的评论列表
+router.get('/:id/comments', async (req, res, next) => {
+  try {
+    const userId = parseInt(req.params.id);
+    const { page = 1, pageSize = 10 } = req.query;
+    const offset = (Number(page) - 1) * Number(pageSize);
+
+    if (isNaN(userId)) {
+      return res.status(400).json({ message: '无效的用户ID' });
+    }
+
+    // 并发查询：评论列表和总数
+    const [commentsList, total] = await Promise.all([
+      db.select({
+        id: comments.id,
+        content: comments.content,
+        createdAt: comments.createdAt,
+        visibility: comments.visibility,
+        article: {
+          id: articlesTable.id,
+          title: articlesTable.title
+        }
+      })
+        .from(comments)
+        .leftJoin(articlesTable, eq(articlesTable.id, comments.articleId))
+        .where(eq(comments.userId, userId))
+        .orderBy(desc(comments.createdAt))
+        .limit(Number(pageSize))
+        .offset(offset),
+      db.select({ count: sql<number>`count(*)` })
+        .from(comments)
+        .where(eq(comments.userId, userId))
+    ]);
+
+    res.json({
+      items: commentsList,
+      total: total[0].count,
+      page: Number(page),
+      pageSize: Number(pageSize)
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+export const usersRouter = router; 
