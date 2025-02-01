@@ -9,6 +9,13 @@ declare global {
 		// interface PageData {}
 		// interface Platform {}
 	}
+
+	interface User {
+		id: string;
+		username: string;
+		email: string;
+		avatar?: string;
+	}
 }
 
 declare module "*.svelte" {

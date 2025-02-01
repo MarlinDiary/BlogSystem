@@ -4,21 +4,24 @@
   import '../styles/icon.css';
   import { auth } from '../stores/auth';
   import AuthModal from './AuthModal.svelte';
+  import AccountModal from './AccountModal.svelte';
   
   let showAuthModal = false;
+  let showAccountModal = false;
   let authMode: 'login' | 'register' = 'login';
   
   function handleAuth() {
-    if ($auth.isAuthenticated) {
-      auth.logout();
-    } else {
+    if (!$auth.isAuthenticated) {
       showAuthModal = true;
       authMode = 'login';
+    } else {
+      showAccountModal = true;
     }
   }
   
   function handleCloseModal() {
     showAuthModal = false;
+    showAccountModal = false;
   }
 </script>
 
@@ -47,5 +50,10 @@
 <AuthModal 
   isOpen={showAuthModal} 
   mode={authMode}
+  on:close={handleCloseModal}
+/> 
+
+<AccountModal
+  isOpen={showAccountModal}
   on:close={handleCloseModal}
 /> 
