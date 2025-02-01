@@ -34,8 +34,8 @@
 			<!-- 右侧按钮组 -->
 			<div class="flex items-center justify-end md:flex-1">
 				<div class="pointer-events-auto flex items-center gap-3">
-					<ThemeSwitcher />
 					<UserButton />
+					<ThemeSwitcher />
 				</div>
 			</div>
 		</div>
