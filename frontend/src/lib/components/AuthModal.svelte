@@ -77,7 +77,7 @@
     
     // 实时验证密码
     $: {
-        if (password) {
+        if (password && mode === 'register') {
             if (!/^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$/.test(password)) {
                 passwordError = '密码必须至少8位，且包含字母和数字';
             } else {
@@ -124,7 +124,8 @@
             return !usernameError && !passwordError && !realNameError && !dateOfBirthError &&
                    username && password && realName && dateOfBirth && !usernameExists;
         }
-        return !usernameError && !passwordError && username && password;
+        // 登录时只验证字段非空
+        return username && password;
     };
     
     // 监听isOpen变化，控制对话框显示状态
@@ -462,7 +463,7 @@
                         <button
                             type="submit"
                             class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-zinc-800 hover:bg-zinc-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-zinc-500 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-zinc-700 dark:hover:bg-zinc-600"
-                            disabled={loading || !validateForm()}
+                            disabled={loading || (mode === 'register' && !validateForm())}
                         >
                             {#if loading}
                                 <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
