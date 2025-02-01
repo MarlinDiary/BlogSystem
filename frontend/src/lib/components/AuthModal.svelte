@@ -113,7 +113,7 @@
                 aria-label="关闭对话框"
             ></button>
             <!-- 卡片 -->
-            <div class="relative bg-white/80 dark:bg-zinc-800/80 backdrop-blur-[2px] rounded-lg shadow-xl w-full max-w-md {isClosing ? 'modal-closing' : 'modal-open'}">
+            <div class="relative bg-white/70 dark:bg-zinc-800/70 backdrop-blur-[2px] rounded-lg shadow-2xl shadow-zinc-500/20 dark:shadow-zinc-900/30 w-full max-w-md {isClosing ? 'modal-closing' : 'modal-open'}">
                 <div class="p-6">
                     <!-- 关闭按钮 -->
                     <button 
@@ -239,11 +239,12 @@
                                 注册
                             </button>
                         {:else}
+                            <span class="text-zinc-600 dark:text-zinc-400">已有账户？</span>
                             <button
-                                class="text-zinc-900 hover:text-zinc-700 dark:text-zinc-300 dark:hover:text-zinc-100"
+                                class="text-zinc-900 hover:text-zinc-700 dark:text-zinc-300 dark:hover:text-zinc-100 underline underline-offset-2"
                                 on:click={toggleMode}
                             >
-                                已有账户？登录
+                                登录
                             </button>
                         {/if}
                     </div>
