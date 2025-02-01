@@ -16,7 +16,14 @@ dotenv.config();
 const app = express();
 const port = process.env.PORT || 3000;
 
-app.use(cors());
+// CORS 配置
+app.use(cors({
+  origin: ['http://localhost:5173', 'http://localhost:4173'], // 允许的前端域名
+  credentials: true, // 允许携带认证信息
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
 app.use(express.json());
 app.use('/uploads', express.static('uploads'));
 

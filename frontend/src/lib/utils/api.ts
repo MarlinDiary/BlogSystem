@@ -8,42 +8,103 @@ interface ApiOptions {
     method?: string;
     body?: any;
     headers?: Record<string, string>;
+    useStoredToken?: boolean;
 }
 
 export async function api(endpoint: string, options: ApiOptions = {}) {
-    const { method = 'GET', body, headers = {} } = options;
+    const { method = 'GET', body, headers = {}, useStoredToken = true } = options;
 
     // 获取认证token
-    const authState = get(auth);
-    if (authState.token) {
-        headers['Authorization'] = `Bearer ${authState.token}`;
+    if (useStoredToken) {
+        const storedToken = localStorage.getItem('token');
+        if (storedToken) {
+            headers['Authorization'] = `Bearer ${storedToken}`;
+        } else {
+            const authState = get(auth);
+            if (authState.token) {
+                headers['Authorization'] = `Bearer ${authState.token}`;
+            }
+        }
     }
 
     // 设置默认headers
     headers['Content-Type'] = 'application/json';
 
-    const response = await fetch(`${API_URL}${endpoint}`, {
-        method,
-        headers,
-        body: body ? JSON.stringify(body) : undefined,
-    });
+    try {
+        const url = `${API_URL}${endpoint}`;
+        console.log(`[API Request] ${method} ${url}`, {
+            headers,
+            body: body ? JSON.stringify(body) : undefined
+        });
 
-    const data = await response.json();
+        const response = await fetch(url, {
+            method,
+            headers,
+            body: body ? JSON.stringify(body) : undefined,
+            mode: 'cors',
+            credentials: 'include'
+        });
 
-    if (!response.ok) {
-        throw new Error(data.message || '请求失败');
+        console.log(`[API Response] ${method} ${url}`, {
+            status: response.status,
+            statusText: response.statusText,
+            headers: Object.fromEntries(response.headers.entries())
+        });
+
+        const data = await response.json().catch(() => {
+            console.error('[API Error] Failed to parse response as JSON');
+            return null;
+        });
+
+        console.log(`[API Data] ${method} ${url}`, data);
+
+        if (!response.ok) {
+            console.error('[API Error]', {
+                status: response.status,
+                statusText: response.statusText,
+                data
+            });
+            throw new Error(data?.message || `请求失败 (${response.status})`);
+        }
+
+        return data;
+    } catch (error) {
+        console.error('[API Request Failed]', {
+            endpoint,
+            method,
+            error: error instanceof Error ? {
+                name: error.name,
+                message: error.message,
+                stack: error.stack
+            } : error
+        });
+
+        if (error instanceof TypeError && error.message === 'Failed to fetch') {
+            throw new Error('无法连接到服务器，请检查网络连接或确认服务器是否正在运行');
+        }
+
+        if (error instanceof Error) {
+            throw error;
+        }
+        throw new Error('请求失败，请稍后重试');
     }
-
-    return data;
 }
 
 // 认证相关API
 export const authApi = {
     login: async (username: string, password: string) => {
-        return api('/api/auth/login', {
-            method: 'POST',
-            body: { username, password }
-        });
+        try {
+            console.log('[Auth] Attempting login', { username });
+            const result = await api('/api/auth/login', {
+                method: 'POST',
+                body: { username, password }
+            });
+            console.log('[Auth] Login successful', result);
+            return result;
+        } catch (error) {
+            console.error('[Auth] Login failed', error);
+            throw error;
+        }
     },
 
     register: async (userData: {
@@ -53,23 +114,65 @@ export const authApi = {
         dateOfBirth: string;
         bio?: string;
     }) => {
-        return api('/api/auth/register', {
-            method: 'POST',
-            body: userData
-        });
+        try {
+            console.log('[Auth] Attempting registration', { username: userData.username });
+            const result = await api('/api/auth/register', {
+                method: 'POST',
+                body: userData
+            });
+            console.log('[Auth] Registration successful', result);
+            return result;
+        } catch (error) {
+            console.error('[Auth] Registration failed', error);
+            throw error;
+        }
     },
 
     logout: async () => {
-        return api('/api/auth/logout', {
-            method: 'POST'
-        });
+        try {
+            console.log('[Auth] Attempting logout');
+            const result = await api('/api/auth/logout', {
+                method: 'POST'
+            });
+            console.log('[Auth] Logout successful');
+            return result;
+        } catch (error) {
+            console.error('[Auth] Logout failed', error);
+            throw error;
+        }
     },
 
     validateToken: async () => {
-        return api('/api/auth/validate');
+        const token = localStorage.getItem('token');
+        if (!token) {
+            console.log('[Auth] No token found for validation');
+            throw new Error('No token found');
+        }
+        try {
+            console.log('[Auth] Attempting token validation');
+            const result = await api('/api/auth/validate', {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                },
+                useStoredToken: false
+            });
+            console.log('[Auth] Token validation successful', result);
+            return result;
+        } catch (error) {
+            console.error('[Auth] Token validation failed', error);
+            throw error;
+        }
     },
 
     checkUsername: async (username: string) => {
-        return api(`/api/auth/check-username/${username}`);
+        try {
+            console.log('[Auth] Checking username availability', { username });
+            const result = await api(`/api/auth/check-username/${username}`);
+            console.log('[Auth] Username check result', result);
+            return result;
+        } catch (error) {
+            console.error('[Auth] Username check failed', error);
+            throw error;
+        }
     }
 }; 

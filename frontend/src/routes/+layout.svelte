@@ -13,11 +13,15 @@
 		{ href: '/about', text: '关于' }
 	];
 
-	onMount(() => {
-		auth.initialize();
+	let initialized = false;
+
+	onMount(async () => {
+		await auth.initialize();
+		initialized = true;
 	});
 </script>
 
+{#if initialized}
 <div class="relative">
 	<!-- 1. 网格背景 -->
 	<div class="pointer-events-none fixed inset-0 select-none bg-[url('/grid-black.svg')] bg-top bg-repeat dark:bg-[url('/grid.svg')]"></div>
@@ -38,3 +42,8 @@
 		</main>
 	</div>
 </div>
+{:else}
+<div class="fixed inset-0 flex items-center justify-center">
+	<div class="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-zinc-900 dark:border-white"></div>
+</div>
+{/if}

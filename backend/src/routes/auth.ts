@@ -189,7 +189,17 @@ router.post('/login', async (req, res, next) => {
       { expiresIn: '24h' }
     );
 
-    res.json({ token });
+    res.json({ 
+      token,
+      user: {
+        id: user.id,
+        username: user.username,
+        realName: user.realName,
+        dateOfBirth: user.dateOfBirth,
+        bio: user.bio,
+        createdAt: user.createdAt
+      }
+    });
   } catch (error) {
     next(error);
   }
@@ -252,6 +262,48 @@ router.get('/check-username/:username', async (req, res) => {
     res.json({ available: !existingUser });
   } catch (error) {
     res.status(500).json({ message: '检查用户名失败' });
+  }
+});
+
+/**
+ * @swagger
+ * /api/auth/validate:
+ *   get:
+ *     summary: 验证 token 并获取用户信息
+ *     description: 验证当前 token 的有效性并返回用户信息
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Token 有效，返回用户信息
+ *       401:
+ *         description: Token 无效或已过期
+ */
+router.get('/validate', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.userId;
+    if (!userId) {
+      return res.status(401).json({ message: 'Token 无效' });
+    }
+
+    const user = await db.select().from(users).where(eq(users.id, parseInt(userId))).get();
+    if (!user) {
+      return res.status(401).json({ message: '用户不存在' });
+    }
+
+    res.json({
+      user: {
+        id: user.id,
+        username: user.username,
+        realName: user.realName,
+        dateOfBirth: user.dateOfBirth,
+        bio: user.bio,
+        createdAt: user.createdAt
+      }
+    });
+  } catch (error) {
+    res.status(401).json({ message: 'Token 验证失败' });
   }
 });
 
