@@ -13,6 +13,49 @@ interface AuthRequest extends Request {
 
 const router = Router();
 
+/**
+ * @swagger
+ * /api/auth/register:
+ *   post:
+ *     summary: 用户注册
+ *     description: 创建新用户账号
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - username
+ *               - password
+ *               - realName
+ *               - dateOfBirth
+ *             properties:
+ *               username:
+ *                 type: string
+ *                 description: 用户名（6-20位字母、数字或下划线）
+ *               password:
+ *                 type: string
+ *                 description: 密码（至少8位，包含字母和数字）
+ *               realName:
+ *                 type: string
+ *                 description: 真实姓名
+ *               dateOfBirth:
+ *                 type: string
+ *                 format: date
+ *                 description: 出生日期
+ *               bio:
+ *                 type: string
+ *                 description: 个人简介
+ *     responses:
+ *       201:
+ *         description: 注册成功
+ *       400:
+ *         description: 请求参数错误
+ *       409:
+ *         description: 用户名已存在
+ */
 router.post('/register', async (req, res, next) => {
   try {
     const { username, password, realName, dateOfBirth, bio } = req.body;
@@ -96,6 +139,40 @@ router.post('/register', async (req, res, next) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/auth/login:
+ *   post:
+ *     summary: 用户登录
+ *     description: 使用用户名和密码登录
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - username
+ *               - password
+ *             properties:
+ *               username:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: 登录成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 token:
+ *                   type: string
+ *       401:
+ *         description: 用户名或密码错误
+ */
 router.post('/login', async (req, res, next) => {
   try {
     const { username, password } = req.body;
@@ -118,11 +195,51 @@ router.post('/login', async (req, res, next) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/auth/logout:
+ *   post:
+ *     summary: 用户登出
+ *     description: 登出当前用户
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: 登出成功
+ *       401:
+ *         description: 未授权
+ */
 router.post('/logout', authMiddleware, (req: AuthRequest, res) => {
   // 由于使用 JWT，客户端需要删除 token
   res.json({ message: '登出成功' });
 });
 
+/**
+ * @swagger
+ * /api/auth/check-username/{username}:
+ *   get:
+ *     summary: 检查用户名是否可用
+ *     description: 检查指定的用户名是否已被注册
+ *     tags: [Auth]
+ *     parameters:
+ *       - in: path
+ *         name: username
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: 要检查的用户名
+ *     responses:
+ *       200:
+ *         description: 检查结果
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 available:
+ *                   type: boolean
+ */
 router.get('/check-username/:username', async (req, res) => {
   try {
     const { username } = req.params;

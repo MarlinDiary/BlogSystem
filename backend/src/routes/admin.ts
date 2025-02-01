@@ -6,13 +6,78 @@ import { isAdmin, authMiddleware } from '../middleware/auth';
 import path from 'path';
 import fs from 'fs';
 
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     AdminStats:
+ *       type: object
+ *       properties:
+ *         users:
+ *           type: object
+ *           properties:
+ *             total:
+ *               type: integer
+ *             active:
+ *               type: integer
+ *             banned:
+ *               type: integer
+ *         articles:
+ *           type: object
+ *           properties:
+ *             total:
+ *               type: integer
+ *             published:
+ *               type: integer
+ *             pending:
+ *               type: integer
+ *             totalViews:
+ *               type: integer
+ *         comments:
+ *           type: object
+ *           properties:
+ *             total:
+ *               type: integer
+ *             visible:
+ *               type: integer
+ *             hidden:
+ *               type: integer
+ *         likes:
+ *           type: object
+ *           properties:
+ *             total:
+ *               type: integer
+ */
+
 const router = Router();
 
 // 所有管理员路由都需要身份验证和管理员权限
 router.use(authMiddleware);
 router.use(isAdmin);
 
-// 获取所有用户列表（优化为 Java Swing 显示）
+/**
+ * @swagger
+ * /api/admin/users:
+ *   get:
+ *     summary: 获取所有用户列表
+ *     description: 获取系统中所有用户的详细信息（管理员专用）
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: 成功返回用户列表
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/User'
+ *       401:
+ *         description: 未授权
+ *       403:
+ *         description: 无管理员权限
+ */
 router.get('/users', async (req, res) => {
   try {
     const usersWithStats = await db
@@ -45,7 +110,36 @@ router.get('/users', async (req, res) => {
   }
 });
 
-// 获取单个用户详情
+/**
+ * @swagger
+ * /api/admin/users/{id}:
+ *   get:
+ *     summary: 获取用户详情
+ *     description: 获取指定用户的详细信息（管理员专用）
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 用户ID
+ *     responses:
+ *       200:
+ *         description: 成功返回用户详情
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/User'
+ *       401:
+ *         description: 未授权
+ *       403:
+ *         description: 无管理员权限
+ *       404:
+ *         description: 用户不存在
+ */
 router.get('/users/:id', async (req, res) => {
   try {
     const userId = parseInt(req.params.id);
@@ -83,7 +177,32 @@ router.get('/users/:id', async (req, res) => {
   }
 });
 
-// 删除用户
+/**
+ * @swagger
+ * /api/admin/users/{id}:
+ *   delete:
+ *     summary: 删除用户
+ *     description: 删除指定用户及其相关数据（管理员专用）
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 用户ID
+ *     responses:
+ *       200:
+ *         description: 用户删除成功
+ *       401:
+ *         description: 未授权
+ *       403:
+ *         description: 无管理员权限
+ *       404:
+ *         description: 用户不存在
+ */
 router.delete('/users/:id', async (req, res) => {
   const userId = parseInt(req.params.id);
   
@@ -109,7 +228,27 @@ router.delete('/users/:id', async (req, res) => {
   }
 });
 
-// 获取站点统计数据
+/**
+ * @swagger
+ * /api/admin/stats:
+ *   get:
+ *     summary: 获取系统统计信息
+ *     description: 获取系统的各项统计数据（管理员专用）
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: 成功返回统计信息
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/AdminStats'
+ *       401:
+ *         description: 未授权
+ *       403:
+ *         description: 无管理员权限
+ */
 router.get('/stats', async (req, res) => {
   try {
     // 用户统计
@@ -174,7 +313,46 @@ router.get('/stats', async (req, res) => {
   }
 });
 
-// 封禁用户
+/**
+ * @swagger
+ * /api/admin/users/{id}/ban:
+ *   post:
+ *     summary: 封禁用户
+ *     description: 封禁指定用户（管理员专用）
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 用户ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - reason
+ *               - duration
+ *             properties:
+ *               reason:
+ *                 type: string
+ *                 description: 封禁原因
+ *               duration:
+ *                 type: integer
+ *                 description: 封禁时长（小时）
+ *     responses:
+ *       200:
+ *         description: 用户封禁成功
+ *       401:
+ *         description: 未授权
+ *       403:
+ *         description: 无管理员权限
+ */
 router.post('/users/:id/ban', async (req, res) => {
   try {
     const { reason, duration } = req.body; // duration in hours
@@ -201,7 +379,30 @@ router.post('/users/:id/ban', async (req, res) => {
   }
 });
 
-// 解封用户
+/**
+ * @swagger
+ * /api/admin/users/{id}/unban:
+ *   post:
+ *     summary: 解封用户
+ *     description: 解除指定用户的封禁状态（管理员专用）
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 用户ID
+ *     responses:
+ *       200:
+ *         description: 用户解封成功
+ *       401:
+ *         description: 未授权
+ *       403:
+ *         description: 无管理员权限
+ */
 router.post('/users/:id/unban', async (req, res) => {
   try {
     const userId = parseInt(req.params.id);
@@ -221,7 +422,261 @@ router.post('/users/:id/unban', async (req, res) => {
   }
 });
 
-// 审核文章
+/**
+ * @swagger
+ * /api/admin/articles:
+ *   get:
+ *     summary: 获取所有文章列表
+ *     description: 获取系统中所有文章的详细信息（管理员专用）
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [draft, published, pending, rejected]
+ *         description: 文章状态过滤
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *         description: 页码
+ *       - in: query
+ *         name: pageSize
+ *         schema:
+ *           type: integer
+ *         description: 每页数量
+ *     responses:
+ *       200:
+ *         description: 成功返回文章列表
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 items:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Article'
+ *                 total:
+ *                   type: integer
+ *                 page:
+ *                   type: integer
+ *                 pageSize:
+ *                   type: integer
+ *       401:
+ *         description: 未授权
+ *       403:
+ *         description: 无管理员权限
+ */
+router.get('/articles', async (req, res) => {
+  // ... existing code ...
+});
+
+/**
+ * @swagger
+ * /api/admin/articles/{id}:
+ *   get:
+ *     summary: 获取文章详情
+ *     description: 获取指定文章的详细信息（管理员专用）
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 文章ID
+ *     responses:
+ *       200:
+ *         description: 成功返回文章详情
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Article'
+ *       401:
+ *         description: 未授权
+ *       403:
+ *         description: 无管理员权限
+ *       404:
+ *         description: 文章不存在
+ */
+router.get('/articles/:id', async (req, res) => {
+  // ... existing code ...
+});
+
+/**
+ * @swagger
+ * /api/admin/comments:
+ *   get:
+ *     summary: 获取所有评论列表
+ *     description: 获取系统中所有评论的详细信息（管理员专用）
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: visibility
+ *         schema:
+ *           type: integer
+ *           enum: [0, 1]
+ *         description: 评论可见性过滤
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *         description: 页码
+ *       - in: query
+ *         name: pageSize
+ *         schema:
+ *           type: integer
+ *         description: 每页数量
+ *     responses:
+ *       200:
+ *         description: 成功返回评论列表
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 items:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Comment'
+ *                 total:
+ *                   type: integer
+ *                 page:
+ *                   type: integer
+ *                 pageSize:
+ *                   type: integer
+ *       401:
+ *         description: 未授权
+ *       403:
+ *         description: 无管理员权限
+ */
+router.get('/comments', async (req, res) => {
+  // ... existing code ...
+});
+
+/**
+ * @swagger
+ * /api/admin/comments/{id}:
+ *   delete:
+ *     summary: 删除评论
+ *     description: 删除指定评论（管理员专用）
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 评论ID
+ *     responses:
+ *       200:
+ *         description: 评论删除成功
+ *       401:
+ *         description: 未授权
+ *       403:
+ *         description: 无管理员权限
+ *       404:
+ *         description: 评论不存在
+ */
+router.delete('/comments/:id', async (req, res) => {
+  // ... existing code ...
+});
+
+/**
+ * @swagger
+ * /api/admin/comments/{id}/visibility:
+ *   patch:
+ *     summary: 更新评论可见性
+ *     description: 更新指定评论的可见性（管理员专用）
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 评论ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - visibility
+ *             properties:
+ *               visibility:
+ *                 type: integer
+ *                 enum: [0, 1]
+ *     responses:
+ *       200:
+ *         description: 可见性更新成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Comment'
+ *       401:
+ *         description: 未授权
+ *       403:
+ *         description: 无管理员权限
+ *       404:
+ *         description: 评论不存在
+ */
+router.patch('/comments/:id/visibility', async (req, res) => {
+  // ... existing code ...
+});
+
+/**
+ * @swagger
+ * /api/admin/articles/{id}/review:
+ *   post:
+ *     summary: 审核文章
+ *     description: 审核指定文章（管理员专用）
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 文章ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - status
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [published, rejected]
+ *               reason:
+ *                 type: string
+ *                 description: 审核意见（拒绝时必填）
+ *     responses:
+ *       200:
+ *         description: 文章审核成功
+ *       401:
+ *         description: 未授权
+ *       403:
+ *         description: 无管理员权限
+ */
 router.post('/articles/:id/review', async (req, res) => {
   try {
     const { status, reason } = req.body;
@@ -246,7 +701,30 @@ router.post('/articles/:id/review', async (req, res) => {
   }
 });
 
-// 删除文章（管理员权限）
+/**
+ * @swagger
+ * /api/admin/articles/{id}:
+ *   delete:
+ *     summary: 删除文章
+ *     description: 删除指定文章及其相关数据（管理员专用）
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 文章ID
+ *     responses:
+ *       200:
+ *         description: 文章删除成功
+ *       401:
+ *         description: 未授权
+ *       403:
+ *         description: 无管理员权限
+ */
 router.delete('/articles/:id', async (req, res) => {
   try {
     const articleId = parseInt(req.params.id);
@@ -289,26 +767,36 @@ router.delete('/articles/:id', async (req, res) => {
   }
 });
 
-// 删除评论（管理员权限）
-router.delete('/comments/:id', async (req, res) => {
-  try {
-    const commentId = parseInt(req.params.id);
-    
-    if (isNaN(commentId)) {
-      return res.status(400).json({ message: '无效的评论ID' });
-    }
-
-    await db
-      .delete(comments)
-      .where(eq(comments.id, commentId));
-
-    res.json({ message: '评论已删除' });
-  } catch (error) {
-    res.status(500).json({ error: '删除评论失败' });
-  }
-});
-
-// 批量删除评论（管理员权限）
+/**
+ * @swagger
+ * /api/admin/comments/batch-delete:
+ *   post:
+ *     summary: 批量删除评论
+ *     description: 批量删除多个评论（管理员专用）
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - commentIds
+ *             properties:
+ *               commentIds:
+ *                 type: array
+ *                 items:
+ *                   type: integer
+ *     responses:
+ *       200:
+ *         description: 评论批量删除成功
+ *       401:
+ *         description: 未授权
+ *       403:
+ *         description: 无管理员权限
+ */
 router.post('/comments/batch-delete', async (req, res) => {
   try {
     const { commentIds } = req.body;
@@ -327,7 +815,36 @@ router.post('/comments/batch-delete', async (req, res) => {
   }
 });
 
-// 批量删除文章（管理员权限）
+/**
+ * @swagger
+ * /api/admin/articles/batch-delete:
+ *   post:
+ *     summary: 批量删除文章
+ *     description: 批量删除多篇文章及其相关数据（管理员专用）
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - articleIds
+ *             properties:
+ *               articleIds:
+ *                 type: array
+ *                 items:
+ *                   type: integer
+ *     responses:
+ *       200:
+ *         description: 文章批量删除成功
+ *       401:
+ *         description: 未授权
+ *       403:
+ *         description: 无管理员权限
+ */
 router.post('/articles/batch-delete', async (req, res) => {
   try {
     const { articleIds } = req.body;
@@ -380,7 +897,32 @@ router.post('/articles/batch-delete', async (req, res) => {
   }
 });
 
-// 提升为管理员
+/**
+ * @swagger
+ * /api/admin/users/{id}/promote:
+ *   post:
+ *     summary: 提升为管理员
+ *     description: 将指定用户提升为管理员（仅超级管理员可操作）
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 用户ID
+ *     responses:
+ *       200:
+ *         description: 成功设置为管理员
+ *       401:
+ *         description: 未授权
+ *       403:
+ *         description: 无管理员权限
+ *       404:
+ *         description: 用户不存在
+ */
 router.post('/users/:id/promote', isAdmin, async (req, res) => {
   try {
     const userId = parseInt(req.params.id);
@@ -407,7 +949,32 @@ router.post('/users/:id/promote', isAdmin, async (req, res) => {
   }
 });
 
-// 撤销管理员权限
+/**
+ * @swagger
+ * /api/admin/users/{id}/demote:
+ *   post:
+ *     summary: 撤销管理员权限
+ *     description: 撤销指定用户的管理员权限（仅超级管理员可操作）
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 用户ID
+ *     responses:
+ *       200:
+ *         description: 成功撤销管理员权限
+ *       400:
+ *         description: 系统必须保留至少一个管理员
+ *       401:
+ *         description: 未授权
+ *       403:
+ *         description: 无管理员权限
+ */
 router.post('/users/:id/demote', isAdmin, async (req, res) => {
   try {
     const userId = parseInt(req.params.id);
@@ -433,7 +1000,47 @@ router.post('/users/:id/demote', isAdmin, async (req, res) => {
   }
 });
 
-// 设置/撤销管理员权限
+/**
+ * @swagger
+ * /api/admin/users/{id}/role:
+ *   put:
+ *     summary: 设置用户角色
+ *     description: 设置或修改用户的角色（管理员/普通用户）
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 用户ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - role
+ *             properties:
+ *               role:
+ *                 type: string
+ *                 enum: [user, admin]
+ *                 description: 用户角色
+ *     responses:
+ *       200:
+ *         description: 角色设置成功
+ *       400:
+ *         description: 无效的角色类型
+ *       401:
+ *         description: 未授权
+ *       403:
+ *         description: 无管理员权限
+ *       404:
+ *         description: 用户不存在
+ */
 router.put('/users/:id/role', async (req, res) => {
   try {
     const userId = parseInt(req.params.id);

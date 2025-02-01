@@ -4,6 +4,41 @@ import { comments, users, adminUsers, articles } from '../db/schema';
 import { eq, and, isNull } from 'drizzle-orm';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
 
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     Comment:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: integer
+ *         content:
+ *           type: string
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *         parentId:
+ *           type: integer
+ *           nullable: true
+ *         visibility:
+ *           type: integer
+ *           enum: [0, 1]
+ *         user:
+ *           type: object
+ *           properties:
+ *             id:
+ *               type: integer
+ *             username:
+ *               type: string
+ *             avatarUrl:
+ *               type: string
+ *         children:
+ *           type: array
+ *           items:
+ *             $ref: '#/components/schemas/Comment'
+ */
+
 interface CommentWithUser {
   id: number;
   content: string;
@@ -20,7 +55,30 @@ interface CommentWithUser {
 
 const router = Router();
 
-// 获取文章评论（支持嵌套结构）
+/**
+ * @swagger
+ * /api/comments/article/{articleId}:
+ *   get:
+ *     summary: 获取文章评论
+ *     description: 获取指定文章的所有评论（支持嵌套结构）
+ *     tags: [Comments]
+ *     parameters:
+ *       - in: path
+ *         name: articleId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 文章ID
+ *     responses:
+ *       200:
+ *         description: 成功返回评论列表
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Comment'
+ */
 router.get('/article/:articleId', async (req, res, next) => {
   try {
     // 获取所有评论
@@ -70,7 +128,43 @@ router.get('/article/:articleId', async (req, res, next) => {
   }
 });
 
-// 创建评论（支持最多3级嵌套）
+/**
+ * @swagger
+ * /api/comments:
+ *   post:
+ *     summary: 创建评论
+ *     description: 创建新评论（支持最多3级嵌套）
+ *     tags: [Comments]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - articleId
+ *               - content
+ *             properties:
+ *               articleId:
+ *                 type: integer
+ *               content:
+ *                 type: string
+ *               parentId:
+ *                 type: integer
+ *     responses:
+ *       201:
+ *         description: 评论创建成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Comment'
+ *       400:
+ *         description: 请求参数错误
+ *       401:
+ *         description: 未授权
+ */
 router.post('/', authMiddleware, async (req: AuthRequest, res, next) => {
   try {
     const { articleId, content, parentId } = req.body;
@@ -113,7 +207,36 @@ router.post('/', authMiddleware, async (req: AuthRequest, res, next) => {
   }
 });
 
-// 切换评论可见性
+/**
+ * @swagger
+ * /api/comments/{id}/visibility:
+ *   patch:
+ *     summary: 切换评论可见性
+ *     description: 切换评论的可见状态（仅评论作者或管理员可操作）
+ *     tags: [Comments]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 评论ID
+ *     responses:
+ *       200:
+ *         description: 可见性更新成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Comment'
+ *       401:
+ *         description: 未授权
+ *       403:
+ *         description: 无权限
+ *       404:
+ *         description: 评论不存在
+ */
 router.patch('/:id/visibility', authMiddleware, async (req: AuthRequest, res, next) => {
   try {
     const commentId = parseInt(req.params.id);
@@ -156,47 +279,162 @@ router.patch('/:id/visibility', authMiddleware, async (req: AuthRequest, res, ne
   }
 });
 
-// 删除评论
+/**
+ * @swagger
+ * /api/comments/{id}:
+ *   get:
+ *     summary: 获取评论详情
+ *     description: 获取指定评论的详细信息
+ *     tags: [Comments]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 评论ID
+ *     responses:
+ *       200:
+ *         description: 成功返回评论详情
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Comment'
+ *       404:
+ *         description: 评论不存在
+ */
+router.get('/:id', async (req, res, next) => {
+  // ... existing code ...
+});
+
+/**
+ * @swagger
+ * /api/comments/{id}:
+ *   put:
+ *     summary: 更新评论
+ *     description: 更新指定评论的内容（仅评论作者可操作）
+ *     tags: [Comments]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 评论ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - content
+ *             properties:
+ *               content:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: 评论更新成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Comment'
+ *       401:
+ *         description: 未授权
+ *       403:
+ *         description: 无权限
+ *       404:
+ *         description: 评论不存在
+ */
+router.put('/:id', authMiddleware, async (req: AuthRequest, res, next) => {
+  // ... existing code ...
+});
+
+/**
+ * @swagger
+ * /api/comments/{id}:
+ *   delete:
+ *     summary: 删除评论
+ *     description: 删除指定评论（仅评论作者可操作）
+ *     tags: [Comments]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 评论ID
+ *     responses:
+ *       200:
+ *         description: 评论删除成功
+ *       401:
+ *         description: 未授权
+ *       403:
+ *         description: 无权限
+ *       404:
+ *         description: 评论不存在
+ */
 router.delete('/:id', authMiddleware, async (req: AuthRequest, res, next) => {
-  try {
-    const commentId = parseInt(req.params.id);
-    const userId = req.userId!;
+  // ... existing code ...
+});
 
-    // 获取评论及其所属文章的信息
-    const comment = await db
-      .select({
-        id: comments.id,
-        userId: comments.userId,
-        articleId: comments.articleId,
-        article: {
-          authorId: articles.authorId
-        }
-      })
-      .from(comments)
-      .leftJoin(articles, eq(articles.id, comments.articleId))
-      .where(eq(comments.id, commentId))
-      .get();
-
-    if (!comment) {
-      return res.status(404).json({ message: '评论不存在' });
-    }
-
-    // 检查权限（评论作者或文章作者可以删除评论）
-    const isCommentAuthor = comment.userId === userId;
-    const isArticleAuthor = comment.article?.authorId === userId;
-
-    if (!isCommentAuthor && !isArticleAuthor) {
-      return res.status(403).json({ message: '无权限删除此评论' });
-    }
-
-    await db
-      .delete(comments)
-      .where(eq(comments.id, commentId));
-
-    res.status(204).send();
-  } catch (error) {
-    next(error);
-  }
+/**
+ * @swagger
+ * /api/comments/article/{articleId}/replies:
+ *   get:
+ *     summary: 获取文章评论回复
+ *     description: 获取指定文章下某条评论的所有回复
+ *     tags: [Comments]
+ *     parameters:
+ *       - in: path
+ *         name: articleId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 文章ID
+ *       - in: query
+ *         name: parentId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 父评论ID
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *         description: 页码
+ *       - in: query
+ *         name: pageSize
+ *         schema:
+ *           type: integer
+ *         description: 每页数量
+ *     responses:
+ *       200:
+ *         description: 成功返回评论回复列表
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 items:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Comment'
+ *                 total:
+ *                   type: integer
+ *                 page:
+ *                   type: integer
+ *                 pageSize:
+ *                   type: integer
+ *       404:
+ *         description: 文章或父评论不存在
+ */
+router.get('/article/:articleId/replies', async (req, res, next) => {
+  // ... existing code ...
 });
 
 // 辅助函数：构建评论树

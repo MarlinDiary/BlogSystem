@@ -12,6 +12,53 @@ import sanitizeHtml from 'sanitize-html';
 
 const router = Router();
 
+/**
+ * @swagger
+ * /api/articles:
+ *   get:
+ *     summary: 获取文章列表
+ *     description: 获取所有文章，支持搜索、排序和分页
+ *     tags: [Articles]
+ *     parameters:
+ *       - in: query
+ *         name: keyword
+ *         schema:
+ *           type: string
+ *         description: 搜索关键词
+ *       - in: query
+ *         name: sort
+ *         schema:
+ *           type: string
+ *         description: 排序方式 (newest, title, views, likes)
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *         description: 页码
+ *       - in: query
+ *         name: pageSize
+ *         schema:
+ *           type: integer
+ *         description: 每页数量
+ *     responses:
+ *       200:
+ *         description: 成功返回文章列表
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 items:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Article'
+ *                 total:
+ *                   type: integer
+ *                 page:
+ *                   type: integer
+ *                 pageSize:
+ *                   type: integer
+ */
 // 获取所有文章（支持搜索和排序）
 router.get('/', async (req, res, next) => {
   try {
@@ -131,6 +178,41 @@ router.get('/', async (req, res, next) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/articles:
+ *   post:
+ *     summary: 创建新文章
+ *     description: 创建一篇新文章
+ *     tags: [Articles]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - title
+ *               - content
+ *             properties:
+ *               title:
+ *                 type: string
+ *               content:
+ *                 type: string
+ *               htmlContent:
+ *                 type: string
+ *               imageUrl:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: 文章创建成功
+ *       400:
+ *         description: 请求参数错误
+ *       401:
+ *         description: 未授权
+ */
 // 创建文章
 router.post('/', authMiddleware, async (req: AuthRequest, res, next) => {
   try {
@@ -159,7 +241,30 @@ router.post('/', authMiddleware, async (req: AuthRequest, res, next) => {
   }
 });
 
-// 获取单个文章
+/**
+ * @swagger
+ * /api/articles/{id}:
+ *   get:
+ *     summary: 获取文章详情
+ *     description: 获取指定文章的详细信息
+ *     tags: [Articles]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 文章ID
+ *     responses:
+ *       200:
+ *         description: 成功返回文章详情
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Article'
+ *       404:
+ *         description: 文章不存在
+ */
 router.get('/:id', async (req, res, next) => {
   try {
     const article = await db
@@ -178,7 +283,51 @@ router.get('/:id', async (req, res, next) => {
   }
 });
 
-// 更新文章
+/**
+ * @swagger
+ * /api/articles/{id}:
+ *   put:
+ *     summary: 更新文章
+ *     description: 更新指定文章的内容（仅作者可操作）
+ *     tags: [Articles]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 文章ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               title:
+ *                 type: string
+ *               content:
+ *                 type: string
+ *               htmlContent:
+ *                 type: string
+ *               imageUrl:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: 文章更新成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Article'
+ *       401:
+ *         description: 未授权
+ *       403:
+ *         description: 无权限
+ *       404:
+ *         description: 文章不存在
+ */
 router.put('/:id', authMiddleware, async (req: AuthRequest, res, next) => {
   try {
     const { title, content, imageUrl } = req.body;
@@ -216,7 +365,32 @@ router.put('/:id', authMiddleware, async (req: AuthRequest, res, next) => {
   }
 });
 
-// 删除文章
+/**
+ * @swagger
+ * /api/articles/{id}:
+ *   delete:
+ *     summary: 删除文章
+ *     description: 删除指定文章（仅作者可操作）
+ *     tags: [Articles]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 文章ID
+ *     responses:
+ *       200:
+ *         description: 文章删除成功
+ *       401:
+ *         description: 未授权
+ *       403:
+ *         description: 无权限
+ *       404:
+ *         description: 文章不存在
+ */
 router.delete('/:id', authMiddleware, async (req: AuthRequest, res, next) => {
   try {
     const userId = req.userId;
@@ -279,7 +453,41 @@ router.get('/:id/like', authMiddleware, async (req: AuthRequest, res, next) => {
   }
 });
 
-// 点赞/取消点赞文章
+/**
+ * @swagger
+ * /api/articles/{id}/like:
+ *   post:
+ *     summary: 点赞文章
+ *     description: 为指定文章点赞或取消点赞
+ *     tags: [Articles]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 文章ID
+ *     responses:
+ *       200:
+ *         description: 操作成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 liked:
+ *                   type: boolean
+ *                   description: 当前点赞状态
+ *                 likeCount:
+ *                   type: integer
+ *                   description: 当前点赞数
+ *       401:
+ *         description: 未授权
+ *       404:
+ *         description: 文章不存在
+ */
 router.post('/:id/like', authMiddleware, async (req: AuthRequest, res, next) => {
   try {
     const userId = req.userId;
@@ -489,8 +697,49 @@ router.get('/:id/likes', async (req, res, next) => {
   }
 });
 
-// 更新文章状态
-router.patch('/:id/status', authMiddleware, async (req: AuthRequest, res) => {
+/**
+ * @swagger
+ * /api/articles/{id}/status:
+ *   patch:
+ *     summary: 更新文章状态
+ *     description: 更新指定文章的状态（仅管理员可操作）
+ *     tags: [Articles]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 文章ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - status
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [draft, published, pending, rejected]
+ *     responses:
+ *       200:
+ *         description: 状态更新成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Article'
+ *       401:
+ *         description: 未授权
+ *       403:
+ *         description: 无权限
+ *       404:
+ *         description: 文章不存在
+ */
+router.patch('/:id/status', authMiddleware, async (req: AuthRequest, res, next) => {
   try {
     const { status } = req.body;
     const articleId = parseInt(req.params.id);
@@ -559,5 +808,44 @@ router.post('/preview', async (req, res) => {
     res.status(500).json({ message: 'Markdown 预览生成失败' });
   }
 });
+
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     Article:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: integer
+ *         title:
+ *           type: string
+ *         content:
+ *           type: string
+ *         htmlContent:
+ *           type: string
+ *         imageUrl:
+ *           type: string
+ *         status:
+ *           type: string
+ *           enum: [published, draft, pending, rejected]
+ *         viewCount:
+ *           type: integer
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *         updatedAt:
+ *           type: string
+ *           format: date-time
+ *         author:
+ *           type: object
+ *           properties:
+ *             id:
+ *               type: integer
+ *             username:
+ *               type: string
+ *             avatarUrl:
+ *               type: string
+ */
 
 export const articlesRouter = router;

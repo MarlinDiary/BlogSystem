@@ -6,13 +6,61 @@ import { authMiddleware, AuthRequest } from '../middleware/auth';
 import bcrypt from 'bcrypt';
 import path from 'path';
 import fs from 'fs';
-import { uploadAvatar } from '../middleware/upload';
+import { upload } from '../middleware/upload';
 import { Response, NextFunction } from 'express';
 import { articles as articlesTable, articleLikes, comments } from '../db/schema';
 
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     User:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: integer
+ *         username:
+ *           type: string
+ *         realName:
+ *           type: string
+ *         dateOfBirth:
+ *           type: string
+ *           format: date
+ *         bio:
+ *           type: string
+ *         avatarUrl:
+ *           type: string
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *         status:
+ *           type: string
+ *           enum: [active, banned]
+ */
+
 const router = Router();
 
-// 获取用户信息
+/**
+ * @swagger
+ * /api/users/me:
+ *   get:
+ *     summary: 获取当前用户信息
+ *     description: 获取已登录用户的详细信息
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: 成功返回用户信息
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/User'
+ *       401:
+ *         description: 未授权
+ *       404:
+ *         description: 用户未找到
+ */
 router.get('/me', authMiddleware, async (req: AuthRequest, res, next) => {
   try {
     const user = await db
@@ -39,7 +87,45 @@ router.get('/me', authMiddleware, async (req: AuthRequest, res, next) => {
   }
 });
 
-// 更新用户信息
+/**
+ * @swagger
+ * /api/users/me:
+ *   put:
+ *     summary: 更新当前用户信息
+ *     description: 更新已登录用户的个人信息
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               username:
+ *                 type: string
+ *               realName:
+ *                 type: string
+ *               dateOfBirth:
+ *                 type: string
+ *                 format: date
+ *               bio:
+ *                 type: string
+ *               avatarUrl:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: 更新成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/User'
+ *       400:
+ *         description: 请求参数错误
+ *       401:
+ *         description: 未授权
+ */
 router.put('/me', authMiddleware, async (req: AuthRequest, res, next) => {
   try {
     const { username, realName, dateOfBirth, bio, avatarUrl } = req.body;
@@ -80,7 +166,40 @@ router.put('/me', authMiddleware, async (req: AuthRequest, res, next) => {
   }
 });
 
-// 删除用户
+/**
+ * @swagger
+ * /api/users/me:
+ *   delete:
+ *     summary: 删除当前用户账号
+ *     description: 删除已登录用户的账号及相关数据
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - password
+ *             properties:
+ *               password:
+ *                 type: string
+ *               deleteArticles:
+ *                 type: boolean
+ *                 default: true
+ *               deleteComments:
+ *                 type: boolean
+ *                 default: true
+ *     responses:
+ *       200:
+ *         description: 账号删除成功
+ *       400:
+ *         description: 请求参数错误
+ *       401:
+ *         description: 未授权或密码错误
+ */
 router.delete('/me', authMiddleware, async (req: AuthRequest, res, next) => {
   try {
     const userId = req.userId;
@@ -158,7 +277,31 @@ router.delete('/me', authMiddleware, async (req: AuthRequest, res, next) => {
   }
 });
 
-// 获取用户头像
+/**
+ * @swagger
+ * /api/users/{userId}/avatar:
+ *   get:
+ *     summary: 获取用户头像
+ *     description: 获取指定用户的头像图片
+ *     tags: [Users]
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 用户ID
+ *     responses:
+ *       200:
+ *         description: 成功返回头像图片
+ *         content:
+ *           image/jpeg:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *       404:
+ *         description: 用户或头像未找到
+ */
 router.get('/:userId/avatar', async (req, res, next) => {
   try {
     const { userId } = req.params;
@@ -235,8 +378,41 @@ export const checkUserStatus = async (req: AuthRequest, res: Response, next: Nex
   }
 };
 
-// 上传头像
-router.post('/avatar', authMiddleware, checkUserStatus, uploadAvatar, async (req: AuthRequest, res, next) => {
+/**
+ * @swagger
+ * /api/users/avatar:
+ *   post:
+ *     summary: 上传用户头像
+ *     description: 上传或更新当前用户的头像
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               avatar:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: 头像上传成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 avatarUrl:
+ *                   type: string
+ *       400:
+ *         description: 请求参数错误
+ *       401:
+ *         description: 未授权
+ */
+router.post('/avatar', authMiddleware, checkUserStatus, upload.single('avatar'), async (req: AuthRequest, res, next) => {
   try {
     if (!req.file) {
       return res.status(400).json({ message: '请选择头像图片' });
@@ -276,7 +452,27 @@ router.post('/avatar', authMiddleware, checkUserStatus, uploadAvatar, async (req
   }
 });
 
-// 获取当前用户的文章列表
+/**
+ * @swagger
+ * /api/users/me/articles:
+ *   get:
+ *     summary: 获取当前用户的文章列表
+ *     description: 获取已登录用户发布的所有文章
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: 成功返回文章列表
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Article'
+ *       401:
+ *         description: 未授权
+ */
 router.get('/me/articles', authMiddleware, async (req: AuthRequest, res, next) => {
   try {
     const userArticles = await db
@@ -291,7 +487,45 @@ router.get('/me/articles', authMiddleware, async (req: AuthRequest, res, next) =
   }
 });
 
-// 获取用户列表（分页）
+/**
+ * @swagger
+ * /api/users:
+ *   get:
+ *     summary: 获取用户列表
+ *     description: 获取所有用户的列表（分页）
+ *     tags: [Users]
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: 页码
+ *       - in: query
+ *         name: pageSize
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: 每页数量
+ *     responses:
+ *       200:
+ *         description: 成功返回用户列表
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 items:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/User'
+ *                 total:
+ *                   type: integer
+ *                 page:
+ *                   type: integer
+ *                 pageSize:
+ *                   type: integer
+ */
 router.get('/', async (req, res, next) => {
   try {
     const { page = 1, pageSize = 10 } = req.query;
@@ -331,7 +565,30 @@ router.get('/', async (req, res, next) => {
   }
 });
 
-// 获取用户详情
+/**
+ * @swagger
+ * /api/users/{id}:
+ *   get:
+ *     summary: 获取用户信息
+ *     description: 获取指定用户的公开信息
+ *     tags: [Users]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 用户ID
+ *     responses:
+ *       200:
+ *         description: 成功返回用户信息
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/User'
+ *       404:
+ *         description: 用户不存在
+ */
 router.get('/:id', async (req, res, next) => {
   try {
     const userId = parseInt(req.params.id);
@@ -368,7 +625,51 @@ router.get('/:id', async (req, res, next) => {
   }
 });
 
-// 获取用户的文章列表
+/**
+ * @swagger
+ * /api/users/{id}/articles:
+ *   get:
+ *     summary: 获取用户文章列表
+ *     description: 获取指定用户发布的所有文章
+ *     tags: [Users]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 用户ID
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *         description: 页码
+ *       - in: query
+ *         name: pageSize
+ *         schema:
+ *           type: integer
+ *         description: 每页数量
+ *     responses:
+ *       200:
+ *         description: 成功返回文章列表
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 items:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Article'
+ *                 total:
+ *                   type: integer
+ *                 page:
+ *                   type: integer
+ *                 pageSize:
+ *                   type: integer
+ *       404:
+ *         description: 用户不存在
+ */
 router.get('/:id/articles', async (req, res, next) => {
   try {
     const userId = parseInt(req.params.id);
@@ -417,7 +718,51 @@ router.get('/:id/articles', async (req, res, next) => {
   }
 });
 
-// 获取用户的评论列表
+/**
+ * @swagger
+ * /api/users/{id}/comments:
+ *   get:
+ *     summary: 获取用户评论列表
+ *     description: 获取指定用户发表的所有评论
+ *     tags: [Users]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 用户ID
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *         description: 页码
+ *       - in: query
+ *         name: pageSize
+ *         schema:
+ *           type: integer
+ *         description: 每页数量
+ *     responses:
+ *       200:
+ *         description: 成功返回评论列表
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 items:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Comment'
+ *                 total:
+ *                   type: integer
+ *                 page:
+ *                   type: integer
+ *                 pageSize:
+ *                   type: integer
+ *       404:
+ *         description: 用户不存在
+ */
 router.get('/:id/comments', async (req, res, next) => {
   try {
     const userId = parseInt(req.params.id);
@@ -457,6 +802,157 @@ router.get('/:id/comments', async (req, res, next) => {
       page: Number(page),
       pageSize: Number(pageSize)
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * @swagger
+ * /api/users/me/avatar:
+ *   post:
+ *     summary: 上传头像
+ *     description: 上传或更新当前用户的头像
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               avatar:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: 头像上传成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 avatarUrl:
+ *                   type: string
+ *       400:
+ *         description: 请求参数错误
+ *       401:
+ *         description: 未授权
+ */
+router.post('/me/avatar', authMiddleware, upload.single('avatar'), async (req: AuthRequest, res, next) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: '请选择头像图片' });
+    }
+
+    const user = await db
+      .select({
+        avatarUrl: users.avatarUrl
+      })
+      .from(users)
+      .where(eq(users.id, req.userId!))
+      .get();
+
+    if (!user) {
+      return res.status(404).json({ message: '用户未找到' });
+    }
+
+    // 删除旧头像
+    if (user.avatarUrl && !user.avatarUrl.includes('default.png')) {
+      const oldAvatarPath = path.join(__dirname, '../../uploads/avatars', 
+        path.basename(user.avatarUrl));
+      fs.unlink(oldAvatarPath, (err) => {
+        if (err) console.error('删除旧头像失败:', err);
+      });
+    }
+
+    const avatarUrl = `/uploads/avatars/${req.file.filename}`;
+    
+    await db
+      .update(users)
+      .set({ avatarUrl })
+      .where(eq(users.id, req.userId!));
+
+    res.json({ avatarUrl });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * @swagger
+ * /api/users/{id}/status:
+ *   patch:
+ *     summary: 更新用户状态
+ *     description: 更新指定用户的状态（仅管理员可操作）
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 用户ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - status
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [active, banned]
+ *     responses:
+ *       200:
+ *         description: 状态更新成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/User'
+ *       401:
+ *         description: 未授权
+ *       403:
+ *         description: 无权限
+ *       404:
+ *         description: 用户不存在
+ */
+router.patch('/:id/status', authMiddleware, async (req: AuthRequest, res, next) => {
+  try {
+    const userId = parseInt(req.params.id);
+    const { status } = req.body;
+
+    if (isNaN(userId)) {
+      return res.status(400).json({ message: '无效的用户ID' });
+    }
+
+    const user = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, userId))
+      .get();
+
+    if (!user) {
+      return res.status(404).json({ message: '用户不存在' });
+    }
+
+    if (!req.isAdmin) {
+      return res.status(403).json({ message: '无权限' });
+    }
+
+    const updatedUser = await db
+      .update(users)
+      .set({ status })
+      .where(eq(users.id, userId))
+      .returning();
+
+    res.json(updatedUser[0]);
   } catch (error) {
     next(error);
   }
