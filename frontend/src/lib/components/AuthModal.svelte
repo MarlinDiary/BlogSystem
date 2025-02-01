@@ -17,9 +17,11 @@
     let showPassword = false;
     let loading = false;
     let dialogRef: HTMLDialogElement;
+    let isClosing = false;
     
     // 监听isOpen变化，控制对话框显示状态
     $: if (isOpen) {
+        isClosing = false;
         if (dialogRef) {
             document.body.style.overflow = 'hidden';
             dialogRef.showModal();
@@ -27,7 +29,9 @@
     } else {
         if (dialogRef) {
             document.body.style.overflow = '';
-            dialogRef.close();
+            if (!isClosing) {
+                dialogRef.close();
+            }
         }
     }
     
@@ -39,14 +43,19 @@
     });
     
     const close = () => {
-        dispatch('close');
-        error = '';
-        // 清空表单
-        username = '';
-        password = '';
-        realName = '';
-        dateOfBirth = '';
-        bio = '';
+        isClosing = true;
+        // 等待动画完成后再关闭
+        setTimeout(() => {
+            dispatch('close');
+            error = '';
+            // 清空表单
+            username = '';
+            password = '';
+            realName = '';
+            dateOfBirth = '';
+            bio = '';
+            isClosing = false;
+        }, 200); // 动画持续时间
     };
     
     const handleClose = () => {
@@ -91,14 +100,20 @@
 {#if isOpen}
 <dialog
     bind:this={dialogRef}
-    class="fixed inset-0 z-50 bg-transparent p-0 m-0 max-w-none max-h-none w-screen h-screen backdrop:bg-zinc-50/80 backdrop:backdrop-blur-sm dark:backdrop:bg-zinc-900/80"
+    class="fixed inset-0 z-50 bg-transparent p-0 m-0 max-w-none max-h-none w-screen h-screen backdrop:bg-zinc-50/80 backdrop:backdrop-blur-sm dark:backdrop:bg-zinc-900/80 {isClosing ? 'closing' : ''}"
     on:close={handleClose}
 >
     <!-- 卡片容器 -->
     <div class="h-full overflow-y-auto">
         <div class="flex min-h-full items-center justify-center p-4">
+            <!-- 背景遮罩按钮 - 用于处理点击背景关闭 -->
+            <button
+                class="fixed inset-0 w-full h-full bg-transparent cursor-default"
+                on:click={close}
+                aria-label="关闭对话框"
+            ></button>
             <!-- 卡片 -->
-            <div class="relative bg-white/80 dark:bg-zinc-800/80 backdrop-blur-[2px] rounded-lg shadow-xl w-full max-w-md">
+            <div class="relative bg-white/80 dark:bg-zinc-800/80 backdrop-blur-[2px] rounded-lg shadow-xl w-full max-w-md {isClosing ? 'modal-closing' : 'modal-open'}">
                 <div class="p-6">
                     <!-- 关闭按钮 -->
                     <button 
@@ -248,12 +263,59 @@
         animation: fadeIn 0.2s ease-out;
     }
     
+    dialog.closing::backdrop {
+        animation: fadeOut 0.2s ease-out;
+    }
+    
+    dialog.closing {
+        animation: fadeOut 0.2s ease-out;
+    }
+    
+    .modal-open {
+        animation: slideIn 0.2s ease-out;
+    }
+    
+    .modal-closing {
+        animation: slideOut 0.2s ease-out;
+    }
+    
     @keyframes fadeIn {
         from {
             opacity: 0;
         }
         to {
             opacity: 1;
+        }
+    }
+    
+    @keyframes fadeOut {
+        from {
+            opacity: 1;
+        }
+        to {
+            opacity: 0;
+        }
+    }
+    
+    @keyframes slideIn {
+        from {
+            transform: translateY(-10px);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+    
+    @keyframes slideOut {
+        from {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        to {
+            transform: translateY(10px);
+            opacity: 0;
         }
     }
     
