@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { db } from '../db';
-import { users } from '../db/schema';
+import { users, articles, articleReactions, comments } from '../db/schema';
 import { eq, desc, and, sql } from 'drizzle-orm';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
 import bcrypt from 'bcrypt';
@@ -8,7 +8,6 @@ import path from 'path';
 import fs from 'fs';
 import { upload } from '../middleware/upload';
 import { Response, NextFunction } from 'express';
-import { articles as articlesTable, articleLikes, comments } from '../db/schema';
 
 /**
  * @swagger
@@ -221,8 +220,8 @@ router.delete('/me', authMiddleware, async (req: AuthRequest, res, next) => {
     await db.transaction(async (tx) => {
       // 删除用户的所有点赞
       await tx
-        .delete(articleLikes)
-        .where(eq(articleLikes.userId, userId!));
+        .delete(articleReactions)
+        .where(eq(articleReactions.userId, userId!));
       
       if (deleteComments) {
         // 删除用户的所有评论
@@ -240,17 +239,17 @@ router.delete('/me', authMiddleware, async (req: AuthRequest, res, next) => {
       if (deleteArticles) {
         // 删除用户的所有文章
         await tx
-          .delete(articlesTable)
-          .where(eq(articlesTable.authorId, userId!));
+          .delete(articles)
+          .where(eq(articles.authorId, userId!));
       } else {
         // 将文章标记为已删除用户
         await tx
-          .update(articlesTable)
+          .update(articles)
           .set({ 
             authorId: sql`NULL`,
             status: 'pending' as const
           })
-          .where(eq(articlesTable.authorId, userId!));
+          .where(eq(articles.authorId, userId!));
       }
       
       // 最后删除用户
@@ -504,9 +503,9 @@ router.get('/me/articles', authMiddleware, async (req: AuthRequest, res, next) =
   try {
     const userArticles = await db
       .select()
-      .from(articlesTable)
-      .where(eq(articlesTable.authorId, req.userId!))
-      .orderBy(desc(articlesTable.createdAt));
+      .from(articles)
+      .where(eq(articles.authorId, req.userId!))
+      .orderBy(desc(articles.createdAt));
     
     res.json(userArticles);
   } catch (error) {
@@ -567,11 +566,11 @@ router.get('/', async (req, res, next) => {
         bio: users.bio,
         avatarUrl: users.avatarUrl,
         createdAt: users.createdAt,
-        articleCount: sql<number>`count(distinct ${articlesTable.id})`,
+        articleCount: sql<number>`count(distinct ${articles.id})`,
         commentCount: sql<number>`count(distinct ${comments.id})`
       })
         .from(users)
-        .leftJoin(articlesTable, eq(articlesTable.authorId, users.id))
+        .leftJoin(articles, eq(articles.authorId, users.id))
         .leftJoin(comments, eq(comments.userId, users.id))
         .groupBy(users.id)
         .orderBy(desc(users.createdAt))
@@ -632,11 +631,11 @@ router.get('/:id', async (req, res, next) => {
         bio: users.bio,
         avatarUrl: users.avatarUrl,
         createdAt: users.createdAt,
-        articleCount: sql<number>`count(distinct ${articlesTable.id})`,
+        articleCount: sql<number>`count(distinct ${articles.id})`,
         commentCount: sql<number>`count(distinct ${comments.id})`
       })
       .from(users)
-      .leftJoin(articlesTable, eq(articlesTable.authorId, users.id))
+      .leftJoin(articles, eq(articles.authorId, users.id))
       .leftJoin(comments, eq(comments.userId, users.id))
       .where(eq(users.id, userId))
       .groupBy(users.id)
@@ -710,28 +709,28 @@ router.get('/:id/articles', async (req, res, next) => {
     // 并发查询：文章列表和总数
     const [articlesList, total] = await Promise.all([
       db.select({
-        id: articlesTable.id,
-        title: articlesTable.title,
-        content: articlesTable.content,
-        imageUrl: articlesTable.imageUrl,
-        status: articlesTable.status,
-        viewCount: articlesTable.viewCount,
-        createdAt: articlesTable.createdAt,
-        updatedAt: articlesTable.updatedAt,
+        id: articles.id,
+        title: articles.title,
+        content: articles.content,
+        imageUrl: articles.imageUrl,
+        status: articles.status,
+        viewCount: articles.viewCount,
+        createdAt: articles.createdAt,
+        updatedAt: articles.updatedAt,
         commentCount: sql<number>`count(distinct ${comments.id})`,
-        likeCount: sql<number>`count(distinct ${articleLikes.id})`
+        reactionCount: sql<number>`count(distinct ${articleReactions.id})`
       })
-        .from(articlesTable)
-        .leftJoin(comments, eq(comments.articleId, articlesTable.id))
-        .leftJoin(articleLikes, eq(articleLikes.articleId, articlesTable.id))
-        .where(eq(articlesTable.authorId, userId))
-        .groupBy(articlesTable.id)
-        .orderBy(desc(articlesTable.createdAt))
+        .from(articles)
+        .leftJoin(comments, eq(comments.articleId, articles.id))
+        .leftJoin(articleReactions, eq(articleReactions.articleId, articles.id))
+        .where(eq(articles.authorId, userId))
+        .groupBy(articles.id)
+        .orderBy(desc(articles.createdAt))
         .limit(Number(pageSize))
         .offset(offset),
       db.select({ count: sql<number>`count(*)` })
-        .from(articlesTable)
-        .where(eq(articlesTable.authorId, userId))
+        .from(articles)
+        .where(eq(articles.authorId, userId))
     ]);
 
     res.json({
@@ -808,12 +807,12 @@ router.get('/:id/comments', async (req, res, next) => {
         createdAt: comments.createdAt,
         visibility: comments.visibility,
         article: {
-          id: articlesTable.id,
-          title: articlesTable.title
+          id: articles.id,
+          title: articles.title
         }
       })
         .from(comments)
-        .leftJoin(articlesTable, eq(articlesTable.id, comments.articleId))
+        .leftJoin(articles, eq(articles.id, comments.articleId))
         .where(eq(comments.userId, userId))
         .orderBy(desc(comments.createdAt))
         .limit(Number(pageSize))

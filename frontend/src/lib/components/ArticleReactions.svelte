@@ -1,46 +1,62 @@
 <script lang="ts">
+  import { createEventDispatcher, onMount } from 'svelte';
   import ReactionIcon from './ReactionIcon.svelte';
 
   export let articleId: number;
   export let reactions = {
-    claps: 0,
-    heart: 0,
-    'thumbs-up': 0,
-    fire: 0
+    like: 0,
+    love: 0,
+    haha: 0,
+    angry: 0
   };
   export let isScrolled = false;
 
-  type ReactionType = 'claps' | 'heart' | 'thumbs-up' | 'fire';
-  const reactionTypes: ReactionType[] = ['claps', 'heart', 'thumbs-up', 'fire'];
+  type ReactionType = 'like' | 'love' | 'haha' | 'angry';
+  const reactionTypes: ReactionType[] = ['like', 'love', 'haha', 'angry'];
 
-  let reacted = {
-    claps: false,
-    heart: false,
-    'thumbs-up': false,
-    fire: false
-  };
+  let userReaction: ReactionType | null = null;
+
+  // 获取反应状态
+  async function fetchReactionStatus() {
+    try {
+      const response = await fetch(`/api/articles/${articleId}/reaction`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        userReaction = data.userReaction;
+        reactions = data.reactionCounts;
+      }
+    } catch (err) {
+      console.error('获取反应状态失败:', err);
+    }
+  }
 
   // 处理反应
   async function handleReaction(type: ReactionType) {
-    if (reacted[type]) return;
-    
-    reacted[type] = true;
-    reactions[type] += 1;
-    
     try {
-      await fetch(`/api/articles/${articleId}/reactions`, {
+      const response = await fetch(`/api/articles/${articleId}/reaction`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
         body: JSON.stringify({ type })
       });
+
+      if (response.ok) {
+        const data = await response.json();
+        userReaction = data.userReaction;
+        reactions = data.reactionCounts;
+      }
     } catch (err) {
       console.error('反应失败:', err);
-      reacted[type] = false;
-      reactions[type] -= 1;
     }
   }
+
+  onMount(fetchReactionStatus);
 </script>
 
 <style lang="postcss">
@@ -108,6 +124,7 @@
         <ReactionIcon
           {type}
           count={reactions[type]}
+          isActive={userReaction === type}
           on:react={() => handleReaction(type)}
         />
       {/each}

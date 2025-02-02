@@ -3,6 +3,7 @@
 
   export let type: string;
   export let count = 0;
+  export let isActive = false;
 
   const dispatch = createEventDispatcher();
 
@@ -20,7 +21,10 @@
 <div class="relative flex flex-col items-center">
   <button
     on:click={() => dispatch('react')}
-    class="relative flex h-10 w-10 items-center justify-center"
+    class="relative flex h-10 w-10 items-center justify-center
+      transition-transform duration-200 ease-in-out
+      hover:scale-110 active:scale-95"
+    class:active={isActive}
   >
     <img
       src="/reactions/{type}.png"
@@ -33,7 +37,22 @@
     class="mt-0.5 flex w-full items-center justify-center
       whitespace-nowrap text-[12px] font-semibold
       text-zinc-700/30 dark:text-zinc-200/25"
+    class:active={isActive}
   >
     {prettifyNumber(count)}
   </span>
-</div> 
+</div>
+
+<style lang="postcss">
+  .active {
+    @apply text-lime-600 dark:text-lime-500;
+  }
+
+  button.active {
+    @apply scale-110;
+  }
+
+  button.active:hover {
+    @apply scale-125;
+  }
+</style> 

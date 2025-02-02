@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { db } from '../db';
 import { and, eq, sql } from 'drizzle-orm';
-import { users, articles, comments, articleLikes } from '../db/schema';
+import { users, articles, comments, articleReactions } from '../db/schema';
 import { isAdmin, authMiddleware } from '../middleware/auth';
 import path from 'path';
 import fs from 'fs';
@@ -42,7 +42,7 @@ import fs from 'fs';
  *               type: integer
  *             hidden:
  *               type: integer
- *         likes:
+ *         reactions:
  *           type: object
  *           properties:
  *             total:
@@ -280,11 +280,11 @@ router.get('/stats', async (req, res) => {
       .from(comments);
 
     // 点赞统计
-    const [likeStats] = await db
+    const [reactionStats] = await db
       .select({
-        totalLikes: sql<number>`count(*)`
+        totalReactions: sql<number>`count(*)`
       })
-      .from(articleLikes);
+      .from(articleReactions);
 
     res.json({
       users: {
@@ -303,8 +303,8 @@ router.get('/stats', async (req, res) => {
         visible: commentStats.visibleComments,
         hidden: commentStats.hiddenComments
       },
-      likes: {
-        total: likeStats.totalLikes
+      reactions: {
+        total: reactionStats.totalReactions
       }
     });
   } catch (error) {
@@ -737,8 +737,8 @@ router.delete('/articles/:id', async (req, res) => {
     await db.transaction(async (tx) => {
       // 删除文章的所有点赞
       await tx
-        .delete(articleLikes)
-        .where(eq(articleLikes.articleId, articleId));
+        .delete(articleReactions)
+        .where(eq(articleReactions.articleId, articleId));
       
       // 删除文章的所有评论
       await tx
@@ -857,7 +857,7 @@ router.post('/articles/batch-delete', async (req, res) => {
     await db.transaction(async (tx) => {
       // 删除文章的所有点赞
       await tx
-        .delete(articleLikes)
+        .delete(articleReactions)
         .where(sql`article_id = any(${articleIds})`);
       
       // 删除文章的所有评论

@@ -1,15 +1,14 @@
 import { Router } from 'express';
 import { db } from '../db';
-import { articles as articlesTable, users, articleLikes, comments, tags as tagsTable, articleTags } from '../db/schema';
+import { articles as articlesTable, articleReactions, users, tags as tagsTable, articleTags, comments } from '../db/schema';
 import { eq, and, sql, like, desc, or, SQL, asc } from 'drizzle-orm';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
-import { uploadArticleCover } from '../middleware/upload';
+import { upload, uploadArticleCover } from '../middleware/upload';
 import path from 'path';
 import fs from 'fs';
 import { checkUserStatus } from './users';
 import { marked } from 'marked';
 import sanitizeHtml from 'sanitize-html';
-import { upload } from '../middleware/upload';
 import { uploadArticleImage } from '../middleware/upload';
 
 const router = Router();
@@ -64,78 +63,26 @@ const router = Router();
 // 获取所有文章（支持搜索和排序）
 router.get('/', async (req, res, next) => {
   try {
-    const { 
-      keyword,
-      sort = 'newest',
-      author,
-      status = 'published',
-      page = 1,
-      pageSize = 10
-    } = req.query;
-
-    // 确保 status 是有效的枚举值
-    const validStatus = status as 'published' | 'draft' | 'pending' | 'rejected';
-    
-    // 定义条件数组
-    const conditions: SQL<unknown>[] = [eq(articlesTable.status, validStatus)];
-    
-    // 如果有 keyword，则添加搜索条件
-    if (keyword) {
-      const searchCondition = or(
-        like(articlesTable.title, `%${keyword as string}%`),
-        like(articlesTable.content, `%${keyword as string}%`)
-      ) as SQL<unknown>;
-      conditions.push(searchCondition);
-    }
-
-    // 如果有 author，则添加作者条件
-    if (author) {
-      conditions.push(eq(articlesTable.authorId, parseInt(author as string)));
-    }
-
-    // 处理多字段排序
-    let orderBy: SQL<unknown>[] = [];
-    if (typeof sort === 'string') {
-      const sortFields = (sort as string).split(',');
-      sortFields.forEach(field => {
-        const isDesc = field.startsWith('-');
-        const fieldName = isDesc ? field.slice(1) : field;
-        
-        switch (fieldName) {
-          case 'title':
-            orderBy.push(isDesc ? desc(articlesTable.title) : asc(articlesTable.title));
-            break;
-          case 'date':
-            orderBy.push(isDesc ? desc(articlesTable.createdAt) : asc(articlesTable.createdAt));
-            break;
-          case 'views':
-            orderBy.push(isDesc ? desc(articlesTable.viewCount) : asc(articlesTable.viewCount));
-            break;
-          case 'likes':
-            // 子查询获取点赞数
-            const likesCount = db
-              .select({ count: sql<number>`count(*)` })
-              .from(articleLikes)
-              .where(eq(articleLikes.articleId, articlesTable.id))
-              .as('likes_count');
-            orderBy.push(isDesc ? desc(likesCount.count) : asc(likesCount.count));
-            break;
-          default:
-            // 默认按创建时间倒序
-            orderBy.push(desc(articlesTable.createdAt));
-        }
-      });
-    }
-
-    // 如果没有指定排序，默认按创建时间倒序
-    if (orderBy.length === 0) {
-      orderBy.push(desc(articlesTable.createdAt));
-    }
-
-    // 分页
+    const { page = 1, pageSize = 10, search, sort = 'createdAt', order = 'desc', status } = req.query;
     const offset = (Number(page) - 1) * Number(pageSize);
-    
-    // 并发查询：一条查列表、一条查总数
+
+    // 构建排序条件
+    const orderBy: SQL<unknown>[] = [desc(articlesTable.createdAt)]; // 默认排序
+    if (sort === 'createdAt') {
+      orderBy[0] = order === 'desc' ? desc(articlesTable.createdAt) : asc(articlesTable.createdAt);
+    } else if (sort === 'viewCount') {
+      orderBy[0] = order === 'desc' ? desc(articlesTable.viewCount) : asc(articlesTable.viewCount);
+    }
+
+    // 构建查询条件
+    const conditions: SQL<unknown>[] = [eq(articlesTable.status, status as 'published' | 'draft' | 'pending' | 'rejected' || 'published')];
+    if (search) {
+      conditions.push(
+        sql`(${articlesTable.title} LIKE ${'%' + search + '%'} OR ${articlesTable.content} LIKE ${'%' + search + '%'})`
+      );
+    }
+
+    // 并发查询：文章列表和总数
     const [articlesList, total] = await Promise.all([
       db.select({
         id: articlesTable.id,
@@ -150,15 +97,15 @@ router.get('/', async (req, res, next) => {
         author: {
           id: users.id,
           username: users.username,
-          avatarUrl: users.avatarUrl
+          avatarUrl: users.avatarUrl,
         },
         commentCount: sql<number>`count(distinct ${comments.id})`,
-        likeCount: sql<number>`count(distinct ${articleLikes.id})`
+        reactionCount: sql<number>`count(distinct ${articleReactions.id})`
       })
         .from(articlesTable)
         .leftJoin(users, eq(users.id, articlesTable.authorId))
         .leftJoin(comments, eq(comments.articleId, articlesTable.id))
-        .leftJoin(articleLikes, eq(articleLikes.articleId, articlesTable.id))
+        .leftJoin(articleReactions, eq(articleReactions.articleId, articlesTable.id))
         .where(and(...conditions))
         .groupBy(articlesTable.id, users.id)
         .orderBy(...orderBy)
@@ -328,12 +275,12 @@ router.get('/:id', async (req, res, next) => {
         avatarUrl: users.avatarUrl
       },
       commentCount: sql<number>`count(distinct ${comments.id})`,
-      likeCount: sql<number>`count(distinct ${articleLikes.id})`
+      likeCount: sql<number>`count(distinct ${articleReactions.id})`
     })
     .from(articlesTable)
     .leftJoin(users, eq(users.id, articlesTable.authorId))
     .leftJoin(comments, eq(comments.articleId, articlesTable.id))
-    .leftJoin(articleLikes, eq(articleLikes.articleId, articlesTable.id))
+    .leftJoin(articleReactions, eq(articleReactions.articleId, articlesTable.id))
     .where(and(
       eq(articlesTable.id, articleId),
       eq(articlesTable.status, 'published')
@@ -495,135 +442,6 @@ router.delete('/:id', authMiddleware, async (req: AuthRequest, res, next) => {
   }
 });
 
-// 获取点赞状态
-router.get('/:id/like', authMiddleware, async (req: AuthRequest, res, next) => {
-  try {
-    const userId = req.userId;
-    const articleId = parseInt(req.params.id);
-
-    // 并发查询点赞状态和总点赞数
-    const [existingLike, totalLikes] = await Promise.all([
-      db
-        .select()
-        .from(articleLikes)
-        .where(
-          and(
-            eq(articleLikes.articleId, articleId),
-            eq(articleLikes.userId, userId!)
-          )
-        )
-        .get(),
-      db
-        .select({ count: sql<number>`count(*)` })
-        .from(articleLikes)
-        .where(eq(articleLikes.articleId, articleId))
-    ]);
-
-    res.json({
-      liked: !!existingLike,
-      totalLikes: totalLikes[0].count
-    });
-  } catch (error) {
-    next(error);
-  }
-});
-
-/**
- * @swagger
- * /api/articles/{id}/like:
- *   post:
- *     summary: 点赞文章
- *     description: 为指定文章点赞或取消点赞
- *     tags: [Articles]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *         description: 文章ID
- *     responses:
- *       200:
- *         description: 操作成功
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 liked:
- *                   type: boolean
- *                   description: 当前点赞状态
- *                 likeCount:
- *                   type: integer
- *                   description: 当前点赞数
- *       401:
- *         description: 未授权
- *       404:
- *         description: 文章不存在
- */
-router.post('/:id/like', authMiddleware, async (req: AuthRequest, res, next) => {
-  try {
-    const userId = req.userId;
-    const articleId = parseInt(req.params.id);
-
-    // 检查文章是否存在
-    const article = await db
-      .select()
-      .from(articlesTable)
-      .where(eq(articlesTable.id, articleId))
-      .get();
-
-    if (!article) {
-      return res.status(404).json({ message: '文章未找到' });
-    }
-
-    // 检查是否已点赞
-    const existingLike = await db
-      .select()
-      .from(articleLikes)
-      .where(
-        and(
-          eq(articleLikes.articleId, articleId),
-          eq(articleLikes.userId, userId!)
-        )
-      )
-      .get();
-
-    if (existingLike) {
-      // 如果已点赞，则取消点赞
-      await db
-        .delete(articleLikes)
-        .where(
-          and(
-            eq(articleLikes.articleId, articleId),
-            eq(articleLikes.userId, userId!)
-          )
-        );
-    } else {
-      // 添加点赞
-      await db.insert(articleLikes).values({
-        articleId,
-        userId: userId!
-      });
-    }
-
-    // 获取最新点赞总数
-    const [totalLikes] = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(articleLikes)
-      .where(eq(articleLikes.articleId, articleId));
-
-    res.json({ 
-      liked: !existingLike,
-      totalLikes: totalLikes.count
-    });
-  } catch (error) {
-    next(error);
-  }
-});
-
 // 上传文章封面图
 router.post('/:id/cover', authMiddleware, async (req: AuthRequest, res, next) => {
   try {
@@ -725,48 +543,6 @@ router.delete('/:id/cover', authMiddleware, async (req: AuthRequest, res, next) 
     }
 
     res.json({ message: '封面已删除' });
-  } catch (error) {
-    next(error);
-  }
-});
-
-// 获取文章点赞用户列表
-router.get('/:id/likes', async (req, res, next) => {
-  try {
-    const articleId = parseInt(req.params.id);
-    const { page = 1, pageSize = 10 } = req.query;
-    const offset = (Number(page) - 1) * Number(pageSize);
-
-    if (isNaN(articleId)) {
-      return res.status(400).json({ message: '无效的文章ID' });
-    }
-
-    // 并发查询：点赞用户列表和总数
-    const [likesList, total] = await Promise.all([
-      db.select({
-        user: {
-          id: users.id,
-          username: users.username,
-          avatarUrl: users.avatarUrl
-        }
-      })
-        .from(articleLikes)
-        .leftJoin(users, eq(users.id, articleLikes.userId))
-        .where(eq(articleLikes.articleId, articleId))
-        .orderBy(desc(articleLikes.id))
-        .limit(Number(pageSize))
-        .offset(offset),
-      db.select({ count: sql<number>`count(*)` })
-        .from(articleLikes)
-        .where(eq(articleLikes.articleId, articleId))
-    ]);
-
-    res.json({
-      items: likesList,
-      total: total[0].count,
-      page: Number(page),
-      pageSize: Number(pageSize)
-    });
   } catch (error) {
     next(error);
   }
@@ -1016,6 +792,375 @@ router.post('/cover', authMiddleware, uploadArticleCover, async (req: AuthReques
   } catch (error) {
     console.error('封面上传失败:', error);
     res.status(500).json({ message: '封面上传失败' });
+  }
+});
+
+/**
+ * @swagger
+ * /api/articles/{id}/reaction:
+ *   get:
+ *     summary: 获取文章反应状态
+ *     description: 获取当前用户对文章的反应状态和所有反应统计
+ *     tags: [Articles]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 文章ID
+ *     responses:
+ *       200:
+ *         description: 成功返回反应状态
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 userReaction:
+ *                   type: string
+ *                   enum: [like, love, haha, angry]
+ *                   nullable: true
+ *                 reactionCounts:
+ *                   type: object
+ *                   properties:
+ *                     like:
+ *                       type: integer
+ *                     love:
+ *                       type: integer
+ *                     haha:
+ *                       type: integer
+ *                     angry:
+ *                       type: integer
+ */
+router.get('/:id/reaction', authMiddleware, async (req: AuthRequest, res, next) => {
+  try {
+    const userId = req.userId;
+    const articleId = parseInt(req.params.id);
+
+    // 检查文章是否存在
+    const article = await db
+      .select()
+      .from(articlesTable)
+      .where(eq(articlesTable.id, articleId))
+      .get();
+
+    if (!article) {
+      return res.status(404).json({ message: '文章未找到' });
+    }
+
+    // 获取用户的反应
+    const userReaction = await db
+      .select()
+      .from(articleReactions)
+      .where(
+        and(
+          eq(articleReactions.articleId, articleId),
+          eq(articleReactions.userId, userId!)
+        )
+      )
+      .get();
+
+    // 获取所有反应的统计
+    const reactionCounts = await db
+      .select({
+        type: articleReactions.type,
+        count: sql<number>`count(*)`
+      })
+      .from(articleReactions)
+      .where(eq(articleReactions.articleId, articleId))
+      .groupBy(articleReactions.type);
+
+    // 构建反应计数对象
+    const counts = {
+      like: 0,
+      love: 0,
+      haha: 0,
+      angry: 0
+    };
+    
+    reactionCounts.forEach(count => {
+      counts[count.type as keyof typeof counts] = count.count;
+    });
+
+    res.json({
+      userReaction: userReaction?.type || null,
+      reactionCounts: counts
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * @swagger
+ * /api/articles/{id}/reaction:
+ *   post:
+ *     summary: 添加或更新文章反应
+ *     description: 为文章添加新的反应或更新现有反应
+ *     tags: [Articles]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 文章ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - type
+ *             properties:
+ *               type:
+ *                 type: string
+ *                 enum: [like, love, haha, angry]
+ *     responses:
+ *       200:
+ *         description: 反应更新成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 userReaction:
+ *                   type: string
+ *                   enum: [like, love, haha, angry]
+ *                   nullable: true
+ *                 reactionCounts:
+ *                   type: object
+ *                   properties:
+ *                     like:
+ *                       type: integer
+ *                     love:
+ *                       type: integer
+ *                     haha:
+ *                       type: integer
+ *                     angry:
+ *                       type: integer
+ */
+router.post('/:id/reaction', authMiddleware, async (req: AuthRequest, res, next) => {
+  try {
+    const userId = req.userId;
+    const articleId = parseInt(req.params.id);
+    const { type } = req.body;
+
+    if (!['like', 'love', 'haha', 'angry'].includes(type)) {
+      return res.status(400).json({ message: '无效的反应类型' });
+    }
+
+    // 检查文章是否存在
+    const article = await db
+      .select()
+      .from(articlesTable)
+      .where(eq(articlesTable.id, articleId))
+      .get();
+
+    if (!article) {
+      return res.status(404).json({ message: '文章未找到' });
+    }
+
+    // 检查是否已有反应
+    const existingReaction = await db
+      .select()
+      .from(articleReactions)
+      .where(
+        and(
+          eq(articleReactions.articleId, articleId),
+          eq(articleReactions.userId, userId!)
+        )
+      )
+      .get();
+
+    if (existingReaction) {
+      if (existingReaction.type === type) {
+        // 如果是相同的反应类型，则删除反应
+        await db
+          .delete(articleReactions)
+          .where(
+            and(
+              eq(articleReactions.articleId, articleId),
+              eq(articleReactions.userId, userId!)
+            )
+          );
+      } else {
+        // 如果是不同的反应类型，则更新反应
+        await db
+          .update(articleReactions)
+          .set({ type, createdAt: new Date().toISOString() })
+          .where(
+            and(
+              eq(articleReactions.articleId, articleId),
+              eq(articleReactions.userId, userId!)
+            )
+          );
+      }
+    } else {
+      // 添加新反应
+      await db.insert(articleReactions).values({
+        articleId,
+        userId: userId!,
+        type,
+        createdAt: new Date().toISOString()
+      });
+    }
+
+    // 获取最新的反应统计
+    const reactionCounts = await db
+      .select({
+        type: articleReactions.type,
+        count: sql<number>`count(*)`
+      })
+      .from(articleReactions)
+      .where(eq(articleReactions.articleId, articleId))
+      .groupBy(articleReactions.type);
+
+    // 构建反应计数对象
+    const counts = {
+      like: 0,
+      love: 0,
+      haha: 0,
+      angry: 0
+    };
+    
+    reactionCounts.forEach(count => {
+      counts[count.type as keyof typeof counts] = count.count;
+    });
+
+    // 获取用户当前的反应状态
+    const currentReaction = await db
+      .select()
+      .from(articleReactions)
+      .where(
+        and(
+          eq(articleReactions.articleId, articleId),
+          eq(articleReactions.userId, userId!)
+        )
+      )
+      .get();
+
+    res.json({
+      userReaction: currentReaction?.type || null,
+      reactionCounts: counts
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * @swagger
+ * /api/articles/{id}/reactions:
+ *   get:
+ *     summary: 获取文章反应用户列表
+ *     description: 获取对文章做出特定反应的用户列表
+ *     tags: [Articles]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 文章ID
+ *       - in: query
+ *         name: type
+ *         schema:
+ *           type: string
+ *           enum: [like, love, haha, angry]
+ *         description: 反应类型（可选）
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *         description: 页码
+ *       - in: query
+ *         name: pageSize
+ *         schema:
+ *           type: integer
+ *         description: 每页数量
+ *     responses:
+ *       200:
+ *         description: 成功返回用户列表
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 items:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       user:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: integer
+ *                           username:
+ *                             type: string
+ *                           avatarUrl:
+ *                             type: string
+ *                       type:
+ *                         type: string
+ *                         enum: [like, love, haha, angry]
+ *                       createdAt:
+ *                         type: string
+ *                 total:
+ *                   type: integer
+ *                 page:
+ *                   type: integer
+ *                 pageSize:
+ *                   type: integer
+ */
+router.get('/:id/reactions', async (req, res, next) => {
+  try {
+    const articleId = parseInt(req.params.id);
+    const { type, page = 1, pageSize = 10 } = req.query;
+    const offset = (Number(page) - 1) * Number(pageSize);
+
+    // 构建查询条件
+    const conditions = [eq(articleReactions.articleId, articleId)];
+    if (type && ['like', 'love', 'haha', 'angry'].includes(type as string)) {
+      conditions.push(eq(articleReactions.type, type as 'like' | 'love' | 'haha' | 'angry'));
+    }
+
+    // 并发查询：反应列表和总数
+    const [reactionsList, total] = await Promise.all([
+      db.select({
+        user: {
+          id: users.id,
+          username: users.username,
+          avatarUrl: users.avatarUrl,
+        },
+        type: articleReactions.type,
+        createdAt: articleReactions.createdAt,
+      })
+        .from(articleReactions)
+        .leftJoin(users, eq(users.id, articleReactions.userId))
+        .where(and(...conditions))
+        .orderBy(desc(articleReactions.createdAt))
+        .limit(Number(pageSize))
+        .offset(offset),
+      db.select({ count: sql<number>`count(*)` })
+        .from(articleReactions)
+        .where(and(...conditions))
+    ]);
+
+    res.json({
+      items: reactionsList,
+      total: total[0].count,
+      page: Number(page),
+      pageSize: Number(pageSize)
+    });
+  } catch (error) {
+    next(error);
   }
 });
 

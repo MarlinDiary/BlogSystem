@@ -41,8 +41,8 @@ export const articles = sqliteTable('articles', {
   viewCount: integer('view_count').notNull().default(0),
 } as const);
 
-// 点赞表（确保用户只能点赞一次）
-export const articleLikes = sqliteTable('article_likes', {
+// 文章反应表
+export const articleReactions = sqliteTable('article_reactions', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   articleId: integer('article_id')
     .notNull()
@@ -50,8 +50,10 @@ export const articleLikes = sqliteTable('article_likes', {
   userId: integer('user_id')
     .notNull()
     .references(() => users.id, { onDelete: 'cascade' }),
+  type: text('type', { enum: ['like', 'love', 'haha', 'angry'] }).notNull(),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
 }, (table) => ({
-  uniqueLike: unique().on(table.articleId, table.userId),
+  uniqueReaction: unique().on(table.articleId, table.userId),
 }) as const);
 
 // 评论表（支持嵌套评论）

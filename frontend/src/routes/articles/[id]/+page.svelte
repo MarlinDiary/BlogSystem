@@ -21,7 +21,6 @@
     updatedAt: string;
     author: Author;
     commentCount: number;
-    likeCount: number;
   }
 
   interface TocItem {
@@ -440,12 +439,6 @@
   {#if article}
     <ArticleReactions
       articleId={article.id}
-      reactions={{
-        claps: article.likeCount || 0,
-        heart: article.likeCount || 0,
-        'thumbs-up': article.likeCount || 0,
-        fire: article.likeCount || 0
-      }}
       {isScrolled}
     />
   {/if}
