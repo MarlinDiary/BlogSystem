@@ -9,6 +9,7 @@ import fs from 'fs';
 import { checkUserStatus } from './users';
 import { marked } from 'marked';
 import sanitizeHtml from 'sanitize-html';
+import { upload } from '../middleware/upload';
 
 const router = Router();
 
@@ -847,5 +848,53 @@ router.post('/preview', async (req, res) => {
  *             avatarUrl:
  *               type: string
  */
+
+/**
+ * @swagger
+ * /api/articles/images:
+ *   post:
+ *     summary: 上传文章图片
+ *     description: 上传文章中使用的图片
+ *     tags: [Articles]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - image
+ *             properties:
+ *               image:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: 图片上传成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 url:
+ *                   type: string
+ */
+router.post('/images', authMiddleware, upload.single('image'), async (req: AuthRequest, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: '请选择要上传的图片' });
+    }
+
+    // 生成图片URL
+    const imageUrl = `/uploads/articles/${req.file.filename}`;
+    
+    res.json({ url: imageUrl });
+  } catch (error) {
+    console.error('图片上传失败:', error);
+    res.status(500).json({ message: '图片上传失败' });
+  }
+});
 
 export const articlesRouter = router;
