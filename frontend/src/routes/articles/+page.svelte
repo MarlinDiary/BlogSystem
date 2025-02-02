@@ -100,23 +100,34 @@
 <style lang="postcss">
   .article-card {
     --card-color: rgb(0, 0, 0);
+    background: color-mix(in srgb, var(--card-color) 3%, transparent);
+    border: none;
+    overflow: hidden;
+    padding: 0 0 1.5rem 0;
   }
 
   .article-card:hover {
-    background: color-mix(in srgb, var(--card-color) 5%, transparent);
-    border-color: var(--card-color);
+    transform: translateY(-2px);
   }
 
-  .article-card .title-link:hover {
-    color: var(--card-color);
+  .article-card .title-link {
+    color: color-mix(in srgb, var(--card-color) 85%, currentColor);
+  }
+
+  .article-card .image-container {
+    margin-bottom: 1.5rem;
+    overflow: hidden;
+  }
+
+  .article-card .content {
+    padding: 0 1.5rem;
   }
 
   .article-card .image-container::after {
     content: '';
     position: absolute;
     inset: 0;
-    background: linear-gradient(to bottom, transparent 0%, color-mix(in srgb, var(--card-color) 10%, transparent) 100%);
-    border-radius: 0.5rem;
+    background: linear-gradient(to bottom, transparent 0%, color-mix(in srgb, var(--card-color) 15%, transparent) 100%);
     pointer-events: none;
   }
 </style>
@@ -140,48 +151,50 @@
     <div class="grid gap-8 sm:grid-cols-2">
       {#each articles as article}
         <article 
-          class="article-card group flex flex-col rounded-2xl border border-zinc-100 p-6 dark:border-zinc-700/40 transition-all duration-300 hover:shadow-lg relative"
+          class="article-card group flex flex-col rounded-3xl transition-all duration-300 hover:shadow-xl relative dark:bg-zinc-800/50"
           style={getCardStyle(article)}
         >
           {#if article.imageUrl}
-            <div class="w-full h-48 mb-4 relative image-container">
+            <div class="w-full h-52 relative image-container">
               <img
                 src={getImageUrl(article.imageUrl)}
                 alt={article.title}
-                class="w-full h-full object-cover rounded-lg"
+                class="w-full h-full object-cover"
                 crossorigin="anonymous"
               />
             </div>
           {/if}
           
-          <h2 class="text-xl font-semibold tracking-tight text-zinc-800 dark:text-zinc-100 mb-2">
-            <a href="/articles/{article.id}" class="title-link hover:text-lime-600 dark:hover:text-lime-400">
-              <span class="absolute inset-0"></span>
-              {article.title}
-            </a>
-          </h2>
+          <div class="content">
+            <h2 class="text-xl font-semibold tracking-tight text-zinc-800 dark:text-zinc-100 mb-2">
+              <a href="/articles/{article.id}" class="title-link">
+                <span class="absolute inset-0"></span>
+                {article.title}
+              </a>
+            </h2>
 
-          <p class="text-sm text-zinc-600 dark:text-zinc-400 line-clamp-2 flex-grow">
-            {article.content.substring(0, 150)}...
-          </p>
+            <p class="text-sm text-zinc-600 dark:text-zinc-400 line-clamp-2 flex-grow">
+              {article.content.substring(0, 150)}...
+            </p>
 
-          <div class="mt-4 flex items-center justify-between text-sm">
-            <div class="flex items-center gap-2">
-              <div class="w-8 h-8 rounded-full overflow-hidden bg-zinc-100 dark:bg-zinc-800">
-                <img
-                  src={getAvatarUrl(article.author.avatarUrl)}
-                  alt={article.author.username}
-                  class="w-full h-full object-cover"
-                />
+            <div class="mt-4 flex items-center justify-between text-sm">
+              <div class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded-full overflow-hidden bg-zinc-100 dark:bg-zinc-800">
+                  <img
+                    src={getAvatarUrl(article.author.avatarUrl)}
+                    alt={article.author.username}
+                    class="w-full h-full object-cover"
+                  />
+                </div>
+                <span class="text-zinc-600 dark:text-zinc-400">
+                  {article.author.username}
+                </span>
               </div>
-              <span class="text-zinc-600 dark:text-zinc-400">
-                {article.author.username}
-              </span>
+              
+              <time class="text-zinc-500 dark:text-zinc-400">
+                {new Date(article.createdAt).toLocaleDateString('zh-CN')}
+              </time>
             </div>
-            
-            <time class="text-zinc-500 dark:text-zinc-400">
-              {new Date(article.createdAt).toLocaleDateString('zh-CN')}
-            </time>
           </div>
         </article>
       {/each}
