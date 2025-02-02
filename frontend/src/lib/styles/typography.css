@@ -1,0 +1,224 @@
+/* 基础字体设置 */
+@layer base {
+  html {
+    /* 英文优先 */
+    font-family: 'Inter', 'system-ui', sans-serif;
+  }
+  
+  /* 中文字体优化 */
+  html:lang(zh) {
+    font-family: 'Inter', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  }
+}
+
+/* 标题系列 */
+.h1 {
+  font-size: 2.25rem; /* 36px */
+  line-height: 2.5rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+.h2 {
+  font-size: 1.875rem; /* 30px */
+  line-height: 2.25rem;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+.h3 {
+  font-size: 1.5rem; /* 24px */
+  line-height: 2rem;
+  font-weight: 600;
+}
+.h4 {
+  font-size: 1.25rem; /* 20px */
+  line-height: 1.75rem;
+  font-weight: 600;
+}
+
+/* 正文系列 */
+.prose-lg {
+  font-size: 1.125rem; /* 18px */
+  line-height: 1.75;
+}
+.prose-base {
+  font-size: 1rem; /* 16px */
+  line-height: 1.75;
+}
+.prose-sm {
+  font-size: 0.875rem; /* 14px */
+  line-height: 1.75;
+}
+.prose-xs {
+  font-size: 0.75rem; /* 12px */
+  line-height: 1.75;
+}
+
+/* 字重定义 */
+.weight-thin {
+  font-weight: 100;
+}
+.weight-extralight {
+  font-weight: 200;
+}
+.weight-light {
+  font-weight: 300;
+}
+.weight-normal {
+  font-weight: 400;
+}
+.weight-medium {
+  font-weight: 500;
+}
+.weight-semibold {
+  font-weight: 600;
+}
+.weight-bold {
+  font-weight: 700;
+}
+
+/* 特殊文字样式 */
+.nums-tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* 行高 */
+.leading-1 {
+  line-height: 1;
+}
+.leading-1_25 {
+  line-height: 1.25;
+}
+.leading-1_5 {
+  line-height: 1.5;
+}
+.leading-1_75 {
+  line-height: 1.75;
+}
+
+/* 字间距 */
+.letter-tighter {
+  letter-spacing: -0.05em;
+}
+.letter-tight {
+  letter-spacing: -0.025em;
+}
+.letter-normal {
+  letter-spacing: 0em;
+}
+.letter-wide {
+  letter-spacing: 0.025em;
+}
+
+/* 文字颜色 */
+.text-primary {
+  color: rgb(24 24 27); /* zinc-900 */
+}
+.dark .text-primary {
+  color: rgb(244 244 245); /* zinc-100 */
+}
+.text-secondary {
+  color: rgb(82 82 91); /* zinc-600 */
+}
+.dark .text-secondary {
+  color: rgb(161 161 170); /* zinc-400 */
+}
+.text-tertiary {
+  color: rgb(113 113 122); /* zinc-500 */
+}
+.dark .text-tertiary {
+  color: rgb(113 113 122); /* zinc-500 */
+}
+.text-disabled {
+  color: rgb(161 161 170); /* zinc-400 */
+}
+.dark .text-disabled {
+  color: rgb(82 82 91); /* zinc-600 */
+}
+
+/* 常用组合 */
+.article-title {
+  font-size: 2.25rem;
+  line-height: 2.5rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  color: rgb(24 24 27);
+}
+.dark .article-title {
+  color: rgb(244 244 245);
+}
+
+.article-subtitle {
+  font-size: 1.25rem;
+  line-height: 1.75rem;
+  font-weight: 600;
+  color: rgb(63 63 70);
+}
+.dark .article-subtitle {
+  color: rgb(212 212 216);
+}
+
+.article-body {
+  font-size: 1rem;
+  line-height: 1.75;
+  color: rgb(82 82 91);
+}
+.dark .article-body {
+  color: rgb(161 161 170);
+}
+
+.article-caption {
+  font-size: 0.875rem;
+  line-height: 1.75;
+  color: rgb(113 113 122);
+}
+.dark .article-caption {
+  color: rgb(113 113 122);
+}
+
+.article-number {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.875rem;
+  line-height: 1.75;
+  font-weight: 500;
+  color: rgb(113 113 122);
+}
+
+/* 链接样式 */
+.link {
+  color: rgb(24 24 27);
+  text-decoration-line: underline;
+  text-decoration-color: rgb(161 161 170 / 0.5);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+  transition-property: color;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 200ms;
+}
+.link:hover {
+  text-decoration-color: rgb(161 161 170);
+}
+.dark .link {
+  color: rgb(244 244 245);
+  text-decoration-color: rgb(82 82 91 / 0.5);
+}
+.dark .link:hover {
+  text-decoration-color: rgb(82 82 91);
+}
+
+/* 代码样式 */
+.code {
+  border-radius: 0.25rem;
+  background-color: rgb(244 244 245);
+  padding-left: 0.375rem;
+  padding-right: 0.375rem;
+  padding-top: 0.125rem;
+  padding-bottom: 0.125rem;
+  font-size: 0.875rem;
+  line-height: 1.75;
+  font-weight: 500;
+  color: rgb(24 24 27);
+}
+.dark .code {
+  background-color: rgb(39 39 42);
+  color: rgb(244 244 245);
+} 
