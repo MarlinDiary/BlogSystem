@@ -10,6 +10,7 @@ import { checkUserStatus } from './users';
 import { marked } from 'marked';
 import sanitizeHtml from 'sanitize-html';
 import { upload } from '../middleware/upload';
+import { uploadArticleImage } from '../middleware/upload';
 
 const router = Router();
 
@@ -881,7 +882,7 @@ router.post('/preview', async (req, res) => {
  *                 url:
  *                   type: string
  */
-router.post('/images', authMiddleware, upload.single('image'), async (req: AuthRequest, res) => {
+router.post('/images', authMiddleware, uploadArticleImage, async (req: AuthRequest, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ message: '请选择要上传的图片' });
@@ -894,6 +895,54 @@ router.post('/images', authMiddleware, upload.single('image'), async (req: AuthR
   } catch (error) {
     console.error('图片上传失败:', error);
     res.status(500).json({ message: '图片上传失败' });
+  }
+});
+
+/**
+ * @swagger
+ * /api/articles/cover:
+ *   post:
+ *     summary: 上传文章封面
+ *     description: 上传文章封面图片
+ *     tags: [Articles]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - cover
+ *             properties:
+ *               cover:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: 封面上传成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 url:
+ *                   type: string
+ */
+router.post('/cover', authMiddleware, uploadArticleCover, async (req: AuthRequest, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: '请选择要上传的图片' });
+    }
+
+    // 生成图片URL
+    const imageUrl = `/uploads/covers/${req.file.filename}`;
+    
+    res.json({ url: imageUrl });
+  } catch (error) {
+    console.error('封面上传失败:', error);
+    res.status(500).json({ message: '封面上传失败' });
   }
 });
 

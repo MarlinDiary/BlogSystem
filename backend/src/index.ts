@@ -10,6 +10,7 @@ import { usersRouter } from './routes/users';
 import { commentsRouter } from './routes/comments';
 import { logger } from './middleware/logger';
 import adminRouter from './routes/admin';
+import path from 'path';
 
 dotenv.config();
 
@@ -25,7 +26,9 @@ app.use(cors({
 }));
 
 app.use(express.json());
-app.use('/uploads', express.static('uploads'));
+
+// 静态文件服务
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Swagger UI
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));

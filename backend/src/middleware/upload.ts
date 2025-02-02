@@ -1,11 +1,35 @@
 import multer from 'multer';
 import path from 'path';
 import { Request } from 'express';
+import fs from 'fs';
+
+// 确保上传目录存在
+const createUploadDirs = () => {
+  const dirs = ['uploads/covers', 'uploads/avatars', 'uploads/articles'];
+  dirs.forEach(dir => {
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+  });
+};
+
+createUploadDirs();
 
 // 文章封面图上传配置
 const coverStorage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, 'uploads/covers');
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+// 文章内容图片上传配置
+const articleStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'uploads/articles');
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
@@ -41,6 +65,14 @@ export const uploadArticleCover = multer({
   },
   fileFilter
 }).single('cover');
+
+export const uploadArticleImage = multer({
+  storage: articleStorage,
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB
+  },
+  fileFilter
+}).single('image');
 
 export const uploadAvatar = multer({
   storage: avatarStorage,

@@ -4,7 +4,7 @@
   import { page } from '$app/stores';
   import { Editor } from '@tiptap/core';
   import StarterKit from '@tiptap/starter-kit';
-  import Image from '@tiptap/extension-image';
+  import TiptapImage from '@tiptap/extension-image';
   import Link from '@tiptap/extension-link';
   import Placeholder from '@tiptap/extension-placeholder';
   import TextAlign from '@tiptap/extension-text-align';
@@ -13,7 +13,8 @@
   import { common, createLowlight } from 'lowlight';
   
   const lowlight = createLowlight(common);
-  const API_BASE = '/api';
+  const API_BASE = 'http://localhost:3000/api';
+  const SERVER_BASE = 'http://localhost:3000';
   
   let title = '';
   let content = '';
@@ -25,9 +26,12 @@
   let error = '';
   let editor: Editor;
   let editorElement: HTMLElement;
+  let imageUploading = false;
   
   // 处理编辑器中的图片上传
   async function handleEditorImageUpload() {
+    if (imageUploading) return;
+    
     const input = document.createElement('input');
     input.setAttribute('type', 'file');
     input.setAttribute('accept', 'image/*');
@@ -37,24 +41,45 @@
       const file = input.files?.[0];
       if (file) {
         try {
+          imageUploading = true;
           const formData = new FormData();
           formData.append('image', file);
 
           const response = await fetch(`${API_BASE}/articles/images`, {
             method: 'POST',
             body: formData,
+            credentials: 'include',
             headers: {
               'Authorization': `Bearer ${localStorage.getItem('token')}`
             }
           });
 
-          if (!response.ok) throw new Error('上传失败');
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ message: '上传失败' }));
+            throw new Error(errorData.message || '上传失败');
+          }
 
           const data = await response.json();
-          editor?.chain().focus().setImage({ src: data.url, alt: file.name }).run();
+          const imageUrl = SERVER_BASE + data.url;
+          
+          // 先加载图片，确保图片可用
+          await new Promise((resolve, reject) => {
+            const imgElement = document.createElement('img');
+            imgElement.onload = resolve;
+            imgElement.onerror = reject;
+            imgElement.src = imageUrl;
+          });
+          
+          editor?.chain().focus().setImage({ 
+            src: imageUrl, 
+            alt: file.name,
+            title: file.name 
+          }).run();
         } catch (err) {
           console.error('上传图片失败:', err);
-          error = '上传图片失败';
+          error = err instanceof Error ? err.message : '上传失败';
+        } finally {
+          imageUploading = false;
         }
       }
     };
@@ -69,7 +94,7 @@
             levels: [1, 2, 3]
           }
         }),
-        Image.configure({
+        TiptapImage.configure({
           HTMLAttributes: {
             class: 'rounded-lg max-w-full',
           },
@@ -118,21 +143,25 @@
       const formData = new FormData();
       formData.append('cover', target.files[0]);
       
-      const response = await fetch(`${API_BASE}/articles/upload`, {
+      const response = await fetch(`${API_BASE}/articles/cover`, {
         method: 'POST',
         body: formData,
+        credentials: 'include',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
       });
       
-      if (!response.ok) throw new Error('上传失败');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: '上传失败' }));
+        throw new Error(errorData.message || '上传失败');
+      }
       
       const data = await response.json();
-      imageUrl = data.url;
+      imageUrl = SERVER_BASE + data.url;
     } catch (err) {
       console.error('上传图片失败:', err);
-      error = '上传图片失败';
+      error = err instanceof Error ? err.message : '上传失败';
     }
   }
   
@@ -151,8 +180,12 @@
         return;
       }
       
-      const response = await fetch('/api/articles', {
+      // 发送相对路径的 imageUrl
+      const relativeImageUrl = imageUrl ? imageUrl.replace(SERVER_BASE, '') : '';
+      
+      const response = await fetch(`${API_BASE}/articles`, {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -161,20 +194,21 @@
           title,
           content,
           htmlContent,
-          imageUrl,
+          imageUrl: relativeImageUrl,
           tags
         })
       });
       
       if (!response.ok) {
-        throw new Error('发布失败');
+        const errorData = await response.json().catch(() => ({ message: '发布失败' }));
+        throw new Error(errorData.message || '发布失败');
       }
       
       const article = await response.json();
       goto(`/articles/${article.id}`);
     } catch (err) {
       console.error('发布文章失败:', err);
-      error = '发布失败，请重试';
+      error = err instanceof Error ? err.message : '发布失败，请重试';
     } finally {
       loading = false;
     }
@@ -401,9 +435,14 @@
         <button
           class="toolbar-button"
           on:click={handleEditorImageUpload}
+          disabled={imageUploading}
           title="插入图片"
         >
-          图片
+          {#if imageUploading}
+            <div class="w-4 h-4 border-2 border-lime-500 border-t-transparent rounded-full animate-spin"></div>
+          {:else}
+            图片
+          {/if}
         </button>
         <button
           class="toolbar-button"
