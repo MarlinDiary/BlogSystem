@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, afterUpdate, onDestroy, tick } from 'svelte';
   import { page } from '$app/stores';
   
   interface Author {
@@ -23,9 +23,120 @@
     likeCount: number;
   }
 
+  interface TocItem {
+    id: string;
+    text: string;
+    level: number;
+    isActive: boolean;
+  }
+
   let article: Article | null = null;
   let loading = false;
   let error = '';
+  let tocItems: TocItem[] = [];
+  let activeHeadingId = '';
+  let observer: IntersectionObserver | null = null;
+
+  // 生成标题ID
+  function generateHeadingId(text: string): string {
+    return text
+      .toLowerCase()
+      .replace(/\s+/g, '-')
+      .replace(/[^\w\u4e00-\u9fa5-]/g, '') // 保留中文字符
+      .replace(/(-{2,})/g, '-');
+  }
+
+  // 处理目录点击
+  function handleTocClick(e: MouseEvent, id: string) {
+    e.preventDefault();
+    const element = document.getElementById(id);
+    if (!element) return;
+    
+    element.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start'
+    });
+    
+    window.history.pushState({}, '', `#${id}`);
+  }
+
+  // 清理HTML标签
+  function stripHtml(html: string): string {
+    const tmp = document.createElement('div');
+    tmp.innerHTML = html;
+    return tmp.textContent || tmp.innerText || '';
+  }
+
+  // 解析文章内容中的标题
+  function parseToc(content: string): TocItem[] {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(content, 'text/html');
+    const headings = doc.querySelectorAll('h1, h2');
+    const items = Array.from(headings).map(heading => {
+      const text = stripHtml((heading.innerHTML || '').trim());
+      const id = generateHeadingId(text);
+      return {
+        id,
+        text,
+        level: parseInt(heading.tagName[1]),
+        isActive: false
+      };
+    });
+    return items;
+  }
+
+  // 处理文章内容点击事件
+  function handleContentInteraction(e: MouseEvent | KeyboardEvent) {
+    if (e.type === 'keydown' && (e as KeyboardEvent).key !== 'Enter') {
+      return;
+    }
+    const target = e.target as HTMLElement;
+    const heading = target.closest('h1, h2');
+    if (heading && heading.id) {
+      e.preventDefault();
+      const element = document.getElementById(heading.id);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
+  }
+
+  function scrollToHeading(id: string) {
+    const element = document.getElementById(id);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+    }
+  }
+
+  // 初始化观察器
+  function initializeObserver() {
+    if (!article?.htmlContent) return;
+    
+    // 断开之前的观察器
+    observer?.disconnect();
+    
+    observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            activeHeadingId = entry.target.id;
+            tocItems = tocItems.map(item => ({
+              ...item,
+              isActive: item.id === activeHeadingId
+            }));
+          }
+        });
+      },
+      {
+        rootMargin: '-20% 0px -80% 0px',
+        threshold: 0
+      }
+    );
+    
+    // 查询文章区域内带 id 的标题元素
+    const headings = document.querySelectorAll('.article-content h1[id], .article-content h2[id]');
+    headings.forEach(heading => observer?.observe(heading));
+  }
 
   async function fetchArticle(id: string) {
     loading = true;
@@ -36,6 +147,9 @@
         throw new Error('获取文章详情失败');
       }
       article = await response.json();
+      if (article?.htmlContent) {
+        tocItems = parseToc(article.htmlContent);
+      }
     } catch (e) {
       console.error('获取文章详情出错:', e);
       error = e instanceof Error ? e.message : '获取文章详情失败';
@@ -43,6 +157,11 @@
       loading = false;
     }
   }
+
+  // 组件销毁时清理观察器
+  onDestroy(() => {
+    observer?.disconnect();
+  });
 
   // 格式化日期
   function formatDate(dateString: string): string {
@@ -53,10 +172,14 @@
     });
   }
 
-  onMount(() => {
+  onMount(async () => {
     const id = $page.params.id;
     if (id) {
-      fetchArticle(id);
+      await fetchArticle(id);
+      await tick();
+      setTimeout(() => {
+        initializeObserver();
+      }, 200);
     }
   });
 </script>
@@ -168,6 +291,101 @@
     height: 48px;
     border-radius: 50%;
   }
+
+  .toc {
+    position: fixed;
+    left: 2rem;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 240px;
+    max-height: 80vh;
+    overflow-y: auto;
+    padding-right: 1rem;
+    /* 隐藏滚动条但保持功能 */
+    scrollbar-width: none;
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
+
+  .toc-item {
+    display: block;
+    font-size: 12px;
+    line-height: 18px;
+    font-weight: 500;
+    color: rgb(161 161 170);
+    text-decoration: none;
+    transition: all 0.2s ease;
+    margin-bottom: 0.5rem;
+
+    &[data-level="2"] {
+      padding-left: 4px;
+    }
+
+    &[data-level="3"] {
+      padding-left: 8px;
+    }
+
+    &[data-active="true"] {
+      color: rgb(24 24 27);
+    }
+
+    @media (hover: hover) {
+      &:hover {
+        color: rgb(24 24 27);
+      }
+    }
+  }
+
+  .toc-list {
+    &:hover .toc-item:not(:hover) {
+      opacity: 0.5;
+    }
+  }
+
+  :global(.dark) .toc-item {
+    color: rgb(113 113 122);
+
+    &[data-active="true"] {
+      color: rgb(244 244 245);
+    }
+
+    @media (hover: hover) {
+      &:hover {
+        color: rgb(161 161 170);
+      }
+    }
+  }
+
+  :global(.dark) .toc-list:hover .toc-item:not(:hover) {
+    color: rgb(82 82 91);
+  }
+
+  @media (max-width: 1280px) {
+    .toc {
+      display: none;
+    }
+  }
+
+  :global(.heading-anchor) {
+    cursor: pointer;
+    scroll-margin-top: 2rem;
+
+    &:hover {
+      &::after {
+        content: '#';
+        opacity: 0.5;
+        margin-left: 0.5rem;
+        font-weight: normal;
+      }
+    }
+  }
+
+  :global(.dark) {
+    :global(.heading-anchor:hover::after) {
+      opacity: 0.3;
+    }
+  }
 </style>
 
 <div class="article-container">
@@ -180,6 +398,24 @@
       {error}
     </div>
   {:else if article}
+    {#if tocItems.length > 0}
+      <nav class="toc">
+        <div class="toc-list">
+          {#each tocItems as item}
+            <a
+              href="#{item.id}"
+              class="toc-item"
+              data-level={item.level}
+              data-active={item.isActive}
+              on:click|preventDefault={(e) => handleTocClick(e, item.id)}
+              aria-current={item.isActive ? 'true' : undefined}
+            >
+              {item.text}
+            </a>
+          {/each}
+        </div>
+      </nav>
+    {/if}
     {#if article.imageUrl}
       <div class="cover-container">
         <div 
@@ -213,8 +449,25 @@
       </div>
     </div>
 
-    <div class="article-content prose dark:prose-invert max-w-none">
-      {@html article.htmlContent || article.content}
+    <div 
+      class="article-content prose dark:prose-invert max-w-none" 
+      role="article"
+    >
+      {#if article?.htmlContent}
+        {@html article.htmlContent.replace(
+          /<(h[12])([^>]*)>(.*?)<\/\1>/g,
+          (match, tag, attrs, text) => {
+            const cleanText = stripHtml(text.trim());
+            const cleanAttrs = attrs.replace(/\s+id\s*=\s*(['"]).*?\1/, '');
+            const id = generateHeadingId(cleanText);
+            const tocItem = tocItems.find(item => item.text === cleanText);
+            const finalId = tocItem?.id || id;
+            return `<${tag}${cleanAttrs} id="${finalId}" class="heading-anchor" tabindex="0" role="link" aria-label="跳转到${cleanText}章节">${text}</${tag}>`;
+          }
+        )}
+      {/if}
     </div>
   {/if}
-</div> 
+</div>
+
+<svelte:window on:click={handleContentInteraction} on:keydown={handleContentInteraction} /> 
