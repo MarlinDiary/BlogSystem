@@ -5,6 +5,7 @@
 uploads/*
 !uploads/.gitkeep
 !uploads/avatars/.gitkeep
+!uploads/avatars/default.png
 !uploads/articles/.gitkeep
 
 # 日志文件

@@ -19,7 +19,7 @@ export const users = sqliteTable('users', {
   realName: text('real_name'),
   dateOfBirth: text('date_of_birth'),
   bio: text('bio'),
-  avatarUrl: text('avatar_url'),
+  avatarUrl: text('avatar_url').default('/uploads/avatars/default.png'),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull().default(sql`CURRENT_TIMESTAMP`),
 } as const);
 
