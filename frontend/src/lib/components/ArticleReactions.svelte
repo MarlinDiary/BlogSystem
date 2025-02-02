@@ -88,6 +88,12 @@
       @apply ring-1 ring-white/10;
     }
   }
+
+  @media (max-width: 1280px) {
+    .reactions {
+      display: none;
+    }
+  }
 </style>
 
 <div
