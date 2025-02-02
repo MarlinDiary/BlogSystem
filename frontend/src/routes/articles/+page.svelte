@@ -118,6 +118,7 @@
   .article-card .image-container {
     margin-bottom: 1.5rem;
     overflow: hidden;
+    height: clamp(200px, 30vh, 280px);
   }
 
   .article-card .content {
@@ -141,9 +142,21 @@
     color: white;
     opacity: 0.75;
   }
+
+  @media (max-width: 1280px) {
+    .article-card .image-container {
+      height: clamp(180px, 25vh, 240px);
+    }
+  }
+
+  @media (max-width: 768px) {
+    .article-card .image-container {
+      height: clamp(160px, 20vh, 200px);
+    }
+  }
 </style>
 
-<div class="mx-auto max-w-7xl px-4 py-12">
+<div class="mx-auto max-w-[1600px] px-4 py-12">
   <h1 class="text-4xl font-bold tracking-tight text-zinc-800 dark:text-zinc-100 sm:text-5xl mb-12 text-center">
     探索文章
   </h1>
@@ -159,7 +172,7 @@
       <div class="animate-spin rounded-full h-8 w-8 border-2 border-lime-500 border-t-transparent"></div>
     </div>
   {:else}
-    <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+    <div class="grid gap-4 md:gap-6 xl:gap-8 grid-cols-1 md:grid-cols-2 xl:grid-cols-3 max-w-screen-md md:max-w-screen-xl xl:max-w-none mx-auto">
       {#each articles as article}
         <article 
           class="article-card group flex flex-col rounded-2xl transition-all duration-300 hover:shadow-xl relative"
