@@ -88,7 +88,6 @@ router.get('/', async (req, res, next) => {
         id: articlesTable.id,
         title: articlesTable.title,
         content: articlesTable.content,
-        htmlContent: articlesTable.htmlContent,
         imageUrl: articlesTable.imageUrl,
         status: articlesTable.status,
         viewCount: articlesTable.viewCount,
@@ -172,7 +171,7 @@ router.get('/', async (req, res, next) => {
 // 创建文章
 router.post('/', authMiddleware, async (req: AuthRequest, res, next) => {
   try {
-    const { title, content, htmlContent, imageUrl, tags, status = 'pending' } = req.body;
+    const { title, content, imageUrl, tags, status = 'pending' } = req.body;
     
     if (!title || !content) {
       return res.status(400).json({ message: '标题和内容不能为空' });
@@ -185,10 +184,9 @@ router.post('/', authMiddleware, async (req: AuthRequest, res, next) => {
         .insert(articlesTable)
         .values({
           title,
-          content,         // 纯文本内容
-          htmlContent,     // 富文本 HTML 内容
+          content,
           imageUrl,
-          status,         // 使用传入的状态或默认为 pending
+          status,
           authorId: req.userId!,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
@@ -263,7 +261,6 @@ router.get('/:id', async (req, res, next) => {
       id: articlesTable.id,
       title: articlesTable.title,
       content: articlesTable.content,
-      htmlContent: articlesTable.htmlContent,
       imageUrl: articlesTable.imageUrl,
       status: articlesTable.status,
       viewCount: articlesTable.viewCount,
@@ -281,15 +278,24 @@ router.get('/:id', async (req, res, next) => {
     .leftJoin(users, eq(users.id, articlesTable.authorId))
     .leftJoin(comments, eq(comments.articleId, articlesTable.id))
     .leftJoin(articleReactions, eq(articleReactions.articleId, articlesTable.id))
-    .where(and(
-      eq(articlesTable.id, articleId),
-      eq(articlesTable.status, 'published')
-    ))
+    .where(eq(articlesTable.id, articleId))
     .groupBy(articlesTable.id, users.id);
 
     if (!article) {
       return res.status(404).json({ message: '文章不存在' });
     }
+
+    // 将 Markdown 内容转换为 HTML
+    const htmlContent = marked(article.content);
+    
+    // 净化 HTML 以防止 XSS 攻击
+    const sanitizedHtml = sanitizeHtml(htmlContent, {
+      allowedTags: sanitizeHtml.defaults.allowedTags.concat(['img']),
+      allowedAttributes: {
+        ...sanitizeHtml.defaults.allowedAttributes,
+        img: ['src', 'alt', 'title']
+      }
+    });
 
     // 更新浏览量
     await db.update(articlesTable)
@@ -299,7 +305,10 @@ router.get('/:id', async (req, res, next) => {
       })
       .where(eq(articlesTable.id, articleId));
 
-    res.json(article);
+    res.json({
+      ...article,
+      htmlContent: sanitizedHtml
+    });
   } catch (error) {
     next(error);
   }

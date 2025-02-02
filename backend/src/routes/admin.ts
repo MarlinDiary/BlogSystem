@@ -1,10 +1,11 @@
 import { Router } from 'express';
 import { db } from '../db';
 import { and, eq, sql } from 'drizzle-orm';
-import { users, articles, comments, articleReactions } from '../db/schema';
+import { users, articles as articlesTable, comments as commentsTable, articleReactions } from '../db/schema';
 import { isAdmin, authMiddleware } from '../middleware/auth';
 import path from 'path';
 import fs from 'fs';
+import { Request } from 'express';
 
 /**
  * @swagger
@@ -55,6 +56,14 @@ const router = Router();
 router.use(authMiddleware);
 router.use(isAdmin);
 
+interface AdminArticlesQuery extends Request {
+  query: {
+    status?: 'draft' | 'pending' | 'published' | 'rejected';
+    page?: string;
+    pageSize?: string;
+  }
+}
+
 /**
  * @swagger
  * /api/admin/users:
@@ -89,18 +98,18 @@ router.get('/users', async (req, res) => {
         bio: users.bio,
         avatarUrl: users.avatarUrl,
         createdAt: users.createdAt,
-        articleCount: sql<number>`count(distinct ${articles.id})`,
-        commentCount: sql<number>`count(distinct ${comments.id})`
+        articleCount: sql<number>`count(distinct ${articlesTable.id})`,
+        commentCount: sql<number>`count(distinct ${commentsTable.id})`
       })
       .from(users)
-      .leftJoin(articles, eq(articles.authorId, users.id))
-      .leftJoin(comments, eq(comments.userId, users.id))
+      .leftJoin(articlesTable, eq(articlesTable.authorId, users.id))
+      .leftJoin(commentsTable, eq(commentsTable.userId, users.id))
       .groupBy(users.id);
 
     // 格式化数据以适应 JTable 显示
     const formattedUsers = usersWithStats.map(user => ({
       ...user,
-      createdAt: new Date(user.createdAt).toLocaleString('zh-CN'),
+      createdAt: user.createdAt ? new Date(user.createdAt).toLocaleString('zh-CN') : '',
       hasAvatar: !!user.avatarUrl
     }));
 
@@ -157,12 +166,12 @@ router.get('/users/:id', async (req, res) => {
         bio: users.bio,
         avatarUrl: users.avatarUrl,
         createdAt: users.createdAt,
-        articleCount: sql<number>`count(distinct ${articles.id})`,
-        commentCount: sql<number>`count(distinct ${comments.id})`
+        articleCount: sql<number>`count(distinct ${articlesTable.id})`,
+        commentCount: sql<number>`count(distinct ${commentsTable.id})`
       })
       .from(users)
-      .leftJoin(articles, eq(articles.authorId, users.id))
-      .leftJoin(comments, eq(comments.userId, users.id))
+      .leftJoin(articlesTable, eq(articlesTable.authorId, users.id))
+      .leftJoin(commentsTable, eq(commentsTable.userId, users.id))
       .where(eq(users.id, userId))
       .groupBy(users.id)
       .get();
@@ -213,10 +222,10 @@ router.delete('/users/:id', async (req, res) => {
   try {
     await db.transaction(async (tx) => {
       // 删除用户的评论
-      await tx.delete(comments).where(eq(comments.userId, userId));
+      await tx.delete(commentsTable).where(eq(commentsTable.userId, userId));
       
       // 删除用户的文章
-      await tx.delete(articles).where(eq(articles.authorId, userId));
+      await tx.delete(articlesTable).where(eq(articlesTable.authorId, userId));
       
       // 删除用户
       await tx.delete(users).where(eq(users.id, userId));
@@ -268,7 +277,7 @@ router.get('/stats', async (req, res) => {
         pendingArticles: sql<number>`count(case when status = 'pending' then 1 end)`,
         totalViews: sql<number>`sum(view_count)`
       })
-      .from(articles);
+      .from(articlesTable);
 
     // 评论统计
     const [commentStats] = await db
@@ -277,7 +286,7 @@ router.get('/stats', async (req, res) => {
         visibleComments: sql<number>`count(case when visibility = 1 then 1 end)`,
         hiddenComments: sql<number>`count(case when visibility = 0 then 1 end)`
       })
-      .from(comments);
+      .from(commentsTable);
 
     // 点赞统计
     const [reactionStats] = await db
@@ -471,8 +480,42 @@ router.post('/users/:id/unban', async (req, res) => {
  *       403:
  *         description: 无管理员权限
  */
-router.get('/articles', async (req, res) => {
-  // ... existing code ...
+router.get('/articles', async (req: AdminArticlesQuery, res) => {
+  try {
+    const { status = 'pending', page = '1', pageSize = '10' } = req.query;
+    
+    // 获取文章列表
+    const articlesList = await db
+      .select({
+        id: articlesTable.id,
+        title: articlesTable.title,
+        content: articlesTable.content,
+        imageUrl: articlesTable.imageUrl,
+        status: articlesTable.status,
+        viewCount: articlesTable.viewCount,
+        authorId: articlesTable.authorId,
+        createdAt: articlesTable.createdAt,
+        updatedAt: articlesTable.updatedAt
+      })
+      .from(articlesTable)
+      .where(eq(articlesTable.status, status));
+
+    // 格式化数据以适应 JTable 显示
+    const formattedArticles = articlesList.map(article => ({
+      ...article,
+      createdAt: article.createdAt ? new Date(article.createdAt).toLocaleString('zh-CN') : '',
+      updatedAt: article.updatedAt ? new Date(article.updatedAt).toLocaleString('zh-CN') : ''
+    }));
+
+    res.json({
+      items: formattedArticles,
+      total: articlesList.length,
+      page: Number(page),
+      pageSize: Number(pageSize)
+    });
+  } catch (error) {
+    res.status(500).json({ error: '获取文章列表失败' });
+  }
 });
 
 /**
@@ -506,7 +549,37 @@ router.get('/articles', async (req, res) => {
  *         description: 文章不存在
  */
 router.get('/articles/:id', async (req, res) => {
-  // ... existing code ...
+  try {
+    const articleId = parseInt(req.params.id);
+    
+    if (isNaN(articleId)) {
+      return res.status(400).json({ message: '无效的文章ID' });
+    }
+
+    const article = await db
+      .select({
+        id: articlesTable.id,
+        title: articlesTable.title,
+        content: articlesTable.content,
+        imageUrl: articlesTable.imageUrl,
+        status: articlesTable.status,
+        viewCount: articlesTable.viewCount,
+        authorId: articlesTable.authorId,
+        createdAt: articlesTable.createdAt,
+        updatedAt: articlesTable.updatedAt
+      })
+      .from(articlesTable)
+      .where(eq(articlesTable.id, articleId))
+      .get();
+
+    if (!article) {
+      return res.status(404).json({ message: '文章不存在' });
+    }
+
+    res.json(article);
+  } catch (error) {
+    res.status(500).json({ error: '获取文章详情失败' });
+  }
 });
 
 /**
@@ -559,7 +632,37 @@ router.get('/articles/:id', async (req, res) => {
  *         description: 无管理员权限
  */
 router.get('/comments', async (req, res) => {
-  // ... existing code ...
+  try {
+    const { visibility, page, pageSize } = req.query;
+    
+    // 获取评论列表
+    const comments = await db
+      .select({
+        id: commentsTable.id,
+        content: commentsTable.content,
+        visibility: commentsTable.visibility,
+        userId: commentsTable.userId,
+        articleId: commentsTable.articleId,
+        createdAt: commentsTable.createdAt
+      })
+      .from(commentsTable)
+      .where(eq(commentsTable.visibility, visibility));
+
+    // 格式化数据以适应 JTable 显示
+    const formattedComments = comments.map(comment => ({
+      ...comment,
+      createdAt: comment.createdAt ? new Date(comment.createdAt).toLocaleString('zh-CN') : ''
+    }));
+
+    res.json({
+      items: formattedComments,
+      total: comments.length,
+      page: page,
+      pageSize: pageSize
+    });
+  } catch (error) {
+    res.status(500).json({ error: '获取评论列表失败' });
+  }
 });
 
 /**
@@ -589,7 +692,21 @@ router.get('/comments', async (req, res) => {
  *         description: 评论不存在
  */
 router.delete('/comments/:id', async (req, res) => {
-  // ... existing code ...
+  try {
+    const commentId = parseInt(req.params.id);
+    
+    if (isNaN(commentId)) {
+      return res.status(400).json({ message: '无效的评论ID' });
+    }
+
+    await db
+      .delete(commentsTable)
+      .where(eq(commentsTable.id, commentId));
+
+    res.json({ message: '评论已删除' });
+  } catch (error) {
+    res.status(500).json({ error: '删除评论失败' });
+  }
 });
 
 /**
@@ -635,13 +752,29 @@ router.delete('/comments/:id', async (req, res) => {
  *         description: 评论不存在
  */
 router.patch('/comments/:id/visibility', async (req, res) => {
-  // ... existing code ...
+  try {
+    const commentId = parseInt(req.params.id);
+    const { visibility } = req.body;
+
+    if (isNaN(commentId)) {
+      return res.status(400).json({ message: '无效的评论ID' });
+    }
+
+    await db
+      .update(commentsTable)
+      .set({ visibility })
+      .where(eq(commentsTable.id, commentId));
+
+    res.json({ message: '评论可见性已更新' });
+  } catch (error) {
+    res.status(500).json({ error: '更新评论可见性失败' });
+  }
 });
 
 /**
  * @swagger
  * /api/admin/articles/{id}/review:
- *   post:
+ *   patch:
  *     summary: 审核文章
  *     description: 审核指定文章（管理员专用）
  *     tags: [Admin]
@@ -662,6 +795,7 @@ router.patch('/comments/:id/visibility', async (req, res) => {
  *             type: object
  *             required:
  *               - status
+ *               - reason
  *             properties:
  *               status:
  *                 type: string
@@ -671,29 +805,28 @@ router.patch('/comments/:id/visibility', async (req, res) => {
  *                 description: 审核意见（拒绝时必填）
  *     responses:
  *       200:
- *         description: 文章审核成功
+ *         description: 文章审核完成
  *       401:
  *         description: 未授权
  *       403:
  *         description: 无管理员权限
  */
-router.post('/articles/:id/review', async (req, res) => {
+router.patch('/articles/:id/review', async (req, res) => {
   try {
-    const { status, reason } = req.body;
     const articleId = parseInt(req.params.id);
+    const { status, reason } = req.body;
 
-    if (!['published', 'rejected'].includes(status)) {
-      return res.status(400).json({ message: '无效的审核状态' });
+    if (isNaN(articleId)) {
+      return res.status(400).json({ message: '无效的文章ID' });
     }
 
     await db
-      .update(articles)
+      .update(articlesTable)
       .set({ 
         status,
-        reviewedAt: new Date().toISOString(),
-        reviewReason: reason || null
+        updatedAt: new Date().toISOString()
       })
-      .where(eq(articles.id, articleId));
+      .where(eq(articlesTable.id, articleId));
 
     res.json({ message: '文章审核完成' });
   } catch (error) {
@@ -742,13 +875,13 @@ router.delete('/articles/:id', async (req, res) => {
       
       // 删除文章的所有评论
       await tx
-        .delete(comments)
-        .where(eq(comments.articleId, articleId));
+        .delete(commentsTable)
+        .where(eq(commentsTable.articleId, articleId));
       
       // 删除文章
       const article = await tx
-        .delete(articles)
-        .where(eq(articles.id, articleId))
+        .delete(articlesTable)
+        .where(eq(articlesTable.id, articleId))
         .returning();
 
       // 如果文章有封面图，删除封面图文件
@@ -806,7 +939,7 @@ router.post('/comments/batch-delete', async (req, res) => {
     }
 
     await db
-      .delete(comments)
+      .delete(commentsTable)
       .where(sql`id = any(${commentIds})`);
 
     res.json({ message: '评论已批量删除' });
@@ -862,21 +995,21 @@ router.post('/articles/batch-delete', async (req, res) => {
       
       // 删除文章的所有评论
       await tx
-        .delete(comments)
+        .delete(commentsTable)
         .where(sql`article_id = any(${articleIds})`);
       
       // 获取要删除的文章列表（用于删除封面图）
       const articlesToDelete = await tx
         .select({
-          id: articles.id,
-          imageUrl: articles.imageUrl
+          id: articlesTable.id,
+          imageUrl: articlesTable.imageUrl
         })
-        .from(articles)
+        .from(articlesTable)
         .where(sql`id = any(${articleIds})`);
       
       // 删除文章
       await tx
-        .delete(articles)
+        .delete(articlesTable)
         .where(sql`id = any(${articleIds})`);
 
       // 删除封面图文件
