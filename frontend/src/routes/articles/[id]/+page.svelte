@@ -36,6 +36,7 @@
   let tocItems: TocItem[] = [];
   let activeHeadingId = '';
   let observer: IntersectionObserver | null = null;
+  let isScrolled = false;
 
   // 生成标题ID
   function generateHeadingId(text: string): string {
@@ -172,6 +173,10 @@
     });
   }
 
+  function handleScroll() {
+    isScrolled = window.scrollY > 200;
+  }
+
   onMount(async () => {
     const id = $page.params.id;
     if (id) {
@@ -181,11 +186,26 @@
         initializeObserver();
       }, 200);
     }
+
+    window.addEventListener('scroll', handleScroll);
+  });
+
+  onDestroy(() => {
+    observer?.disconnect();
+    window.removeEventListener('scroll', handleScroll);
   });
 </script>
 
 <style lang="postcss">
+  .article-wrapper {
+    position: relative;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 2rem;
+  }
+
   .article-container {
+    position: relative;
     max-width: 800px;
     margin: 0 auto;
     padding: 2rem;
@@ -293,18 +313,35 @@
   }
 
   .toc {
-    position: fixed;
-    left: 2rem;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 240px;
-    max-height: 80vh;
-    overflow-y: auto;
-    padding-right: 1rem;
-    /* 隐藏滚动条但保持功能 */
-    scrollbar-width: none;
-    &::-webkit-scrollbar {
-      display: none;
+    position: absolute;
+    width: 160px;
+    height: fit-content;
+    display: none;
+    transition: all 0.3s ease;
+    @screen lg {
+      display: block;
+      position: fixed;
+      left: 50%;
+      transform: translateX(calc(-50% - 480px));
+      margin-left: -40px;  /* 给目录一些额外的间距 */
+    }
+
+    &[data-scrolled="true"] {
+      top: 2rem;
+      padding-top: 5rem;
+    }
+
+    &:not([data-scrolled="true"]) {
+      top: 16rem;
+    }
+  }
+
+  .toc-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    &:hover .toc-item:not(:hover) {
+      opacity: 0.5;
     }
   }
 
@@ -316,13 +353,16 @@
     color: rgb(161 161 170);
     text-decoration: none;
     transition: all 0.2s ease;
-    margin-bottom: 0.5rem;
 
     &[data-level="2"] {
-      padding-left: 4px;
+      padding-left: 0;
     }
 
     &[data-level="3"] {
+      padding-left: 4px;
+    }
+
+    &[data-level="4"] {
       padding-left: 8px;
     }
 
@@ -334,12 +374,6 @@
       &:hover {
         color: rgb(24 24 27);
       }
-    }
-  }
-
-  .toc-list {
-    &:hover .toc-item:not(:hover) {
-      opacity: 0.5;
     }
   }
 
@@ -388,86 +422,89 @@
   }
 </style>
 
-<div class="article-container">
-  {#if loading}
-    <div class="flex justify-center items-center py-12">
-      <div class="animate-spin rounded-full h-8 w-8 border-2 border-lime-500 border-t-transparent"></div>
-    </div>
-  {:else if error}
-    <div class="p-4 mb-6 text-red-700 bg-red-100 rounded-lg dark:bg-red-900/30 dark:text-red-200">
-      {error}
-    </div>
-  {:else if article}
-    {#if tocItems.length > 0}
-      <nav class="toc">
-        <div class="toc-list">
-          {#each tocItems as item}
-            <a
-              href="#{item.id}"
-              class="toc-item"
-              data-level={item.level}
-              data-active={item.isActive}
-              on:click|preventDefault={(e) => handleTocClick(e, item.id)}
-              aria-current={item.isActive ? 'true' : undefined}
-            >
-              {item.text}
-            </a>
-          {/each}
-        </div>
-      </nav>
-    {/if}
-    {#if article.imageUrl}
-      <div class="cover-container">
-        <div 
-          class="blur-background" 
-          style="background-image: url({article.imageUrl})"
-        ></div>
-        <img src={article.imageUrl} alt={article.title} class="cover-image" />
+<div class="article-wrapper">
+  {#if article && tocItems.length > 0}
+    <nav class="toc" data-scrolled={isScrolled}>
+      <div class="toc-list">
+        {#each tocItems as item}
+          <a
+            href="#{item.id}"
+            class="toc-item"
+            data-level={item.level}
+            data-active={item.isActive}
+            on:click|preventDefault={(e) => handleTocClick(e, item.id)}
+            aria-current={item.isActive ? 'true' : undefined}
+          >
+            {item.text}
+          </a>
+        {/each}
       </div>
-    {/if}
-    
-    <h1 class="text-4xl font-bold mb-4 text-zinc-800 dark:text-zinc-100">
-      {article.title}
-    </h1>
-
-    <div class="article-meta">
-      <img 
-        src={article.author.avatarUrl || '/default-avatar.png'} 
-        alt={article.author.username}
-        class="author-avatar"
-      />
-      <div>
-        <div class="font-medium text-zinc-800 dark:text-zinc-100">{article.author.username}</div>
-        <div class="text-sm text-zinc-500">
-          发布于 {formatDate(article.createdAt)}
-        </div>
-      </div>
-      <div class="ml-auto flex items-center gap-4 text-sm text-zinc-500">
-        <span>阅读 {article.viewCount}</span>
-        <span>评论 {article.commentCount}</span>
-        <span>点赞 {article.likeCount}</span>
-      </div>
-    </div>
-
-    <div 
-      class="article-content prose dark:prose-invert max-w-none" 
-      role="article"
-    >
-      {#if article?.htmlContent}
-        {@html article.htmlContent.replace(
-          /<(h[12])([^>]*)>(.*?)<\/\1>/g,
-          (match, tag, attrs, text) => {
-            const cleanText = stripHtml(text.trim());
-            const cleanAttrs = attrs.replace(/\s+id\s*=\s*(['"]).*?\1/, '');
-            const id = generateHeadingId(cleanText);
-            const tocItem = tocItems.find(item => item.text === cleanText);
-            const finalId = tocItem?.id || id;
-            return `<${tag}${cleanAttrs} id="${finalId}" class="heading-anchor" tabindex="0" role="link" aria-label="跳转到${cleanText}章节">${text}</${tag}>`;
-          }
-        )}
-      {/if}
-    </div>
+    </nav>
   {/if}
+
+  <div class="article-container">
+    {#if loading}
+      <div class="flex justify-center items-center py-12">
+        <div class="animate-spin rounded-full h-8 w-8 border-2 border-lime-500 border-t-transparent"></div>
+      </div>
+    {:else if error}
+      <div class="p-4 mb-6 text-red-700 bg-red-100 rounded-lg dark:bg-red-900/30 dark:text-red-200">
+        {error}
+      </div>
+    {:else if article}
+      {#if article.imageUrl}
+        <div class="cover-container">
+          <div 
+            class="blur-background" 
+            style="background-image: url({article.imageUrl})"
+          ></div>
+          <img src={article.imageUrl} alt={article.title} class="cover-image" />
+        </div>
+      {/if}
+      
+      <h1 class="text-4xl font-bold mb-4 text-zinc-800 dark:text-zinc-100">
+        {article.title}
+      </h1>
+
+      <div class="article-meta">
+        <img 
+          src={article.author.avatarUrl || '/default-avatar.png'} 
+          alt={article.author.username}
+          class="author-avatar"
+        />
+        <div>
+          <div class="font-medium text-zinc-800 dark:text-zinc-100">{article.author.username}</div>
+          <div class="text-sm text-zinc-500">
+            发布于 {formatDate(article.createdAt)}
+          </div>
+        </div>
+        <div class="ml-auto flex items-center gap-4 text-sm text-zinc-500">
+          <span>阅读 {article.viewCount}</span>
+          <span>评论 {article.commentCount}</span>
+          <span>点赞 {article.likeCount}</span>
+        </div>
+      </div>
+
+      <div 
+        class="article-content prose dark:prose-invert max-w-none" 
+        role="article"
+      >
+        {#if article?.htmlContent}
+          {@html article.htmlContent.replace(
+            /<(h[12])([^>]*)>(.*?)<\/\1>/g,
+            (match, tag, attrs, text) => {
+              const cleanText = stripHtml(text.trim());
+              const cleanAttrs = attrs.replace(/\s+id\s*=\s*(['"]).*?\1/, '');
+              const id = generateHeadingId(cleanText);
+              const tocItem = tocItems.find(item => item.text === cleanText);
+              const finalId = tocItem?.id || id;
+              return `<${tag}${cleanAttrs} id="${finalId}" class="heading-anchor" tabindex="0" role="link" aria-label="跳转到${cleanText}章节">${text}</${tag}>`;
+            }
+          )}
+        {/if}
+      </div>
+    {/if}
+  </div>
 </div>
 
 <svelte:window on:click={handleContentInteraction} on:keydown={handleContentInteraction} /> 
