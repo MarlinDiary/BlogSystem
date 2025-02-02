@@ -8,7 +8,7 @@
 	const navigationItems = [
 		{ href: '/', text: '首页' },
 		{ href: '/articles', text: '文章' },
-		{ href: '/search', text: '搜索' },
+		//{ href: '/search', text: '搜索' },
 		{ href: '/publish', text: '发布' },
 		//{ href: '/about', text: '关于' }
 	];
