@@ -68,12 +68,66 @@
     padding: 2rem;
   }
 
+  .cover-container {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 240/135;
+    margin-bottom: 2rem;
+    @media (min-width: 768px) {
+      width: 120%;
+      margin-left: -10%;
+    }
+  }
+
   .cover-image {
     width: 100%;
-    height: 400px;
+    height: 100%;
     object-fit: cover;
     border-radius: 1rem;
-    margin-bottom: 2rem;
+    position: relative;
+    z-index: 1;
+    @media (min-width: 768px) {
+      border-radius: 1.5rem;
+    }
+    ring-width: 1px;
+    ring-color: rgb(24 24 27 / 0.05);
+    transition: all 0.3s ease;
+  }
+
+  :global(.dark) .cover-image {
+    ring-width: 0;
+    ring-color: rgb(255 255 255 / 0.1);
+    &:hover {
+      border-color: rgb(63 63 70);
+      ring-color: rgb(255 255 255 / 0.2);
+    }
+  }
+
+  .blur-background {
+    position: absolute;
+    top: -4px;
+    left: -4px;
+    right: -4px;
+    bottom: -4px;
+    background-size: cover;
+    background-position: center;
+    filter: blur(16px) saturate(1.5);
+    z-index: 0;
+    border-radius: 1rem;
+    @media (min-width: 768px) {
+      border-radius: 1.5rem;
+    }
+    &::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: rgb(255 255 255 / 0.5);
+      border-radius: inherit;
+    }
+  }
+
+  :global(.dark) .blur-background::after {
+    background: rgb(0 0 0 / 0.5);
   }
 
   .article-content {
@@ -107,7 +161,13 @@
     </div>
   {:else if article}
     {#if article.imageUrl}
-      <img src={article.imageUrl} alt={article.title} class="cover-image" />
+      <div class="cover-container">
+        <div 
+          class="blur-background" 
+          style="background-image: url({article.imageUrl})"
+        ></div>
+        <img src={article.imageUrl} alt={article.title} class="cover-image" />
+      </div>
     {/if}
     
     <h1 class="text-4xl font-bold mb-4 text-zinc-800 dark:text-zinc-100">
