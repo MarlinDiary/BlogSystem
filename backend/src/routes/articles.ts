@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { db } from '../db';
-import { articles as articlesTable, users, articleLikes, comments } from '../db/schema';
+import { articles as articlesTable, users, articleLikes, comments, tags as tagsTable, articleTags } from '../db/schema';
 import { eq, and, sql, like, desc, or, SQL, asc } from 'drizzle-orm';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
 import { uploadArticleCover } from '../middleware/upload';
@@ -207,6 +207,13 @@ router.get('/', async (req, res, next) => {
  *                 type: string
  *               imageUrl:
  *                 type: string
+ *               tags:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *               status:
+ *                 type: string
+ *                 enum: [draft, published, pending, rejected]
  *     responses:
  *       201:
  *         description: 文章创建成功
@@ -218,26 +225,63 @@ router.get('/', async (req, res, next) => {
 // 创建文章
 router.post('/', authMiddleware, async (req: AuthRequest, res, next) => {
   try {
-    const { title, content, htmlContent, imageUrl } = req.body;
+    const { title, content, htmlContent, imageUrl, tags, status = 'pending' } = req.body;
     
     if (!title || !content) {
       return res.status(400).json({ message: '标题和内容不能为空' });
     }
 
-    const newArticle = await db
-      .insert(articlesTable)
-      .values({
-        title,
-        content,         // 纯文本内容
-        htmlContent,     // 富文本 HTML 内容
-        imageUrl,
-        authorId: req.userId!,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      })
-      .returning();
+    // 开启事务
+    const result = await db.transaction(async (tx) => {
+      // 1. 创建文章
+      const [newArticle] = await tx
+        .insert(articlesTable)
+        .values({
+          title,
+          content,         // 纯文本内容
+          htmlContent,     // 富文本 HTML 内容
+          imageUrl,
+          status,         // 使用传入的状态或默认为 pending
+          authorId: req.userId!,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        })
+        .returning();
 
-    res.status(201).json(newArticle[0]);
+      // 2. 如果有标签，处理标签
+      if (tags && Array.isArray(tags) && tags.length > 0) {
+        for (const tagName of tags) {
+          // 2.1 查找或创建标签
+          const existingTags = await tx
+            .select()
+            .from(tagsTable)
+            .where(eq(tagsTable.name, tagName));
+
+          let tagId;
+          if (existingTags.length > 0) {
+            tagId = existingTags[0].id;
+          } else {
+            const [newTag] = await tx
+              .insert(tagsTable)
+              .values({ name: tagName })
+              .returning();
+            tagId = newTag.id;
+          }
+
+          // 2.2 创建文章-标签关联
+          await tx
+            .insert(articleTags)
+            .values({
+              articleId: newArticle.id,
+              tagId: tagId
+            });
+        }
+      }
+
+      return newArticle;
+    });
+
+    res.status(201).json(result);
   } catch (error) {
     next(error);
   }

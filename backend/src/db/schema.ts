@@ -83,3 +83,23 @@ export const adminUsers = sqliteTable('admin_users', {
     .references(() => users.id, { onDelete: 'cascade' }),
   role: text('role').notNull().default('admin'),
 } as const);
+
+// 标签表
+export const tags = sqliteTable('tags', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  name: text('name').notNull().unique(),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+} as const);
+
+// 文章标签关联表
+export const articleTags = sqliteTable('article_tags', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  articleId: integer('article_id')
+    .notNull()
+    .references(() => articles.id, { onDelete: 'cascade' }),
+  tagId: integer('tag_id')
+    .notNull()
+    .references(() => tags.id, { onDelete: 'cascade' }),
+}, (table) => ({
+  uniqueTag: unique().on(table.articleId, table.tagId),
+}) as const);

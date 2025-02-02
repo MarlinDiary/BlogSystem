@@ -31,17 +31,68 @@
   let editorElement: HTMLElement;
   let imageUploading = false;
   let isGeneratingTags = false;
-  let isSaving = false;
   let isDirty = false;
-  let lastSavedContent = '';
-  let lastSavedTitle = '';
+  const MAX_TITLE_LENGTH = 50;
+  
+  $: titleLength = title.length;
+  $: isValidTitle = titleLength <= MAX_TITLE_LENGTH;
   
   // 监听内容变化
   $: {
-    if (title !== lastSavedTitle || content !== lastSavedContent) {
+    if (editor) {
       isDirty = true;
     }
   }
+
+  onMount(() => {
+    editor = new Editor({
+      element: editorElement,
+      extensions: [
+        StarterKit.configure({
+          heading: {
+            levels: [1, 2, 3]
+          }
+        }),
+        TiptapImage.configure({
+          HTMLAttributes: {
+            class: 'rounded-lg max-w-full',
+          },
+        }),
+        Link.configure({
+          openOnClick: false,
+          HTMLAttributes: {
+            class: 'text-lime-600 hover:text-lime-700 dark:text-lime-500 dark:hover:text-lime-400',
+          },
+        }),
+        Placeholder.configure({
+          placeholder: '开始写作...',
+        }),
+        TextAlign.configure({
+          types: ['heading', 'paragraph'],
+        }),
+        Underline,
+        CodeBlockLowlight.configure({
+          lowlight,
+          HTMLAttributes: {
+            class: 'rounded-lg bg-zinc-100 dark:bg-zinc-800 p-4',
+          },
+        }),
+      ],
+      editorProps: {
+        attributes: {
+          class: 'prose prose-zinc dark:prose-invert max-w-none focus:outline-none min-h-[300px] px-4 py-2',
+        },
+      },
+      onUpdate: ({ editor }) => {
+        content = editor.getText();
+        htmlContent = editor.getHTML();
+      },
+    });
+  });
+  
+  onDestroy(() => {
+    editor?.destroy();
+  });
   
   // 处理编辑器中的图片上传
   async function handleEditorImageUpload() {
@@ -154,56 +205,6 @@
       isGeneratingTags = false;
     }
   }
-
-  onMount(() => {
-    editor = new Editor({
-      element: editorElement,
-      extensions: [
-        StarterKit.configure({
-          heading: {
-            levels: [1, 2, 3]
-          }
-        }),
-        TiptapImage.configure({
-          HTMLAttributes: {
-            class: 'rounded-lg max-w-full',
-          },
-        }),
-        Link.configure({
-          openOnClick: false,
-          HTMLAttributes: {
-            class: 'text-lime-600 hover:text-lime-700 dark:text-lime-500 dark:hover:text-lime-400',
-          },
-        }),
-        Placeholder.configure({
-          placeholder: '开始写作...',
-        }),
-        TextAlign.configure({
-          types: ['heading', 'paragraph'],
-        }),
-        Underline,
-        CodeBlockLowlight.configure({
-          lowlight,
-          HTMLAttributes: {
-            class: 'rounded-lg bg-zinc-100 dark:bg-zinc-800 p-4',
-          },
-        }),
-      ],
-      editorProps: {
-        attributes: {
-          class: 'prose prose-zinc dark:prose-invert max-w-none focus:outline-none min-h-[300px] px-4 py-2',
-        },
-      },
-      onUpdate: ({ editor }) => {
-        content = editor.getText();
-        htmlContent = editor.getHTML();
-      },
-    });
-  });
-  
-  onDestroy(() => {
-    editor?.destroy();
-  });
   
   async function uploadImage(event: Event) {
     const target = event.target as HTMLInputElement;
@@ -287,8 +288,6 @@
       
       const article = await response.json();
       isDirty = false;
-      lastSavedContent = content;
-      lastSavedTitle = title;
       goto(`/articles/${article.id}`);
     } catch (err) {
       console.error('发布文章失败:', err);
@@ -496,20 +495,49 @@
     align-items: center;
     margin: 0.5rem;
     padding: 0.5rem 1rem;
-    background: rgba(163, 230, 53, 0.1);
+    background: rgba(163, 230, 53, 0.08);
     border-radius: 0.5rem;
     color: rgb(63, 98, 18);
-    font-size: 1rem;
+    font-size: 0.875rem;
     transition: all 0.2s ease;
   }
 
   :global(.dark) .tag-item {
-    background: rgba(163, 230, 53, 0.15);
+    background: rgba(163, 230, 53, 0.1);
     color: rgb(163, 230, 53);
   }
 
   .tag-item:hover {
-    background: rgba(163, 230, 53, 0.2);
+    background: rgba(163, 230, 53, 0.12);
+  }
+
+  :global(.dark) .tag-item:hover {
+    background: rgba(163, 230, 53, 0.15);
+  }
+
+  .tag-item span {
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .tag-item .remove-button {
+    margin-left: 0.5rem;
+    padding: 0.125rem;
+    color: rgb(101, 163, 13);
+    opacity: 0.5;
+    transition: all 0.2s ease;
+  }
+
+  .tag-item:hover .remove-button {
+    opacity: 0.8;
+  }
+
+  .tag-item .remove-button:hover {
+    opacity: 1;
+  }
+
+  :global(.dark) .tag-item .remove-button {
+    color: rgb(163, 230, 53);
   }
 
   .tags-wrapper {
@@ -550,14 +578,20 @@
       
       <!-- 标题输入 -->
       <div class="space-y-2">
-        <label for="title" class="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-          文章标题
-        </label>
+        <div class="flex justify-between items-center">
+          <label for="title" class="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+            文章标题
+          </label>
+          <span class="text-sm {titleLength > MAX_TITLE_LENGTH ? 'text-red-500' : 'text-zinc-500'} dark:text-zinc-400">
+            {titleLength}/{MAX_TITLE_LENGTH}
+          </span>
+        </div>
         <input
           id="title"
           type="text"
           bind:value={title}
-          class="w-full rounded-xl border border-zinc-200 bg-white/80 px-4 py-3 text-lg text-zinc-800 shadow-sm backdrop-blur-sm transition-all duration-200 ease-in-out focus:border-lime-500 focus:ring-2 focus:ring-lime-500/20 hover:border-zinc-300 dark:border-zinc-700/50 dark:bg-zinc-800/80 dark:text-zinc-200 dark:focus:border-lime-400 dark:focus:ring-lime-400/20 dark:hover:border-zinc-600"
+          maxlength={MAX_TITLE_LENGTH}
+          class="w-full rounded-xl border border-zinc-200 bg-white/80 px-4 py-3 text-lg text-zinc-800 shadow-sm backdrop-blur-sm transition-all duration-200 ease-in-out focus:border-lime-500 focus:ring-2 focus:ring-lime-500/20 hover:border-zinc-300 dark:border-zinc-700/50 dark:bg-zinc-800/80 dark:text-zinc-200 dark:focus:border-lime-400 dark:focus:ring-lime-400/20 dark:hover:border-zinc-600 {!isValidTitle ? 'border-red-300 dark:border-red-700' : ''}"
           placeholder="输入一个吸引人的标题..."
         />
       </div>
@@ -588,8 +622,8 @@
                 for="cover-image" 
                 class="cursor-pointer flex flex-col items-center justify-center h-full w-full rounded-xl border-2 border-dashed border-zinc-200 bg-white/50 px-4 py-4 text-center shadow-sm backdrop-blur-sm transition-all duration-300 hover:border-lime-500 hover:bg-lime-50/50 dark:border-zinc-700/50 dark:bg-zinc-800/50 dark:hover:border-lime-400 dark:hover:bg-lime-950/50"
               >
-                <svg class="mx-auto h-12 w-12 text-zinc-400 dark:text-zinc-500" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
-                  <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                <svg class="mx-auto h-12 w-12 text-zinc-400 dark:text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
                 </svg>
                 <div class="mt-4 flex text-sm text-zinc-600 dark:text-zinc-400">
                   <span>上传封面图片</span>
@@ -625,18 +659,22 @@
             {#if tags.length > 0}
               <div class="tags-wrapper">
                 {#each tags as tag}
-                  <div class="tag-item group">
-                    {tag}
-                    <span
-                      class="ml-2 inline-flex h-5 w-5 items-center justify-center rounded-full text-lime-700 hover:bg-lime-200 hover:text-lime-900 dark:text-lime-400 dark:hover:bg-lime-800 transition-colors cursor-pointer"
+                  <div class="tag-item">
+                    <span>
+                      <svg class="w-3.5 h-3.5 mr-1 text-lime-600/40 dark:text-lime-400/40" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z" />
+                      </svg>
+                      {tag}
+                    </span>
+                    <button
+                      class="remove-button"
                       on:click|stopPropagation={() => removeTag(tag)}
-                      on:keydown|stopPropagation={(e) => e.key === 'Enter' && removeTag(tag)}
-                      role="button"
-                      tabindex="0"
                       aria-label={`删除标签 ${tag}`}
                     >
-                      ×
-                    </span>
+                      <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
                   </div>
                 {/each}
               </div>
@@ -646,13 +684,15 @@
                   <div class="w-12 h-12 border-4 border-lime-500 border-t-transparent rounded-full animate-spin mb-4"></div>
                   <p class="text-sm text-zinc-500 dark:text-zinc-400">正在生成标签...</p>
                 {:else if !title}
-                  <svg class="w-12 h-12 text-zinc-400 dark:text-zinc-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z" />
+                  <svg class="w-12 h-12 text-zinc-400 dark:text-zinc-500 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 6h.008v.008H6V6z" />
                   </svg>
                   <p class="text-sm text-zinc-500 dark:text-zinc-400">请先输入文章标题</p>
                 {:else}
-                  <svg class="w-12 h-12 text-zinc-400 dark:text-zinc-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z" />
+                  <svg class="w-12 h-12 text-zinc-400 dark:text-zinc-500 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 6h.008v.008H6V6z" />
                   </svg>
                   <p class="text-sm text-zinc-500 dark:text-zinc-400">点击生成标签</p>
                   <p class="mt-1 text-xs text-zinc-400 dark:text-zinc-500">AI 将根据文章标题生成合适的标签</p>
@@ -684,7 +724,6 @@
           >
             H2
           </button>
-          <div class="w-px h-6 bg-zinc-200 dark:bg-zinc-700 mx-1"></div>
           <button
             class="toolbar-button"
             class:is-active={editor?.isActive('bold')}
@@ -712,7 +751,6 @@
           >
             U
           </button>
-          <div class="w-px h-6 bg-zinc-200 dark:bg-zinc-700 mx-1"></div>
           <button
             class="toolbar-button"
             on:click={handleEditorImageUpload}
@@ -769,13 +807,17 @@
       <div class="flex items-center justify-between pt-6">
         <div class="text-sm text-zinc-500 dark:text-zinc-400">
           {#if !title}
-            <span class="text-red-500">● </span>请输入文章标题
+            <span class="inline-flex relative"><span class="animate-ping absolute inline-flex h-2 w-2 rounded-full bg-red-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span></span>
+            <span class="ml-2">请输入文章标题</span>
           {:else if !content}
-            <span class="text-red-500">● </span>请输入文章内容
+            <span class="inline-flex relative"><span class="animate-ping absolute inline-flex h-2 w-2 rounded-full bg-red-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span></span>
+            <span class="ml-2">请输入文章内容</span>
           {:else if !imageUrl}
-            <span class="text-red-500">● </span>请上传封面图片
+            <span class="inline-flex relative"><span class="animate-ping absolute inline-flex h-2 w-2 rounded-full bg-red-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span></span>
+            <span class="ml-2">请上传封面图片</span>
           {:else if tags.length === 0}
-            <span class="text-red-500">● </span>请生成文章标签
+            <span class="inline-flex relative"><span class="animate-ping absolute inline-flex h-2 w-2 rounded-full bg-red-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span></span>
+            <span class="ml-2">请生成文章标签</span>
           {:else if !isDirty}
             <span class="text-zinc-400">✓ </span>文章已准备就绪
           {/if}
@@ -783,7 +825,7 @@
         <button
           on:click={handlePublish}
           disabled={loading || !isDirty || !title || !content || !imageUrl || tags.length === 0}
-          class="rounded-xl bg-gradient-to-r from-lime-600 to-lime-500 hover:from-lime-700 hover:to-lime-600 dark:from-lime-500 dark:to-lime-400 dark:hover:from-lime-600 dark:hover:to-lime-500 backdrop-blur-sm px-8 py-3 text-base font-medium text-white shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-1 active:translate-y-0 focus:outline-none focus:ring-2 focus:ring-lime-500 focus:ring-offset-2 dark:focus:ring-offset-zinc-900 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none"
+          class="rounded-xl bg-lime-600 dark:bg-lime-500 backdrop-blur-sm px-8 py-3 text-base font-medium text-white shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-1 active:translate-y-0 focus:outline-none focus:ring-2 focus:ring-lime-500 focus:ring-offset-2 dark:focus:ring-offset-zinc-900 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none hover:bg-lime-700 dark:hover:bg-lime-600 border border-lime-500/20 dark:border-lime-400/20"
         >
           {#if loading}
             <div class="flex items-center gap-2">
@@ -791,7 +833,12 @@
               <span>发布中...</span>
             </div>
           {:else}
-            发布文章
+            <div class="flex items-center gap-2">
+              <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+              </svg>
+              <span>发布文章</span>
+            </div>
           {/if}
         </button>
       </div>
