@@ -1,24 +1,24 @@
 @layer base {
   /* 默认选择文本的高亮样式 */
   ::selection {
-    @apply bg-lime-500/30;  /* 浅绿色背景，30% 透明度 */
+    background-color: rgb(132 204 22 / 0.3);  /* lime-500 with 30% opacity */
     color: currentColor;    /* 保持文字原色 */
   }
 
   /* 暗色模式下的选择文本高亮样式 */
   .dark ::selection {
-    @apply bg-lime-400/30;  /* 暗色模式下稍微亮一点的绿色 */
+    background-color: rgb(163 230 53 / 0.3);  /* lime-400 with 30% opacity */
     color: currentColor;
   }
   
   /* 特殊区域(如代码块)的选择文本高亮样式 */
   pre ::selection {
-    @apply bg-lime-500/25;  /* 代码块中使用稍微淡一点的绿色 */
+    background-color: rgb(132 204 22 / 0.25);  /* lime-500 with 25% opacity */
     color: currentColor;
   }
   
   .dark pre ::selection {
-    @apply bg-lime-400/25;  /* 暗色模式下的代码块选择样式 */
+    background-color: rgb(163 230 53 / 0.25);  /* lime-400 with 25% opacity */
     color: currentColor;
   }
 }
