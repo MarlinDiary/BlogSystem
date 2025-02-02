@@ -1,18 +1,15 @@
-import { drizzle } from 'drizzle-orm/libsql';
-import { createClient } from '@libsql/client';
+import { drizzle } from 'drizzle-orm/better-sqlite3';
+import Database from 'better-sqlite3';
 import { users } from './schema';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import dotenv from 'dotenv';
 import { eq, sql } from 'drizzle-orm';
 import path from 'path';
 
 dotenv.config();
 
-const client = createClient({
-  url: 'file:./sqlite.db',
-});
-
-export const db = drizzle(client);
+const sqlite = new Database('sqlite.db');
+export const db = drizzle(sqlite);
 
 // 初始化管理员账号
 async function initAdminUser() {

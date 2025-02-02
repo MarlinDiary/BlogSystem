@@ -5,8 +5,8 @@ dotenv.config();
 export default {
   schema: './src/db/schema.ts',
   out: './drizzle',
-  driver: 'libsql',
+  driver: 'better-sqlite',
   dbCredentials: {
-    url: 'file:./sqlite.db',
+    url: 'sqlite.db',
   },
 } satisfies Config; 

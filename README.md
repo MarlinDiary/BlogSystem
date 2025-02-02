@@ -17,6 +17,12 @@
 - npm 或 yarn
 - MongoDB
 
+## 环境要求
+
+- Node.js >= 16
+- Python (用于编译原生模块)
+- C/C++ 编译工具链
+
 ## 快速开始
 
 ### 1. 克隆项目
@@ -110,3 +116,14 @@ npm run build
 ## 许可证
 
 MIT 
+
+## 安装
+
+```bash
+# 安装后端依赖
+cd backend
+npm install
+
+# 如果在 M1/M2 Mac 或其他架构的机器上遇到原生模块问题，请运行：
+npm rebuild better-sqlite3 --build-from-source
+``` 

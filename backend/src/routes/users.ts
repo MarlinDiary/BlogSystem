@@ -3,7 +3,7 @@ import { db } from '../db';
 import { users, articles, articleReactions, comments } from '../db/schema';
 import { eq, desc, and, sql } from 'drizzle-orm';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import path from 'path';
 import fs from 'fs';
 import { upload } from '../middleware/upload';
