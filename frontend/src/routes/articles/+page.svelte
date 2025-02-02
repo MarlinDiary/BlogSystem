@@ -187,25 +187,6 @@
             <p class="text-sm line-clamp-2 flex-grow excerpt">
               {article.content.substring(0, 120)}...
             </p>
-
-            <div class="mt-4 flex items-center justify-between text-sm meta">
-              <div class="flex items-center gap-2">
-                <div class="w-7 h-7 rounded-full overflow-hidden bg-zinc-100/10">
-                  <img
-                    src={getAvatarUrl(article.author.avatarUrl)}
-                    alt={article.author.username}
-                    class="w-full h-full object-cover"
-                  />
-                </div>
-                <span>
-                  {article.author.username}
-                </span>
-              </div>
-              
-              <time>
-                {new Date(article.createdAt).toLocaleDateString('zh-CN')}
-              </time>
-            </div>
           </div>
         </article>
       {/each}
