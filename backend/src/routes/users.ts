@@ -112,8 +112,6 @@ router.get('/me', authMiddleware, async (req: AuthRequest, res, next) => {
  *                 format: date
  *               bio:
  *                 type: string
- *               avatarUrl:
- *                 type: string
  *     responses:
  *       200:
  *         description: 更新成功
@@ -128,7 +126,7 @@ router.get('/me', authMiddleware, async (req: AuthRequest, res, next) => {
  */
 router.put('/me', authMiddleware, async (req: AuthRequest, res, next) => {
   try {
-    const { username, realName, dateOfBirth, bio, avatarUrl } = req.body;
+    const { username, realName, dateOfBirth, bio } = req.body;
 
     // 如果要更新用户名，检查是否已存在
     if (username) {
@@ -154,8 +152,7 @@ router.put('/me', authMiddleware, async (req: AuthRequest, res, next) => {
         ...(username && { username }),
         realName,
         dateOfBirth,
-        bio,
-        avatarUrl
+        bio
       })
       .where(eq(users.id, req.userId!))
       .returning();
@@ -264,8 +261,7 @@ router.delete('/me', authMiddleware, async (req: AuthRequest, res, next) => {
     
     // 删除用户头像文件
     if (user.avatarUrl && !user.avatarUrl.includes('default.png')) {
-      const avatarPath = path.join(__dirname, '../../uploads/avatars', 
-        path.basename(user.avatarUrl));
+      const avatarPath = path.join(__dirname, '../..', user.avatarUrl);
       fs.unlink(avatarPath, (err) => {
         if (err) console.error('删除头像文件失败:', err);
       });
@@ -305,28 +301,52 @@ router.delete('/me', authMiddleware, async (req: AuthRequest, res, next) => {
 router.get('/:userId/avatar', async (req, res, next) => {
   try {
     const { userId } = req.params;
-    
+    const id = parseInt(userId);
+
+    // 如果用户ID无效或为0，返回默认头像
+    if (isNaN(id) || id === 0) {
+      const defaultAvatarPath = path.join(__dirname, '../../uploads/avatars/default.png');
+      if (!fs.existsSync(defaultAvatarPath)) {
+        return res.status(404).json({ message: '默认头像文件未找到' });
+      }
+      res.setHeader('Content-Type', 'image/png');
+      return res.sendFile(defaultAvatarPath);
+    }
+
     const user = await db
       .select({ avatarUrl: users.avatarUrl })
       .from(users)
-      .where(eq(users.id, parseInt(userId)))
+      .where(eq(users.id, id))
       .get();
 
     if (!user) {
-      return res.status(404).json({ message: '用户未找到' });
+      // 用户不存在时也返回默认头像
+      const defaultAvatarPath = path.join(__dirname, '../../uploads/avatars/default.png');
+      if (!fs.existsSync(defaultAvatarPath)) {
+        return res.status(404).json({ message: '默认头像文件未找到' });
+      }
+      res.setHeader('Content-Type', 'image/png');
+      return res.sendFile(defaultAvatarPath);
     }
 
     const avatarPath = user.avatarUrl 
-      ? path.join(__dirname, '../../uploads/avatars', user.avatarUrl)
+      ? path.join(__dirname, '../..', user.avatarUrl)
       : path.join(__dirname, '../../uploads/avatars/default.png');
 
     // 检查文件是否存在
     if (!fs.existsSync(avatarPath)) {
-      return res.status(404).json({ message: '头像文件未找到' });
+      const defaultAvatarPath = path.join(__dirname, '../../uploads/avatars/default.png');
+      if (!fs.existsSync(defaultAvatarPath)) {
+        return res.status(404).json({ message: '头像文件未找到' });
+      }
+      res.setHeader('Content-Type', 'image/png');
+      return res.sendFile(defaultAvatarPath);
     }
 
-    // 设置正确的Content-Type
-    res.setHeader('Content-Type', 'image/jpeg');
+    // 根据文件扩展名设置正确的Content-Type
+    const ext = path.extname(avatarPath).toLowerCase();
+    const contentType = ext === '.png' ? 'image/png' : 'image/jpeg';
+    res.setHeader('Content-Type', contentType);
     
     // 发送文件
     res.sendFile(avatarPath);
@@ -419,9 +439,7 @@ router.post('/avatar', authMiddleware, checkUserStatus, upload.single('avatar'),
     }
 
     const user = await db
-      .select({
-        avatarUrl: users.avatarUrl
-      })
+      .select()
       .from(users)
       .where(eq(users.id, req.userId!))
       .get();
@@ -432,8 +450,7 @@ router.post('/avatar', authMiddleware, checkUserStatus, upload.single('avatar'),
 
     // 删除旧头像
     if (user.avatarUrl && !user.avatarUrl.includes('default.png')) {
-      const oldAvatarPath = path.join(__dirname, '../../uploads/avatars', 
-        path.basename(user.avatarUrl));
+      const oldAvatarPath = path.join(__dirname, '../..', user.avatarUrl);
       fs.unlink(oldAvatarPath, (err) => {
         if (err) console.error('删除旧头像失败:', err);
       });
@@ -441,12 +458,22 @@ router.post('/avatar', authMiddleware, checkUserStatus, upload.single('avatar'),
 
     const avatarUrl = `/uploads/avatars/${req.file.filename}`;
     
-    await db
+    const updatedUser = await db
       .update(users)
       .set({ avatarUrl })
-      .where(eq(users.id, req.userId!));
+      .where(eq(users.id, req.userId!))
+      .returning();
 
-    res.json({ avatarUrl });
+    // 返回完整的用户信息
+    res.json({
+      id: updatedUser[0].id,
+      username: updatedUser[0].username,
+      realName: updatedUser[0].realName,
+      dateOfBirth: updatedUser[0].dateOfBirth,
+      bio: updatedUser[0].bio,
+      avatarUrl: updatedUser[0].avatarUrl,
+      createdAt: updatedUser[0].createdAt
+    });
   } catch (error) {
     next(error);
   }
@@ -861,8 +888,7 @@ router.post('/me/avatar', authMiddleware, upload.single('avatar'), async (req: A
 
     // 删除旧头像
     if (user.avatarUrl && !user.avatarUrl.includes('default.png')) {
-      const oldAvatarPath = path.join(__dirname, '../../uploads/avatars', 
-        path.basename(user.avatarUrl));
+      const oldAvatarPath = path.join(__dirname, '../..', user.avatarUrl);
       fs.unlink(oldAvatarPath, (err) => {
         if (err) console.error('删除旧头像失败:', err);
       });
@@ -953,6 +979,82 @@ router.patch('/:id/status', authMiddleware, async (req: AuthRequest, res, next) 
       .returning();
 
     res.json(updatedUser[0]);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * @swagger
+ * /api/users/me/password:
+ *   put:
+ *     summary: 修改密码
+ *     description: 修改当前用户的密码
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - currentPassword
+ *               - newPassword
+ *             properties:
+ *               currentPassword:
+ *                 type: string
+ *               newPassword:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: 密码修改成功
+ *       400:
+ *         description: 请求参数错误
+ *       401:
+ *         description: 未授权或当前密码错误
+ */
+router.put('/me/password', authMiddleware, async (req: AuthRequest, res, next) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ message: '请提供当前密码和新密码' });
+    }
+    
+    // 验证新密码格式
+    if (!/^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$/.test(newPassword)) {
+      return res.status(400).json({ message: '新密码必须至少8位，且包含字母和数字' });
+    }
+    
+    // 获取用户信息
+    const user = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, req.userId!))
+      .get();
+    
+    if (!user) {
+      return res.status(404).json({ message: '用户未找到' });
+    }
+    
+    // 验证当前密码
+    const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
+    if (!isPasswordValid) {
+      return res.status(401).json({ message: '当前密码错误' });
+    }
+    
+    // 加密新密码
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    
+    // 更新密码
+    await db
+      .update(users)
+      .set({ password: hashedPassword })
+      .where(eq(users.id, req.userId!));
+    
+    res.json({ message: '密码修改成功' });
   } catch (error) {
     next(error);
   }

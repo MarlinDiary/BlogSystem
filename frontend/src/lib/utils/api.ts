@@ -9,10 +9,11 @@ interface ApiOptions {
     body?: any;
     headers?: Record<string, string>;
     useStoredToken?: boolean;
+    isFormData?: boolean;
 }
 
 export async function api(endpoint: string, options: ApiOptions = {}) {
-    const { method = 'GET', body, headers = {}, useStoredToken = true } = options;
+    const { method = 'GET', body, headers = {}, useStoredToken = true, isFormData = false } = options;
 
     // 获取认证token
     if (useStoredToken) {
@@ -28,19 +29,21 @@ export async function api(endpoint: string, options: ApiOptions = {}) {
     }
 
     // 设置默认headers
-    headers['Content-Type'] = 'application/json';
+    if (!isFormData) {
+        headers['Content-Type'] = 'application/json';
+    }
 
     try {
         const url = `${API_URL}${endpoint}`;
         console.log(`[API Request] ${method} ${url}`, {
             headers,
-            body: body ? JSON.stringify(body) : undefined
+            body: isFormData ? '[FormData]' : (body ? JSON.stringify(body) : undefined)
         });
 
         const response = await fetch(url, {
             method,
             headers,
-            body: body ? JSON.stringify(body) : undefined,
+            body: isFormData ? body : (body ? JSON.stringify(body) : undefined),
             mode: 'cors',
             credentials: 'include'
         });
@@ -172,6 +175,83 @@ export const authApi = {
             return result;
         } catch (error) {
             console.error('[Auth] Username check failed', error);
+            throw error;
+        }
+    }
+};
+
+// 用户相关API
+export const userApi = {
+    // 更新个人资料
+    updateProfile: async (data: {
+        username: string;
+        realName: string;
+        dateOfBirth: string;
+        bio?: string;
+    }) => {
+        try {
+            console.log('[User] Updating profile', { username: data.username });
+            const result = await api('/api/users/me', {
+                method: 'PUT',
+                body: data
+            });
+            console.log('[User] Profile updated', result);
+            return result;
+        } catch (error) {
+            console.error('[User] Profile update failed', error);
+            throw error;
+        }
+    },
+
+    // 上传头像
+    uploadAvatar: async (formData: FormData) => {
+        try {
+            console.log('[User] Uploading avatar');
+            const result = await api('/api/users/me/avatar', {
+                method: 'POST',
+                body: formData,
+                isFormData: true
+            });
+            console.log('[User] Avatar uploaded', result);
+            return result;
+        } catch (error) {
+            console.error('[User] Avatar upload failed', error);
+            throw error;
+        }
+    },
+
+    // 修改密码
+    changePassword: async (currentPassword: string, newPassword: string) => {
+        try {
+            console.log('[User] Changing password');
+            const result = await api('/api/users/me/password', {
+                method: 'PUT',
+                body: { currentPassword, newPassword }
+            });
+            console.log('[User] Password changed');
+            return result;
+        } catch (error) {
+            console.error('[User] Password change failed', error);
+            throw error;
+        }
+    },
+
+    // 删除账户
+    deleteAccount: async (data: {
+        password: string;
+        deleteArticles: boolean;
+        deleteComments: boolean;
+    }) => {
+        try {
+            console.log('[User] Deleting account');
+            const result = await api('/api/users/me', {
+                method: 'DELETE',
+                body: data
+            });
+            console.log('[User] Account deleted');
+            return result;
+        } catch (error) {
+            console.error('[User] Account deletion failed', error);
             throw error;
         }
     }

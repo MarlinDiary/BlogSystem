@@ -8,7 +8,7 @@ interface User {
     dateOfBirth: string;
     bio?: string;
     createdAt: string;
-    avatar?: string;
+    avatarUrl?: string;
 }
 
 interface AuthState {
@@ -39,6 +39,16 @@ const createAuthStore = () => {
                 localStorage.removeItem('token');
                 set({ isAuthenticated: false, token: null, user: null });
             }
+        },
+        updateUser: (user: User) => {
+            update(state => ({
+                ...state,
+                isAuthenticated: true,
+                user: {
+                    ...state.user,
+                    ...user
+                }
+            }));
         },
         initialize: async () => {
             const token = localStorage.getItem('token');

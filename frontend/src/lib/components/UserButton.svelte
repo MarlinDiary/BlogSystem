@@ -5,6 +5,7 @@
   import { auth } from '../stores/auth';
   import AuthModal from './AuthModal.svelte';
   import AccountModal from './AccountModal.svelte';
+  import { env } from '$env/dynamic/public';
   
   let showAuthModal = false;
   let showAccountModal = false;
@@ -23,6 +24,25 @@
     showAuthModal = false;
     showAccountModal = false;
   }
+
+  // 获取头像 URL
+  function getAvatarUrl(userId: number | null | undefined): string {
+    if (!userId) return '/logo.png';
+    return `${env.PUBLIC_API_URL}/api/users/${userId}/avatar`;
+  }
+
+  // 添加时间戳以破坏缓存
+  function getAvatarUrlWithTimestamp(url: string): string {
+    const timestamp = Date.now();
+    return url.includes('?') ? `${url}&t=${timestamp}` : `${url}?t=${timestamp}`;
+  }
+
+  // 获取用户ID（确保是数字类型）
+  function getUserId(user: any): number | null {
+    if (!user?.id) return null;
+    const id = Number(user.id);
+    return isNaN(id) ? null : id;
+  }
 </script>
 
 <div class="pointer-events-auto">
@@ -32,7 +52,7 @@
       on:click={handleAuth}
     >
       <img
-        src={$auth.user?.avatar || '/logo.png'}
+        src={getAvatarUrlWithTimestamp(getAvatarUrl(getUserId($auth.user)))}
         alt={$auth.user?.username || '用户头像'}
         class="h-9 w-9 rounded-full bg-zinc-100 object-cover dark:bg-zinc-800"
       />
