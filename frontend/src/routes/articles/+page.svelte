@@ -129,7 +129,7 @@
     content: '';
     position: absolute;
     inset: 0;
-    background: linear-gradient(to bottom, transparent 0%, color-mix(in srgb, var(--card-color) 90%, transparent) 100%);
+    background: linear-gradient(to bottom, transparent 0%, color-mix(in srgb, var(--card-color) 50%, transparent) 100%);
     pointer-events: none;
   }
 
