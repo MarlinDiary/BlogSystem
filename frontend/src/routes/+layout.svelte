@@ -10,7 +10,7 @@
 		{ href: '/articles', text: '文章' },
 		{ href: '/search', text: '搜索' },
 		{ href: '/publish', text: '发布' },
-		{ href: '/about', text: '关于' }
+		//{ href: '/about', text: '关于' }
 	];
 
 	let initialized = false;
