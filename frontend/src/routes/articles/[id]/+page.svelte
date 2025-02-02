@@ -304,6 +304,7 @@
     width: 48px;
     height: 48px;
     border-radius: 50%;
+    object-fit: cover;
   }
 
   .toc {
@@ -471,7 +472,7 @@
 
       <div class="article-meta">
         <img 
-          src={article.author.avatarUrl || '/default-avatar.png'} 
+          src={article.author.avatarUrl || '/frontend/static/logo.png'} 
           alt={article.author.username}
           class="author-avatar"
         />
