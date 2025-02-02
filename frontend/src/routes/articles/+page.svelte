@@ -100,7 +100,7 @@
 <style lang="postcss">
   .article-card {
     --card-color: rgb(0, 0, 0);
-    background: color-mix(in srgb, var(--card-color) 3%, transparent);
+    background: color-mix(in srgb, var(--card-color) 85%, transparent);
     border: none;
     overflow: hidden;
     padding: 0 0 1.5rem 0;
@@ -111,7 +111,8 @@
   }
 
   .article-card .title-link {
-    color: color-mix(in srgb, var(--card-color) 85%, currentColor);
+    color: white;
+    opacity: 0.95;
   }
 
   .article-card .image-container {
@@ -127,12 +128,22 @@
     content: '';
     position: absolute;
     inset: 0;
-    background: linear-gradient(to bottom, transparent 0%, color-mix(in srgb, var(--card-color) 15%, transparent) 100%);
+    background: linear-gradient(to bottom, transparent 0%, color-mix(in srgb, var(--card-color) 90%, transparent) 100%);
     pointer-events: none;
+  }
+
+  .article-card .excerpt {
+    color: white;
+    opacity: 0.6;
+  }
+
+  .article-card .meta {
+    color: white;
+    opacity: 0.75;
   }
 </style>
 
-<div class="mx-auto max-w-4xl px-4 py-12">
+<div class="mx-auto max-w-7xl px-4 py-12">
   <h1 class="text-4xl font-bold tracking-tight text-zinc-800 dark:text-zinc-100 sm:text-5xl mb-12 text-center">
     探索文章
   </h1>
@@ -148,14 +159,14 @@
       <div class="animate-spin rounded-full h-8 w-8 border-2 border-lime-500 border-t-transparent"></div>
     </div>
   {:else}
-    <div class="grid gap-8 sm:grid-cols-2">
+    <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
       {#each articles as article}
         <article 
-          class="article-card group flex flex-col rounded-3xl transition-all duration-300 hover:shadow-xl relative dark:bg-zinc-800/50"
+          class="article-card group flex flex-col rounded-2xl transition-all duration-300 hover:shadow-xl relative"
           style={getCardStyle(article)}
         >
           {#if article.imageUrl}
-            <div class="w-full h-52 relative image-container">
+            <div class="w-full h-48 relative image-container">
               <img
                 src={getImageUrl(article.imageUrl)}
                 alt={article.title}
@@ -166,32 +177,32 @@
           {/if}
           
           <div class="content">
-            <h2 class="text-xl font-semibold tracking-tight text-zinc-800 dark:text-zinc-100 mb-2">
+            <h2 class="text-lg font-semibold tracking-tight mb-2">
               <a href="/articles/{article.id}" class="title-link">
                 <span class="absolute inset-0"></span>
                 {article.title}
               </a>
             </h2>
 
-            <p class="text-sm text-zinc-600 dark:text-zinc-400 line-clamp-2 flex-grow">
-              {article.content.substring(0, 150)}...
+            <p class="text-sm line-clamp-2 flex-grow excerpt">
+              {article.content.substring(0, 120)}...
             </p>
 
-            <div class="mt-4 flex items-center justify-between text-sm">
+            <div class="mt-4 flex items-center justify-between text-sm meta">
               <div class="flex items-center gap-2">
-                <div class="w-8 h-8 rounded-full overflow-hidden bg-zinc-100 dark:bg-zinc-800">
+                <div class="w-7 h-7 rounded-full overflow-hidden bg-zinc-100/10">
                   <img
                     src={getAvatarUrl(article.author.avatarUrl)}
                     alt={article.author.username}
                     class="w-full h-full object-cover"
                   />
                 </div>
-                <span class="text-zinc-600 dark:text-zinc-400">
+                <span>
                   {article.author.username}
                 </span>
               </div>
               
-              <time class="text-zinc-500 dark:text-zinc-400">
+              <time>
                 {new Date(article.createdAt).toLocaleDateString('zh-CN')}
               </time>
             </div>
