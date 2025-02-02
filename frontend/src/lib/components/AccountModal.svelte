@@ -13,6 +13,7 @@
   let dialogRef: HTMLDialogElement;
   let isClosing = false;
   let fileInput: HTMLInputElement;
+  let avatarTimestamp = Date.now();
   
   type EditableField = 'username' | 'realName' | 'dateOfBirth' | 'bio';
   
@@ -41,6 +42,16 @@
     tempEditValue = '';
   }
   
+  // 处理关闭
+  function close() {
+    if (dialogRef) {
+      isClosing = true;
+      dialogRef.addEventListener('animationend', () => {
+        dispatch('close');
+      }, { once: true });
+    }
+  }
+  
   // 头像 URL 依赖
   let avatarKey = '';
   
@@ -52,8 +63,10 @@
 
   // 获取头像 URL
   function getAvatarUrl(userId: number | null | undefined): string {
-    if (!userId) return `${env.PUBLIC_API_URL}/api/users/0/avatar`;
-    return `${env.PUBLIC_API_URL}/api/users/${userId}/avatar`;
+    if (!userId) return '/logo.png';
+    const url = `${env.PUBLIC_API_URL}/api/users/${userId}/avatar?t=${avatarTimestamp}`;
+    console.log('AccountModal 生成的头像URL:', url);
+    return url;
   }
 
   // 监听头像更新
@@ -161,24 +174,37 @@
       error = '';
       const formData = new FormData();
       formData.append('avatar', file);
+      
+      console.log('开始上传头像...');
       const updatedUser = await userApi.uploadAvatar(formData);
+      console.log('头像上传成功:', updatedUser);
+      
+      // 保持原有的用户ID
+      const currentUserId = getUserId($auth.user);
+      
+      // 更新时间戳
+      avatarTimestamp = Date.now();
       
       // 更新 auth store 中的用户信息
       auth.updateUser({
+        ...$auth.user,
         ...updatedUser,
-        id: Number(updatedUser.id)
+        id: currentUserId // 使用原有的用户ID
       });
       
       // 强制更新头像
       await invalidate('app:avatar');
       
+      // 触发头像更新事件
+      dispatch('avatarUpdate');
+      
       // 更新本地表单状态
       editForm = {
-        username: updatedUser.username || '',
-        realName: updatedUser.realName || '',
-        dateOfBirth: updatedUser.dateOfBirth || '',
-        bio: updatedUser.bio || '',
-        avatarUrl: getAvatarUrl(getUserId(updatedUser))
+        username: $auth.user?.username || '',
+        realName: $auth.user?.realName || '',
+        dateOfBirth: $auth.user?.dateOfBirth || '',
+        bio: $auth.user?.bio || '',
+        avatarUrl: getAvatarUrl(currentUserId)
       };
 
       success = '头像已更新';
@@ -186,6 +212,7 @@
         success = '';
       }, 2000);
     } catch (err: any) {
+      console.error('头像上传失败:', err);
       error = err.message;
     } finally {
       loading = false;
@@ -338,7 +365,7 @@
             <!-- 用户信息 -->
             <div class="flex items-center space-x-3">
               <!-- 小头像 -->
-              {#key avatarKey}
+              {#key avatarTimestamp}
               <img
                 src={getAvatarUrl(getUserId($auth.user))}
                 alt={$auth.user?.username || '用户头像'}
@@ -446,7 +473,7 @@
                     <div class="shrink-0">
                       <div class="relative group">
                         <!-- 大头像 -->
-                        {#key avatarKey}
+                        {#key avatarTimestamp}
                         <img
                           src={getAvatarUrl(getUserId($auth.user))}
                           alt="用户头像"
