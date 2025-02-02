@@ -418,42 +418,44 @@
 </style>
 
 <div class="article-wrapper">
-  {#if article && tocItems.length > 0}
-    <nav class="toc" data-scrolled={isScrolled}>
-      <div class="toc-list">
-        {#each tocItems as item}
-          <a
-            href="#{item.id}"
-            class="toc-item"
-            data-level={item.level}
-            data-active={item.isActive}
-            on:click|preventDefault={(e) => handleTocClick(e, item.id)}
-            aria-current={item.isActive ? 'true' : undefined}
-          >
-            {item.text}
-          </a>
-        {/each}
-      </div>
-    </nav>
+  {#if error}
+    <div class="p-4 mb-6 text-red-700 bg-red-100 rounded-lg dark:bg-red-900/30 dark:text-red-200">
+      {error}
+    </div>
   {/if}
 
-  {#if article}
-    <ArticleReactions
-      articleId={article.id}
-      {isScrolled}
-    />
-  {/if}
+  {#if loading}
+    <div class="flex justify-center items-center py-12">
+      <div class="animate-spin rounded-full h-8 w-8 border-2 border-lime-500 border-t-transparent"></div>
+    </div>
+  {:else if article}
+    <div class="article-container">
+      {#if article && tocItems.length > 0}
+        <nav class="toc" data-scrolled={isScrolled}>
+          <div class="toc-list">
+            {#each tocItems as item}
+              <a
+                href="#{item.id}"
+                class="toc-item"
+                data-level={item.level}
+                data-active={item.isActive}
+                on:click|preventDefault={(e) => handleTocClick(e, item.id)}
+                aria-current={item.isActive ? 'true' : undefined}
+              >
+                {item.text}
+              </a>
+            {/each}
+          </div>
+        </nav>
+      {/if}
 
-  <div class="article-container">
-    {#if loading}
-      <div class="flex items-center justify-center min-h-screen">
-        <div class="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-gray-900"></div>
-      </div>
-    {:else if error}
-      <div class="flex items-center justify-center min-h-screen">
-        <p class="text-red-500">{error}</p>
-      </div>
-    {:else if article}
+      {#if article}
+        <ArticleReactions
+          articleId={article.id}
+          {isScrolled}
+        />
+      {/if}
+
       <div class="cover-container">
         <div 
           class="blur-background" 
@@ -506,8 +508,8 @@
           )}
         {/if}
       </div>
-    {/if}
-  </div>
+    </div>
+  {/if}
 </div>
 
 <svelte:window on:click={handleContentInteraction} on:keydown={handleContentInteraction} /> 
