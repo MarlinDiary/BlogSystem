@@ -51,7 +51,8 @@
         StarterKit.configure({
           heading: {
             levels: [1, 2, 3]
-          }
+          },
+          codeBlock: false
         }),
         TiptapImage.configure({
           HTMLAttributes: {
