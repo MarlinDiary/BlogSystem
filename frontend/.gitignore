@@ -1,4 +1,30 @@
-node_modules
+# Env files
+.env
+.env.local
+.env.*.local
+
+# Dependencies
+/node_modules
+/.pnp
+.pnp.js
+
+# Build
+/dist
+/build
+
+# Debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Editor directories and files
+.idea
+.vscode
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
 
 # Output
 .output
@@ -6,14 +32,12 @@ node_modules
 .netlify
 .wrangler
 /.svelte-kit
-/build
 
 # OS
 .DS_Store
 Thumbs.db
 
 # Env
-.env
 .env.*
 !.env.example
 !.env.test
