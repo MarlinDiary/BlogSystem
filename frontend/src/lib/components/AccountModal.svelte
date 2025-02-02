@@ -438,7 +438,11 @@
         </div>
 
         <!-- 右侧内容区 -->
-        <div class="flex-1 border-l border-zinc-200 dark:border-zinc-700">
+        <div class="flex-1 relative">
+          <!-- 添加渐变分割线 -->
+          <div class="absolute left-0 top-0 bottom-0 w-[1px]">
+            <div class="h-full bg-gradient-to-b from-transparent via-zinc-200 dark:via-zinc-700 to-transparent"></div>
+          </div>
           <div class="h-full p-8 overflow-y-auto">
             <!-- 关闭按钮 -->
             <button 
