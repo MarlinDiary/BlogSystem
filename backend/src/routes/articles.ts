@@ -292,7 +292,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res, next) => {
  * /api/articles/{id}:
  *   get:
  *     summary: 获取文章详情
- *     description: 获取指定文章的详细信息
+ *     description: 根据文章ID获取文章详细信息
  *     tags: [Articles]
  *     parameters:
  *       - in: path
@@ -304,24 +304,53 @@ router.post('/', authMiddleware, async (req: AuthRequest, res, next) => {
  *     responses:
  *       200:
  *         description: 成功返回文章详情
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Article'
  *       404:
  *         description: 文章不存在
  */
 router.get('/:id', async (req, res, next) => {
   try {
-    const article = await db
-      .select()
-      .from(articlesTable)
-      .where(eq(articlesTable.id, parseInt(req.params.id)))
-      .get();
+    const articleId = parseInt(req.params.id);
+    
+    // 查询文章详情，包括作者信息、评论数和点赞数
+    const [article] = await db.select({
+      id: articlesTable.id,
+      title: articlesTable.title,
+      content: articlesTable.content,
+      htmlContent: articlesTable.htmlContent,
+      imageUrl: articlesTable.imageUrl,
+      status: articlesTable.status,
+      viewCount: articlesTable.viewCount,
+      createdAt: articlesTable.createdAt,
+      updatedAt: articlesTable.updatedAt,
+      author: {
+        id: users.id,
+        username: users.username,
+        avatarUrl: users.avatarUrl
+      },
+      commentCount: sql<number>`count(distinct ${comments.id})`,
+      likeCount: sql<number>`count(distinct ${articleLikes.id})`
+    })
+    .from(articlesTable)
+    .leftJoin(users, eq(users.id, articlesTable.authorId))
+    .leftJoin(comments, eq(comments.articleId, articlesTable.id))
+    .leftJoin(articleLikes, eq(articleLikes.articleId, articlesTable.id))
+    .where(and(
+      eq(articlesTable.id, articleId),
+      eq(articlesTable.status, 'published')
+    ))
+    .groupBy(articlesTable.id, users.id);
 
     if (!article) {
-      return res.status(404).json({ message: '文章未找到' });
+      return res.status(404).json({ message: '文章不存在' });
     }
+
+    // 更新浏览量
+    await db.update(articlesTable)
+      .set({ 
+        viewCount: sql`${articlesTable.viewCount} + 1`,
+        updatedAt: new Date().toISOString()
+      })
+      .where(eq(articlesTable.id, articleId));
 
     res.json(article);
   } catch (error) {

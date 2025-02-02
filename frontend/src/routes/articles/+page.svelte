@@ -138,11 +138,6 @@
     opacity: 0.6;
   }
 
-  .article-card .meta {
-    color: white;
-    opacity: 0.75;
-  }
-
   @media (max-width: 1280px) {
     .article-card .image-container {
       height: clamp(180px, 25vh, 240px);

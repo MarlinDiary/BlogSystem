@@ -1,90 +1,140 @@
 <script lang="ts">
-  import { page } from '$app/stores';
   import { onMount } from 'svelte';
+  import { page } from '$app/stores';
   
+  interface Author {
+    id: number;
+    username: string;
+    avatarUrl: string;
+  }
+
   interface Article {
-    id: string;
+    id: number;
     title: string;
     content: string;
-    author: {
-      name: string;
-      avatar: string;
-      bio: string;
-    };
-    publishDate: string;
-    tags: string[];
+    htmlContent: string;
+    imageUrl: string;
+    status: string;
+    viewCount: number;
+    createdAt: string;
+    updatedAt: string;
+    author: Author;
+    commentCount: number;
+    likeCount: number;
   }
-  
-  // 模拟文章数据
-  let article: Article = {
-    id: $page.params.id,
-    title: '如何使用 Svelte 构建现代化 Web 应用',
-    content: `
-      Svelte 是一个革命性的前端框架，它通过编译时优化来提供极致的性能体验。
 
-      ## 为什么选择 Svelte？
+  let article: Article | null = null;
+  let loading = false;
+  let error = '';
 
-      1. **更少的代码量**：Svelte 的语法简洁明了，让你用更少的代码实现相同的功能。
-      2. **更好的性能**：没有运行时开销，所有优化都在编译时完成。
-      3. **更容易学习**：采用类似于传统 HTML、CSS 和 JavaScript 的语法。
+  async function fetchArticle(id: string) {
+    loading = true;
+    error = '';
+    try {
+      const response = await fetch(`/api/articles/${id}`);
+      if (!response.ok) {
+        throw new Error('获取文章详情失败');
+      }
+      article = await response.json();
+    } catch (e) {
+      console.error('获取文章详情出错:', e);
+      error = e instanceof Error ? e.message : '获取文章详情失败';
+    } finally {
+      loading = false;
+    }
+  }
 
-      ## 开始使用
+  // 格式化日期
+  function formatDate(dateString: string): string {
+    return new Date(dateString).toLocaleDateString('zh-CN', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  }
 
-      首先，你需要安装 Svelte：
-
-      \`\`\`bash
-      npm create svelte@latest my-app
-      cd my-app
-      npm install
-      \`\`\`
-
-      然后，你就可以开始开发了！
-    `,
-    author: {
-      name: '张三',
-      avatar: '/logo.png',
-      bio: '前端开发工程师，热衷于探索新技术'
-    },
-    publishDate: '2024-03-15',
-    tags: ['Svelte', 'Web开发', '前端']
-  };
+  onMount(() => {
+    const id = $page.params.id;
+    if (id) {
+      fetchArticle(id);
+    }
+  });
 </script>
 
-<article class="mx-auto max-w-2xl">
-  <header class="flex flex-col">
-    <h1 class="mt-6 text-4xl font-bold tracking-tight text-zinc-800 dark:text-zinc-100 sm:text-5xl">
+<style lang="postcss">
+  .article-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 2rem;
+  }
+
+  .cover-image {
+    width: 100%;
+    height: 400px;
+    object-fit: cover;
+    border-radius: 1rem;
+    margin-bottom: 2rem;
+  }
+
+  .article-content {
+    line-height: 1.8;
+    font-size: 1.1rem;
+  }
+
+  .article-meta {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin: 1rem 0 2rem;
+    color: #666;
+  }
+
+  .author-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+  }
+</style>
+
+<div class="article-container">
+  {#if loading}
+    <div class="flex justify-center items-center py-12">
+      <div class="animate-spin rounded-full h-8 w-8 border-2 border-lime-500 border-t-transparent"></div>
+    </div>
+  {:else if error}
+    <div class="p-4 mb-6 text-red-700 bg-red-100 rounded-lg dark:bg-red-900/30 dark:text-red-200">
+      {error}
+    </div>
+  {:else if article}
+    {#if article.imageUrl}
+      <img src={article.imageUrl} alt={article.title} class="cover-image" />
+    {/if}
+    
+    <h1 class="text-4xl font-bold mb-4 text-zinc-800 dark:text-zinc-100">
       {article.title}
     </h1>
-    <div class="mt-6 flex items-center gap-4">
-      <div class="flex items-center gap-2">
-        <img
-          src={article.author.avatar}
-          alt={article.author.name}
-          class="h-10 w-10 rounded-full bg-zinc-100 object-cover dark:bg-zinc-800"
-        />
-        <div class="flex flex-col">
-          <span class="text-sm font-medium text-zinc-900 dark:text-zinc-100">
-            {article.author.name}
-          </span>
-          <span class="text-sm text-zinc-600 dark:text-zinc-400">
-            {article.author.bio}
-          </span>
+
+    <div class="article-meta">
+      <img 
+        src={article.author.avatarUrl || '/default-avatar.png'} 
+        alt={article.author.username}
+        class="author-avatar"
+      />
+      <div>
+        <div class="font-medium text-zinc-800 dark:text-zinc-100">{article.author.username}</div>
+        <div class="text-sm text-zinc-500">
+          发布于 {formatDate(article.createdAt)}
         </div>
       </div>
-      <time class="text-sm text-zinc-500 dark:text-zinc-400" datetime={article.publishDate}>
-        {new Date(article.publishDate).toLocaleDateString('zh-CN')}
-      </time>
+      <div class="ml-auto flex items-center gap-4 text-sm text-zinc-500">
+        <span>阅读 {article.viewCount}</span>
+        <span>评论 {article.commentCount}</span>
+        <span>点赞 {article.likeCount}</span>
+      </div>
     </div>
-    <div class="mt-4 flex flex-wrap gap-2">
-      {#each article.tags as tag}
-        <span class="inline-flex items-center rounded-full bg-lime-100/60 px-3 py-0.5 text-sm font-medium text-lime-900 dark:bg-lime-900/30 dark:text-lime-200">
-          {tag}
-        </span>
-      {/each}
-    </div>
-  </header>
 
-  <div class="prose prose-zinc mt-8 dark:prose-invert">
-    {@html article.content}
-  </div>
-</article> 
+    <div class="article-content prose dark:prose-invert max-w-none">
+      {@html article.htmlContent || article.content}
+    </div>
+  {/if}
+</div> 
