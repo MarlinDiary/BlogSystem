@@ -73,7 +73,15 @@
     width: 100%;
     aspect-ratio: 240/135;
     margin-bottom: 2rem;
+    @media (min-width: 640px) {
+      width: 108%;
+      margin-left: -4%;
+    }
     @media (min-width: 768px) {
+      width: 112%;
+      margin-left: -6%;
+    }
+    @media (min-width: 1024px) {
       width: 120%;
       margin-left: -10%;
     }
@@ -83,10 +91,16 @@
     width: 100%;
     height: 100%;
     object-fit: cover;
-    border-radius: 1rem;
+    border-radius: 0.75rem;
     position: relative;
     z-index: 1;
+    @media (min-width: 640px) {
+      border-radius: 1rem;
+    }
     @media (min-width: 768px) {
+      border-radius: 1.25rem;
+    }
+    @media (min-width: 1024px) {
       border-radius: 1.5rem;
     }
     ring-width: 1px;
@@ -113,8 +127,14 @@
     background-position: center;
     filter: blur(16px) saturate(1.5);
     z-index: 0;
-    border-radius: 1rem;
+    border-radius: 0.75rem;
+    @media (min-width: 640px) {
+      border-radius: 1rem;
+    }
     @media (min-width: 768px) {
+      border-radius: 1.25rem;
+    }
+    @media (min-width: 1024px) {
       border-radius: 1.5rem;
     }
     &::after {
