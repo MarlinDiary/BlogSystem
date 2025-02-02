@@ -275,7 +275,8 @@
           content,
           htmlContent,
           imageUrl: relativeImageUrl,
-          tags
+          tags,
+          status: 'published'
         })
       });
       
@@ -490,27 +491,6 @@
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
   }
 
-  /* 标签动画效果 */
-  @keyframes tagBounce {
-    0%, 100% { transform: translate(var(--x, 0), var(--y, 0)); }
-    50% { transform: translate(var(--x, 0), calc(var(--y, 0) - 6px)); }
-  }
-
-  .tag-bounce {
-    position: absolute;
-    animation: tagBounce 1s ease-in-out infinite;
-    animation-delay: var(--delay);
-    left: var(--x);
-    top: var(--y);
-  }
-
-  .tag-container {
-    position: relative;
-    height: 100%;
-    overflow: hidden;
-    cursor: pointer;
-  }
-
   .tag-item {
     display: inline-flex;
     align-items: center;
@@ -523,7 +503,7 @@
     transition: all 0.2s ease;
   }
 
-  .dark .tag-item {
+  :global(.dark) .tag-item {
     background: rgba(163, 230, 53, 0.15);
     color: rgb(163, 230, 53);
   }
@@ -630,27 +610,34 @@
 
         <!-- 文章标签 -->
         <div>
-          <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+          <label for="tag-area" class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
             文章标签
           </label>
-          <div 
-            class="h-[240px] w-full rounded-xl border-2 border-dashed border-zinc-200 bg-white/50 dark:border-zinc-700/50 dark:bg-zinc-800/50 backdrop-blur-sm transition-all duration-300 hover:border-lime-500 hover:bg-lime-50/50 dark:hover:border-lime-400 dark:hover:bg-lime-950/50 shadow-sm overflow-auto"
+          <button 
+            id="tag-area"
+            type="button"
+            class="h-[240px] w-full rounded-xl border-2 border-dashed border-zinc-200 bg-white/50 dark:border-zinc-700/50 dark:bg-zinc-800/50 backdrop-blur-sm transition-all duration-300 hover:border-lime-500 hover:bg-lime-50/50 dark:hover:border-lime-400 dark:hover:bg-lime-950/50 shadow-sm overflow-auto text-left"
             on:click={() => !isGeneratingTags && title && generateTags()}
+            on:keydown={(e) => e.key === 'Enter' && !isGeneratingTags && title && generateTags()}
+            disabled={isGeneratingTags || !title}
+            aria-label="点击生成标签"
           >
             {#if tags.length > 0}
               <div class="tags-wrapper">
                 {#each tags as tag}
-                  <span class="tag-item group">
+                  <div class="tag-item group">
                     {tag}
-                    <button
-                      type="button"
-                      class="ml-2 inline-flex h-5 w-5 items-center justify-center rounded-full text-lime-700 hover:bg-lime-200 hover:text-lime-900 dark:text-lime-400 dark:hover:bg-lime-800 transition-colors"
+                    <span
+                      class="ml-2 inline-flex h-5 w-5 items-center justify-center rounded-full text-lime-700 hover:bg-lime-200 hover:text-lime-900 dark:text-lime-400 dark:hover:bg-lime-800 transition-colors cursor-pointer"
                       on:click|stopPropagation={() => removeTag(tag)}
+                      on:keydown|stopPropagation={(e) => e.key === 'Enter' && removeTag(tag)}
+                      role="button"
+                      tabindex="0"
                       aria-label={`删除标签 ${tag}`}
                     >
                       ×
-                    </button>
-                  </span>
+                    </span>
+                  </div>
                 {/each}
               </div>
             {:else}
@@ -672,7 +659,7 @@
                 {/if}
               </div>
             {/if}
-          </div>
+          </button>
         </div>
       </div>
       
