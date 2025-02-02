@@ -45,11 +45,12 @@
     
     <!-- 标签输入 -->
     <div>
-      <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+      <label for="tag-input" class="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
         文章标签
       </label>
       <div class="mt-1 flex items-center gap-2">
         <input
+          id="tag-input"
           type="text"
           bind:value={newTag}
           class="flex-1 rounded-lg border border-zinc-300 bg-white/90 px-4 py-2 text-base text-zinc-800 shadow-lg shadow-zinc-800/5 ring-1 ring-zinc-900/5 backdrop-blur dark:border-zinc-700 dark:bg-zinc-800/90 dark:text-zinc-200 dark:ring-white/10"
