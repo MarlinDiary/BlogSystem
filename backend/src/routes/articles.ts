@@ -835,10 +835,10 @@ router.post('/cover', authMiddleware, uploadArticleCover, async (req: AuthReques
  *                     angry:
  *                       type: integer
  */
-router.get('/:id/reaction', authMiddleware, async (req: AuthRequest, res, next) => {
+router.get('/:id/reaction', async (req: AuthRequest, res, next) => {
   try {
-    const userId = req.userId;
     const articleId = parseInt(req.params.id);
+    const userId = req.userId;
 
     // 检查文章是否存在
     const article = await db
@@ -850,18 +850,6 @@ router.get('/:id/reaction', authMiddleware, async (req: AuthRequest, res, next) 
     if (!article) {
       return res.status(404).json({ message: '文章未找到' });
     }
-
-    // 获取用户的反应
-    const userReaction = await db
-      .select()
-      .from(articleReactions)
-      .where(
-        and(
-          eq(articleReactions.articleId, articleId),
-          eq(articleReactions.userId, userId!)
-        )
-      )
-      .get();
 
     // 获取所有反应的统计
     const reactionCounts = await db
@@ -885,8 +873,25 @@ router.get('/:id/reaction', authMiddleware, async (req: AuthRequest, res, next) 
       counts[count.type as keyof typeof counts] = count.count;
     });
 
+    // 如果用户已登录，获取用户的反应
+    let userReaction = null;
+    if (userId) {
+      const reaction = await db
+        .select()
+        .from(articleReactions)
+        .where(
+          and(
+            eq(articleReactions.articleId, articleId),
+            eq(articleReactions.userId, userId)
+          )
+        )
+        .get();
+      
+      userReaction = reaction?.type || null;
+    }
+
     res.json({
-      userReaction: userReaction?.type || null,
+      userReaction,
       reactionCounts: counts
     });
   } catch (error) {

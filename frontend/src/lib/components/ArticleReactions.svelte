@@ -1,6 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher, onMount } from 'svelte';
   import ReactionIcon from './ReactionIcon.svelte';
+  import { auth } from '$lib/stores/auth';
 
   export let articleId: number;
   export let reactions = {
@@ -20,9 +21,9 @@
   async function fetchReactionStatus() {
     try {
       const response = await fetch(`/api/articles/${articleId}/reaction`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
+        headers: $auth.token ? {
+          'Authorization': `Bearer ${$auth.token}`
+        } : {}
       });
       if (response.ok) {
         const data = await response.json();
@@ -36,12 +37,19 @@
 
   // 处理反应
   async function handleReaction(type: ReactionType) {
+    if (!$auth.token) {
+      // 如果用户未登录，显示登录提示
+      const event = new CustomEvent('showAuthModal');
+      window.dispatchEvent(event);
+      return;
+    }
+
     try {
       const response = await fetch(`/api/articles/${articleId}/reaction`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${$auth.token}`
         },
         body: JSON.stringify({ type })
       });
@@ -54,6 +62,11 @@
     } catch (err) {
       console.error('反应失败:', err);
     }
+  }
+
+  // 监听用户登录状态变化
+  $: if ($auth.isAuthenticated) {
+    fetchReactionStatus();
   }
 
   onMount(fetchReactionStatus);
