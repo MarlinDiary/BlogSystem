@@ -33,6 +33,7 @@
   let isGeneratingTags = false;
   let isDirty = false;
   const MAX_TITLE_LENGTH = 50;
+  let isGeneratingArticle = false;
   
   $: titleLength = title.length;
   $: isValidTitle = titleLength <= MAX_TITLE_LENGTH;
@@ -312,6 +313,60 @@
   
   function removeTag(tag: string) {
     tags = tags.filter(t => t !== tag);
+  }
+
+  // AI生成文章
+  async function generateArticle() {
+    if (!title || isGeneratingArticle) return;
+    
+    if (!OPENAI_API_KEY) {
+      error = 'OpenAI API Key未配置，请联系管理员';
+      return;
+    }
+    
+    try {
+      isGeneratingArticle = true;
+      error = '';
+      
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${OPENAI_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: "gpt-4o",
+          messages: [
+            {
+              role: "system",
+              content: "你是一个专业的文章写手。请根据标题生成一篇结构完整、内容丰富的文章。文章要包含适当的标题、段落和格式。生成的内容要专业、有深度，并注意文章的逻辑性和可读性。"
+            },
+            {
+              role: "user",
+              content: `请根据以下标题生成一篇文章：${title}`
+            }
+          ],
+          temperature: 0.8,
+          max_tokens: 10000
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('生成文章失败');
+      }
+
+      const data = await response.json();
+      const generatedContent = data.choices[0].message.content;
+      
+      // 将生成的内容设置到编辑器中
+      editor?.commands.setContent(generatedContent);
+      
+    } catch (err) {
+      console.error('生成文章失败:', err);
+      error = err instanceof Error ? err.message : '生成文章失败';
+    } finally {
+      isGeneratingArticle = false;
+    }
   }
 </script>
 
@@ -798,6 +853,27 @@
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
             </svg>
+          </button>
+          <!-- 修改AI生成按钮 -->
+          <button
+            class="toolbar-button flex items-center justify-center {isGeneratingArticle ? 'is-active' : ''}"
+            on:click={generateArticle}
+            disabled={isGeneratingArticle || !title}
+            title="AI智能写作"
+          >
+            {#if isGeneratingArticle}
+              <div class="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+            {:else}
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 8V4H8" />
+                <path d="M12 4h4" />
+                <rect x="4" y="8" width="16" height="12" rx="2" />
+                <path d="M2 14h2" />
+                <path d="M20 14h2" />
+                <path d="M15 13v2" />
+                <path d="M9 13v2" />
+              </svg>
+            {/if}
           </button>
         </div>
         <div bind:this={editorElement} class="bg-white/95 dark:bg-zinc-900/95"></div>
