@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, afterUpdate, onDestroy, tick } from 'svelte';
   import { page } from '$app/stores';
+  import ArticleReactions from '$lib/components/ArticleReactions.svelte';
   
   interface Author {
     id: number;
@@ -230,36 +231,6 @@
     }
   }
 
-  .cover-image {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    border-radius: 0.75rem;
-    position: relative;
-    z-index: 1;
-    @media (min-width: 640px) {
-      border-radius: 1rem;
-    }
-    @media (min-width: 768px) {
-      border-radius: 1.25rem;
-    }
-    @media (min-width: 1024px) {
-      border-radius: 1.5rem;
-    }
-    ring-width: 1px;
-    ring-color: rgb(24 24 27 / 0.05);
-    transition: all 0.3s ease;
-  }
-
-  :global(.dark) .cover-image {
-    ring-width: 0;
-    ring-color: rgb(255 255 255 / 0.1);
-    &:hover {
-      border-color: rgb(63 63 70);
-      ring-color: rgb(255 255 255 / 0.2);
-    }
-  }
-
   .blur-background {
     position: absolute;
     top: -4px;
@@ -291,6 +262,30 @@
 
   :global(.dark) .blur-background::after {
     background: rgb(0 0 0 / 0.5);
+  }
+
+  .cover-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 0.75rem;
+    position: relative;
+    z-index: 1;
+    @media (min-width: 640px) {
+      border-radius: 1rem;
+    }
+    @media (min-width: 768px) {
+      border-radius: 1.25rem;
+    }
+    @media (min-width: 1024px) {
+      border-radius: 1.5rem;
+    }
+  }
+
+  :global(.dark) .cover-image {
+    &:hover {
+      border-color: rgb(63 63 70);
+    }
   }
 
   .article-content {
@@ -442,25 +437,40 @@
     </nav>
   {/if}
 
+  {#if article}
+    <ArticleReactions
+      articleId={article.id}
+      reactions={{
+        claps: article.likeCount || 0,
+        heart: article.likeCount || 0,
+        'thumbs-up': article.likeCount || 0,
+        fire: article.likeCount || 0
+      }}
+      {isScrolled}
+    />
+  {/if}
+
   <div class="article-container">
     {#if loading}
-      <div class="flex justify-center items-center py-12">
-        <div class="animate-spin rounded-full h-8 w-8 border-2 border-lime-500 border-t-transparent"></div>
+      <div class="flex items-center justify-center min-h-screen">
+        <div class="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-gray-900"></div>
       </div>
     {:else if error}
-      <div class="p-4 mb-6 text-red-700 bg-red-100 rounded-lg dark:bg-red-900/30 dark:text-red-200">
-        {error}
+      <div class="flex items-center justify-center min-h-screen">
+        <p class="text-red-500">{error}</p>
       </div>
     {:else if article}
-      {#if article.imageUrl}
-        <div class="cover-container">
-          <div 
-            class="blur-background" 
-            style="background-image: url({article.imageUrl})"
-          ></div>
-          <img src={article.imageUrl} alt={article.title} class="cover-image" />
-        </div>
-      {/if}
+      <div class="cover-container">
+        <div 
+          class="blur-background" 
+          style="background-image: url({article.imageUrl})"
+        ></div>
+        <img
+          src={article.imageUrl}
+          alt={article.title}
+          class="cover-image"
+        />
+      </div>
       
       <h1 class="text-4xl font-bold mb-4 text-zinc-800 dark:text-zinc-100">
         {article.title}
@@ -481,7 +491,6 @@
         <div class="ml-auto flex items-center gap-4 text-sm text-zinc-500">
           <span>阅读 {article.viewCount}</span>
           <span>评论 {article.commentCount}</span>
-          <span>点赞 {article.likeCount}</span>
         </div>
       </div>
 
