@@ -50,7 +50,7 @@
       <article class="group relative flex flex-col space-y-2 rounded-2xl border border-zinc-100 p-6 dark:border-zinc-700/40">
         <h2 class="text-xl font-semibold tracking-tight text-zinc-800 dark:text-zinc-100">
           <a href="/articles/{article.id}">
-            <span class="absolute inset-0" />
+            <span class="absolute inset-0"></span>
             {article.title}
           </a>
         </h2>
