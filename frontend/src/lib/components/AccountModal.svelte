@@ -44,12 +44,14 @@
   
   // 处理关闭
   function close() {
-    if (dialogRef) {
-      isClosing = true;
-      dialogRef.addEventListener('animationend', () => {
-        dispatch('close');
-      }, { once: true });
-    }
+    isClosing = true;
+    setTimeout(() => {
+      if (dialogRef) {
+        dialogRef.close();
+      }
+      dispatch('close');
+      isClosing = false;
+    }, 200);
   }
   
   // 头像 URL 依赖
