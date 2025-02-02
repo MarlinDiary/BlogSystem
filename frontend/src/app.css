@@ -3,3 +3,4 @@
 @import 'tailwindcss/utilities';
 
 @import '$lib/styles/typography.css';
+@import '$lib/styles/selection.css';
