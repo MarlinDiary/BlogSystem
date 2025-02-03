@@ -31,6 +31,33 @@
     user: User;
   }
 
+  function formatRelativeTime(dateStr: string): string {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    
+    const seconds = Math.floor(diff / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+    const months = Math.floor(days / 30);
+    const years = Math.floor(days / 365);
+
+    if (seconds < 60) {
+      return '刚刚';
+    } else if (minutes < 60) {
+      return `${minutes} 分钟前`;
+    } else if (hours < 24) {
+      return `${hours} 小时前`;
+    } else if (days < 30) {
+      return `${days} 天前`;
+    } else if (months < 12) {
+      return `${months} 个月前`;
+    } else {
+      return `${years} 年前`;
+    }
+  }
+
   export let articleId: number;
   export let user: User | null = null;
 
@@ -129,7 +156,7 @@
                   {comment.user.username}
                 </span>
                 <span class="text-xs text-zinc-500 dark:text-zinc-400">
-                  {new Date(comment.createdAt).toLocaleString()}
+                  {formatRelativeTime(comment.createdAt)}
                 </span>
               </div>
               <div class="mt-2 text-sm text-zinc-800 dark:text-zinc-200">
@@ -153,7 +180,7 @@
                             {reply.user.username}
                           </span>
                           <span class="text-xs text-zinc-500 dark:text-zinc-400">
-                            {new Date(reply.createdAt).toLocaleString()}
+                            {formatRelativeTime(reply.createdAt)}
                           </span>
                         </div>
                         <div class="mt-2 text-sm text-zinc-800 dark:text-zinc-200">
