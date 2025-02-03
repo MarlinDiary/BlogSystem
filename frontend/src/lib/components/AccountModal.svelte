@@ -360,7 +360,7 @@
       ></button>
 
       <!-- 卡片 -->
-      <div class="relative bg-white/70 dark:bg-zinc-800/70 backdrop-blur-[2px] rounded-lg shadow-2xl shadow-zinc-500/20 dark:shadow-zinc-900/30 w-full max-w-4xl h-[600px] flex overflow-hidden {isClosing ? 'modal-closing' : 'modal-open'}">
+      <div class="relative bg-white/90 dark:bg-zinc-800/90 backdrop-blur-[2px] rounded-lg shadow-2xl shadow-zinc-500/20 dark:shadow-zinc-900/30 w-full max-w-4xl h-[600px] flex overflow-hidden {isClosing ? 'modal-closing' : 'modal-open'}">
         <!-- 左侧边栏 -->
         <div class="w-64 flex flex-col">
           <div class="flex-1 p-6 space-y-6">
@@ -457,17 +457,19 @@
             </button>
 
             <!-- 错误/成功提示 -->
-            {#if error}
-              <div class="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-200 text-sm">
-                {error}
-              </div>
-            {/if}
-            
-            {#if success}
-              <div class="mb-4 p-3 rounded-lg bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-200 text-sm">
-                {success}
-              </div>
-            {/if}
+            <div class="fixed top-4 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 pointer-events-none">
+              {#if error}
+                <div class="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-200 text-sm backdrop-blur-sm animate-in fade-in slide-in-from-top duration-300">
+                  {error}
+                </div>
+              {/if}
+              
+              {#if success}
+                <div class="p-3 rounded-lg bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-200 text-sm backdrop-blur-sm animate-in fade-in slide-in-from-top duration-300">
+                  {success}
+                </div>
+              {/if}
+            </div>
 
             <!-- 个人资料部分 -->
             {#if currentSection === 'profile'}
@@ -531,6 +533,7 @@
                         <input
                           type="text"
                           bind:value={tempEditValue}
+                          on:keydown={e => e.key === 'Enter' && saveField('username')}
                           class="block flex-1 rounded-md border-zinc-300 bg-white/50 shadow-sm focus:border-zinc-500 focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800/50 dark:text-zinc-100"
                         />
                         <div class="flex items-center ml-4 space-x-2">
@@ -583,6 +586,7 @@
                         <input
                           type="text"
                           bind:value={tempEditValue}
+                          on:keydown={e => e.key === 'Enter' && saveField('realName')}
                           class="block flex-1 rounded-md border-zinc-300 bg-white/50 shadow-sm focus:border-zinc-500 focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800/50 dark:text-zinc-100"
                         />
                         <div class="flex items-center ml-4 space-x-2">
@@ -635,6 +639,7 @@
                         <input
                           type="date"
                           bind:value={tempEditValue}
+                          on:keydown={e => e.key === 'Enter' && saveField('dateOfBirth')}
                           class="block flex-1 rounded-md border-zinc-300 bg-white/50 shadow-sm focus:border-zinc-500 focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800/50 dark:text-zinc-100"
                         />
                         <div class="flex items-center ml-4 space-x-2">
@@ -686,6 +691,7 @@
                       {#if editingField === 'bio'}
                         <textarea
                           bind:value={tempEditValue}
+                          on:keydown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), saveField('bio'))}
                           rows="4"
                           class="block flex-1 rounded-md border-zinc-300 bg-white/50 shadow-sm focus:border-zinc-500 focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800/50 dark:text-zinc-100 resize-none"
                           placeholder="写点什么来介绍一下自己吧..."
