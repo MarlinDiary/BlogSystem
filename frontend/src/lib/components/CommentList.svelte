@@ -14,6 +14,53 @@
     min-height: 1.5rem;
     outline: none;
   }
+
+  .timeline-line {
+    width: 0.125rem;          /* 2px */
+    background: rgb(228 228 231);  /* zinc-200 */
+    border-radius: 0.25rem;   /* 4px */
+    margin-left: -1px;
+    position: absolute;
+    top: 0;                   
+    bottom: -2rem;            
+    left: 1.25rem;
+  }
+
+  /* 暗色模式 */
+  :global(.dark) .timeline-line {
+    background: rgb(39 39 42);  /* zinc-800 */
+  }
+
+  .timeline-container {
+    position: relative;
+    padding-top: 0;
+  }
+
+  /* 移除通用的last-child规则，改用更具体的选择器 */
+  /* 只在一级评论列表中的最后一个评论隐藏连线 */
+  .space-y-4 > .timeline-container:last-child > .timeline-line {
+    display: none;
+  }
+
+  /* 第一个评论的特殊处理 */
+  .timeline-container:first-child .timeline-line {
+    top: 1.25rem;
+  }
+
+  /* 修改评论列表的间距 */
+  :global(.space-y-4 > :not([hidden]) ~ :not([hidden])) {
+    --tw-space-y-reverse: 0;
+    margin-top: calc(1rem * calc(1 - var(--tw-space-y-reverse)));
+    margin-bottom: calc(1rem * var(--tw-space-y-reverse));
+  }
+
+  /* 回复输入框的间距 */
+  .temp-reply-input {
+    margin-top: 1rem;
+    margin-bottom: 2rem;  /* 增加底部间距 */
+    position: relative;
+    z-index: 1;
+  }
 </style>
 
 <script lang="ts">
@@ -97,10 +144,22 @@
       const response = await fetch(`/api/comments/article/${articleId}`);
       if (response.ok) {
         const rawComments = await response.json();
-        // 按时间从新到旧排序
-        comments = rawComments.sort((a: Comment, b: Comment) => 
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        );
+        // 递归排序所有层级的评论
+        const sortComments = (comments: Comment[]): Comment[] => {
+          return comments.map(comment => {
+            if (comment.children?.length) {
+              return {
+                ...comment,
+                children: sortComments(comment.children)
+              };
+            }
+            return comment;
+          }).sort((a: Comment, b: Comment) => 
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          );
+        };
+        
+        comments = sortComments(rawComments);
       }
     } catch (error) {
       console.error('Failed to load comments:', error);
@@ -249,7 +308,8 @@
     <div class="px-4 md:px-6">
       <ul class="space-y-4">
         {#each comments as comment (comment.id)}
-          <li class="group relative">
+          <li class="group relative timeline-container">
+            <div class="timeline-line"></div>
             <article class="relative flex gap-4">
               <div class="relative flex-none group/avatar">
                 <div class="relative">
@@ -289,7 +349,7 @@
 
                 {#if replyingToId === comment.id}
                   <div 
-                    class="temp-reply-input mt-4 mb-8 flex items-start gap-4"
+                    class="temp-reply-input flex items-start gap-4"
                   >
                     <div class="relative flex-none">
                       <img
@@ -336,7 +396,8 @@
                 {#if comment.children && comment.children.length > 0}
                   <ul class="mt-4 space-y-4">
                     {#each comment.children as child (child.id)}
-                      <li class="group relative">
+                      <li class="group relative timeline-container">
+                        <div class="timeline-line"></div>
                         <article class="relative flex gap-4">
                           <div class="relative flex-none group/avatar">
                             <div class="relative">
@@ -376,7 +437,7 @@
 
                             {#if replyingToId === child.id}
                               <div 
-                                class="temp-reply-input mt-4 mb-4 flex items-start gap-4"
+                                class="temp-reply-input flex items-start gap-4"
                               >
                                 <div class="relative flex-none">
                                   <img
@@ -423,7 +484,8 @@
                             {#if child.children && child.children.length > 0}
                               <ul class="mt-4 space-y-4">
                                 {#each child.children as grandChild (grandChild.id)}
-                                  <li class="group relative">
+                                  <li class="group relative timeline-container">
+                                    <div class="timeline-line"></div>
                                     <article class="relative flex gap-4">
                                       <div class="relative flex-none">
                                         <img
