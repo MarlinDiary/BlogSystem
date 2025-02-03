@@ -21,6 +21,7 @@
     createdAt: string;
     parentId: number | null;
     user: User;
+    children?: Comment[];
   }
 
   interface NewComment {
@@ -63,26 +64,18 @@
 
   let comments: Comment[] = [];
   let isLoading = true;
-
   let avatarTimestamp = Date.now();
 
   function getAvatarUrl(userId: string | null | undefined): string {
     if (!userId) return '/uploads/avatars/default.png';
-    const url = `${env.PUBLIC_API_URL}/api/users/${userId}/avatar?t=${avatarTimestamp}`;
-    return url;
+    return `${env.PUBLIC_API_URL}/api/users/${userId}/avatar?t=${avatarTimestamp}`;
   }
 
   async function loadComments() {
     try {
       const response = await fetch(`/api/comments/article/${articleId}`);
       if (response.ok) {
-        const rawComments = await response.json();
-        // 只获取一级评论并按时间从新到旧排序
-        comments = rawComments
-          .filter((comment: Comment) => comment.parentId === null)
-          .sort((a: Comment, b: Comment) => 
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-          );
+        comments = await response.json();
       }
     } catch (error) {
       console.error('Failed to load comments:', error);
@@ -94,7 +87,27 @@
   function handleCommentAdded(event: CustomEvent<NewComment>) {
     const newComment = event.detail;
     if (newComment.parentId === null) {
-      comments = [newComment, ...comments];
+      comments = [{ ...newComment, children: [] }, ...comments];
+    } else {
+      // 如果是回复评论，需要找到父评论并添加到其 children 中
+      const updateCommentsWithNewReply = (items: Comment[]): Comment[] => {
+        return items.map(item => {
+          if (item.id === newComment.parentId) {
+            return {
+              ...item,
+              children: [...(item.children || []), { ...newComment, children: [] }]
+            };
+          }
+          if (item.children?.length) {
+            return {
+              ...item,
+              children: updateCommentsWithNewReply(item.children)
+            };
+          }
+          return item;
+        });
+      };
+      comments = updateCommentsWithNewReply(comments);
     }
   }
 
@@ -113,47 +126,121 @@
       还没有评论，来说两句吧~
     </div>
   {:else}
-    <ul class="mt-4 space-y-4 px-4 md:px-6">
-      {#each comments as comment, index (comment.id)}
-        <li class="group relative" transition:fade>
-          {#if index !== comments.length - 1}
-            <div 
-              class="absolute left-5 top-10 -ml-px w-0.5 h-[calc(100%+0.5rem)] rounded bg-zinc-200 dark:bg-zinc-800"
-              aria-hidden="true"
-            ></div>
-          {/if}
-
-          <article class="relative flex gap-4">
-            <div class="relative flex-none">
-              {#key comment.user.id}
+    <div class="px-4 md:px-6">
+      <ul class="space-y-4">
+        {#each comments as comment (comment.id)}
+          <li class="group relative" transition:fade>
+            <article 
+              class="relative flex gap-4"
+              style="margin-left: 0;"
+            >
+              <div class="relative flex-none">
                 <img
                   src={getAvatarUrl(comment.user.id)}
                   alt={comment.user.username}
                   class="h-10 w-10 select-none rounded-full ring-2 ring-zinc-200 dark:ring-zinc-800 relative z-10 bg-white dark:bg-zinc-900"
                   loading="lazy"
                 />
-              {/key}
-            </div>
-
-            <div class="flex-1 min-w-0 -mt-1">
-              <header class="flex items-center">
-                <div class="flex items-center gap-1 text-[14px]">
-                  <span class="font-medium text-zinc-900 dark:text-zinc-100 uppercase">
-                    {comment.user.username}
-                  </span>
-                  <time class="select-none text-zinc-400">
-                    {formatRelativeTime(comment.createdAt)}
-                  </time>
-                </div>
-              </header>
-
-              <div class="comment__message prose-zinc dark:prose-invert text-[13px] [&>p]:m-0 [&>p:first-child]:-mt-1">
-                <MarkdownRenderer content={comment.content} />
               </div>
-            </div>
-          </article>
-        </li>
-      {/each}
-    </ul>
+
+              <div class="flex-1 min-w-0 -mt-1">
+                <header class="flex items-center">
+                  <div class="flex items-center gap-1 text-[14px]">
+                    <span class="font-medium text-zinc-900 dark:text-zinc-100 uppercase">
+                      {comment.user.username}
+                    </span>
+                    <time class="select-none text-zinc-400">
+                      {formatRelativeTime(comment.createdAt)}
+                    </time>
+                  </div>
+                </header>
+
+                <div class="comment__message prose-zinc dark:prose-invert text-[13px] [&>p]:m-0 [&>p:first-child]:-mt-1">
+                  <MarkdownRenderer content={comment.content} />
+                </div>
+
+                {#if comment.children && comment.children.length > 0}
+                  <ul class="mt-4 space-y-4">
+                    {#each comment.children as child (child.id)}
+                      <li class="group relative" transition:fade>
+                        <article 
+                          class="relative flex gap-4"
+                          style="margin-left: 0;"
+                        >
+                          <div class="relative flex-none">
+                            <img
+                              src={getAvatarUrl(child.user.id)}
+                              alt={child.user.username}
+                              class="h-10 w-10 select-none rounded-full ring-2 ring-zinc-200 dark:ring-zinc-800 relative z-10 bg-white dark:bg-zinc-900"
+                              loading="lazy"
+                            />
+                          </div>
+
+                          <div class="flex-1 min-w-0 -mt-1">
+                            <header class="flex items-center">
+                              <div class="flex items-center gap-1 text-[14px]">
+                                <span class="font-medium text-zinc-900 dark:text-zinc-100 uppercase">
+                                  {child.user.username}
+                                </span>
+                                <time class="select-none text-zinc-400">
+                                  {formatRelativeTime(child.createdAt)}
+                                </time>
+                              </div>
+                            </header>
+
+                            <div class="comment__message prose-zinc dark:prose-invert text-[13px] [&>p]:m-0 [&>p:first-child]:-mt-1">
+                              <MarkdownRenderer content={child.content} />
+                            </div>
+
+                            {#if child.children && child.children.length > 0}
+                              <ul class="mt-4 space-y-4">
+                                {#each child.children as grandChild (grandChild.id)}
+                                  <li class="group relative" transition:fade>
+                                    <article 
+                                      class="relative flex gap-4"
+                                      style="margin-left: 0;"
+                                    >
+                                      <div class="relative flex-none">
+                                        <img
+                                          src={getAvatarUrl(grandChild.user.id)}
+                                          alt={grandChild.user.username}
+                                          class="h-10 w-10 select-none rounded-full ring-2 ring-zinc-200 dark:ring-zinc-800 relative z-10 bg-white dark:bg-zinc-900"
+                                          loading="lazy"
+                                        />
+                                      </div>
+
+                                      <div class="flex-1 min-w-0 -mt-1">
+                                        <header class="flex items-center">
+                                          <div class="flex items-center gap-1 text-[14px]">
+                                            <span class="font-medium text-zinc-900 dark:text-zinc-100 uppercase">
+                                              {grandChild.user.username}
+                                            </span>
+                                            <time class="select-none text-zinc-400">
+                                              {formatRelativeTime(grandChild.createdAt)}
+                                            </time>
+                                          </div>
+                                        </header>
+
+                                        <div class="comment__message prose-zinc dark:prose-invert text-[13px] [&>p]:m-0 [&>p:first-child]:-mt-1">
+                                          <MarkdownRenderer content={grandChild.content} />
+                                        </div>
+                                      </div>
+                                    </article>
+                                  </li>
+                                {/each}
+                              </ul>
+                            {/if}
+                          </div>
+                        </article>
+                      </li>
+                    {/each}
+                  </ul>
+                {/if}
+              </div>
+            </article>
+          </li>
+        {/each}
+      </ul>
+    </div>
   {/if}
 </div> 
