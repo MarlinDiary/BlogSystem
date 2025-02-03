@@ -254,6 +254,32 @@
     isScrolled = window.scrollY > 200;
   }
 
+  // 计算时间差
+  function getTimeAgo(dateString: string): string {
+    const now = new Date();
+    const date = new Date(dateString);
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+    
+    if (diffInSeconds < 60) {
+      return '刚刚';
+    } else if (diffInSeconds < 3600) {
+      const minutes = Math.floor(diffInSeconds / 60);
+      return `${minutes} 分钟前`;
+    } else if (diffInSeconds < 86400) {
+      const hours = Math.floor(diffInSeconds / 3600);
+      return `${hours} 小时前`;
+    } else if (diffInSeconds < 2592000) {
+      const days = Math.floor(diffInSeconds / 86400);
+      return `${days} 天前`;
+    } else if (diffInSeconds < 31536000) {
+      const months = Math.floor(diffInSeconds / 2592000);
+      return `${months} 个月前`;
+    } else {
+      const years = Math.floor(diffInSeconds / 31536000);
+      return `${years} 年前`;
+    }
+  }
+
   onMount(async () => {
     const id = $page.params.id;
     if (id) {
@@ -364,17 +390,50 @@
 
   .article-meta {
     display: flex;
-    align-items: center;
-    gap: 1rem;
+    align-items: stretch;
     margin: 1rem 0 2rem;
-    color: #666;
+    font-size: 0.875rem;
+    color: rgb(161 161 170);
+    height: 40px;
+    width: 100%;
   }
 
   .author-avatar {
-    width: 48px;
-    height: 48px;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
     object-fit: cover;
+    flex-shrink: 0;
+  }
+
+  .divider {
+    width: 1px;
+    height: 100%;
+    background: linear-gradient(180deg, 
+      rgba(161, 161, 170, 0) 0%,
+      rgba(161, 161, 170, 0.4) 20%,
+      rgba(161, 161, 170, 0.4) 80%,
+      rgba(161, 161, 170, 0) 100%
+    );
+  }
+
+  .meta-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex: 1;
+    margin-left: 1rem;
+  }
+
+  .meta-text {
+    display: flex;
+    align-items: center;
+    height: 100%;
+  }
+
+  .username {
+    text-transform: uppercase;
+    font-weight: 500;
   }
 
   .toc {
@@ -569,15 +628,14 @@
             alt={article.author.username}
             class="author-avatar"
           />
-          <div>
-            <div class="font-medium text-zinc-800 dark:text-zinc-100">{article.author.username}</div>
-            <div class="text-sm text-zinc-500">
-              发布于 {formatDate(article.createdAt)}
-            </div>
-          </div>
-          <div class="ml-auto flex items-center gap-4 text-sm text-zinc-500">
-            <span>阅读 {article.viewCount}</span>
-            <span>评论 {article.commentCount}</span>
+          <div class="meta-item">
+            <span class="meta-text username text-zinc-500">{article.author.username}</span>
+            <div class="divider"></div>
+            <span class="meta-text">{getTimeAgo(article.createdAt)}</span>
+            <div class="divider"></div>
+            <span class="meta-text">{article.viewCount} 阅读</span>
+            <div class="divider"></div>
+            <span class="meta-text">{article.commentCount} 评论</span>
           </div>
         </div>
 
