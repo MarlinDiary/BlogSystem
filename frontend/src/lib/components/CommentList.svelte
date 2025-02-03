@@ -135,10 +135,10 @@
               {/key}
             </div>
 
-            <div class="flex-1 min-w-0 pt-1">
-              <header class="mb-1 flex items-center gap-2">
+            <div class="flex-1 min-w-0 -mt-1">
+              <header class="flex items-center">
                 <div class="flex items-center gap-1 text-[14px]">
-                  <span class="font-medium text-zinc-900 dark:text-zinc-100">
+                  <span class="font-medium text-zinc-900 dark:text-zinc-100 uppercase">
                     {comment.user.username}
                   </span>
                   <time class="select-none text-zinc-400">
@@ -147,7 +147,7 @@
                 </div>
               </header>
 
-              <div class="comment__message prose-sm prose-zinc dark:prose-invert text-[13px]">
+              <div class="comment__message prose-zinc dark:prose-invert text-[13px] [&>p]:m-0 [&>p:first-child]:-mt-1">
                 <MarkdownRenderer content={comment.content} />
               </div>
             </div>
