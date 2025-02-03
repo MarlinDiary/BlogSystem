@@ -22,7 +22,7 @@
     margin-left: -1px;
     position: absolute;
     top: 0;                   
-    bottom: -1rem;            /* 减少连线长度从 -2rem 到 -1rem */
+    bottom: -2rem;            
     left: 1.25rem;
   }
 
@@ -47,21 +47,6 @@
     top: 1.25rem;
   }
 
-  /* 第一个二级或三级评论的特殊处理 */
-  .timeline-container:first-child .timeline-line {
-    top: 1.25rem;
-  }
-
-  /* 第一个二级或三级评论的下方间距调整 */
-  ul > li.timeline-container:first-child {
-    margin-top: 0.5rem;  /* 8px */
-  }
-
-  /* 非第一个评论的正常间距 */
-  ul > li.timeline-container:not(:first-child) {
-    margin-top: 1rem;  /* 16px */
-  }
-
   /* 修改评论列表的间距 */
   :global(.space-y-4 > :not([hidden]) ~ :not([hidden])) {
     --tw-space-y-reverse: 0;
@@ -72,7 +57,7 @@
   /* 回复输入框的间距 */
   .temp-reply-input {
     margin-top: 1rem;
-    margin-bottom: 1rem;  /* 减少底部间距从 2rem 到 1rem */
+    margin-bottom: 2rem;  /* 增加底部间距 */
     position: relative;
     z-index: 1;
   }
@@ -148,6 +133,7 @@
   let replyingToId: number | null = null;
   let tempReplyContent = '';
   let editableRef: HTMLDivElement;
+  let currentKeydownHandler: ((e: Event) => void) | null = null;
 
   function getAvatarUrl(userId: string | null | undefined): string {
     if (!userId) return '/uploads/avatars/default.png';
@@ -245,14 +231,38 @@
       const editable = document.querySelector('.temp-reply-content[contenteditable="true"]') as HTMLElement;
       if (editable) {
         editable.focus();
+        // 创建并保存事件处理器
+        currentKeydownHandler = (e: Event) => {
+          handleReplyKeydown(e as KeyboardEvent);
+        };
+        // 添加回车键事件监听
+        editable.addEventListener('keydown', currentKeydownHandler);
       }
     }, 0);
+  }
+
+  function handleReplyKeydown(event: KeyboardEvent) {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      const editable = event.target as HTMLElement;
+      const text = editable.textContent?.trim() || '';
+      if (text) {
+        handleTempReply(new MouseEvent('click'), replyingToId!, text);
+      }
+    }
   }
 
   async function handleTempReply(event: MouseEvent, commentId: number, content: string) {
     event.stopPropagation();
     if (!content.trim()) return;
     
+    // 移除回车键事件监听
+    const editable = document.querySelector('.temp-reply-content[contenteditable="true"]');
+    if (editable && currentKeydownHandler) {
+      editable.removeEventListener('keydown', currentKeydownHandler);
+      currentKeydownHandler = null;
+    }
+
     try {
       const response = await fetch('/api/comments', {
         method: 'POST',
