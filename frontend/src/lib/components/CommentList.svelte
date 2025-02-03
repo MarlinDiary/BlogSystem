@@ -162,7 +162,7 @@
     }, 0);
   }
 
-  function handleTempReply(event: MouseEvent, commentId: number, content: string) {
+  async function handleTempReply(event: MouseEvent, commentId: number, content: string) {
     event.stopPropagation();
     const editable = document.querySelector('.temp-reply-content[contenteditable="true"]');
     if (!editable) return;
@@ -170,45 +170,59 @@
     const text = editable.textContent?.trim() || '';
     if (!text) return;
     
-    const newComment = {
-      id: Date.now(),
-      content: text,
-      createdAt: new Date().toISOString(),
-      parentId: commentId,
-      user: user!,
-      children: []
-    };
-
-    // 直接更新评论树，而不是通过事件
-    if (commentId === null) {
-      comments = [newComment, ...comments];
-    } else {
-      comments = comments.map(item => {
-        if (item.id === commentId) {
-          return {
-            ...item,
-            children: [newComment, ...(item.children || [])]
-          };
-        }
-        if (item.children?.length) {
-          return {
-            ...item,
-            children: item.children.map(child => {
-              if (child.id === commentId) {
-                return {
-                  ...child,
-                  children: [newComment, ...(child.children || [])]
-                };
-              }
-              return child;
-            })
-          };
-        }
-        return item;
+    try {
+      const response = await fetch('/api/comments', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          articleId,
+          content: text,
+          parentId: commentId
+        })
       });
+
+      if (response.ok) {
+        const newComment = await response.json();
+        // 更新评论树
+        if (commentId === null) {
+          comments = [{ ...newComment, user, children: [] }, ...comments];
+        } else {
+          comments = comments.map(item => {
+            if (item.id === commentId) {
+              return {
+                ...item,
+                children: [{ ...newComment, user, children: [] }, ...(item.children || [])]
+              };
+            }
+            if (item.children?.length) {
+              return {
+                ...item,
+                children: item.children.map(child => {
+                  if (child.id === commentId) {
+                    return {
+                      ...child,
+                      children: [{ ...newComment, user, children: [] }, ...(child.children || [])]
+                    };
+                  }
+                  return child;
+                })
+              };
+            }
+            return item;
+          });
+        }
+      } else {
+        const error = await response.json();
+        alert(error.message || '回复发送失败');
+      }
+    } catch (error) {
+      alert('回复发送失败');
     }
 
-    // 最后再清除回复状态
+    // 清除回复状态
     replyingToId = null;
     tempReplyContent = '';
   }
