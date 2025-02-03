@@ -15,9 +15,21 @@
     outline: none;
   }
 
+  /* 添加回复按钮的基础样式 */
+  .reply-button {
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    background: rgba(0, 0, 0, 0.4);
+    transition: all 0.2s ease-in-out;
+  }
+
+  .reply-button:hover {
+    background: rgba(0, 0, 0, 0.6);
+  }
+
   .timeline-line {
     width: 0.125rem;          /* 2px */
-    background: rgb(228 228 231);  /* zinc-200 */
+    background: rgb(228 228 231 / 0.4);  /* zinc-200 with 50% opacity */
     border-radius: 0.25rem;   /* 4px */
     margin-left: -1px;
     position: absolute;
@@ -28,7 +40,7 @@
 
   /* 暗色模式 */
   :global(.dark) .timeline-line {
-    background: rgb(39 39 42);  /* zinc-800 */
+    background: rgb(39 39 42 / 0.4);  /* zinc-800 with 50% opacity */
   }
 
   .timeline-container {
@@ -224,6 +236,19 @@
 
   function handleReplyClick(event: MouseEvent, commentId: number) {
     event.stopPropagation();
+    // 如果当前已经在回复这条评论，则取消回复
+    if (replyingToId === commentId) {
+      replyingToId = null;
+      tempReplyContent = '';
+      // 移除回车键事件监听
+      const editable = document.querySelector('.temp-reply-content[contenteditable="true"]');
+      if (editable && currentKeydownHandler) {
+        editable.removeEventListener('keydown', currentKeydownHandler);
+        currentKeydownHandler = null;
+      }
+      return;
+    }
+    
     replyingToId = commentId;
     tempReplyContent = '';
     // 等待 DOM 更新后聚焦
