@@ -22,7 +22,7 @@
     margin-left: -1px;
     position: absolute;
     top: 0;                   
-    bottom: -2rem;            
+    bottom: -1rem;            /* 减少连线长度从 -2rem 到 -1rem */
     left: 1.25rem;
   }
 
@@ -47,6 +47,21 @@
     top: 1.25rem;
   }
 
+  /* 第一个二级或三级评论的特殊处理 */
+  .timeline-container:first-child .timeline-line {
+    top: 1.25rem;
+  }
+
+  /* 第一个二级或三级评论的下方间距调整 */
+  ul > li.timeline-container:first-child {
+    margin-top: 0.5rem;  /* 8px */
+  }
+
+  /* 非第一个评论的正常间距 */
+  ul > li.timeline-container:not(:first-child) {
+    margin-top: 1rem;  /* 16px */
+  }
+
   /* 修改评论列表的间距 */
   :global(.space-y-4 > :not([hidden]) ~ :not([hidden])) {
     --tw-space-y-reverse: 0;
@@ -57,7 +72,7 @@
   /* 回复输入框的间距 */
   .temp-reply-input {
     margin-top: 1rem;
-    margin-bottom: 2rem;  /* 增加底部间距 */
+    margin-bottom: 1rem;  /* 减少底部间距从 2rem 到 1rem */
     position: relative;
     z-index: 1;
   }
@@ -199,13 +214,26 @@
     const target = event.target as HTMLElement;
     if (
       target.closest('.reply-button') || 
-      target.closest('.temp-reply-input') ||
-      target.closest('.reply-submit-button')
+      target.closest('.temp-reply-input')
     ) {
       return;
     }
-    replyingToId = null;
-    tempReplyContent = '';
+
+    const editable = document.querySelector('.temp-reply-content[contenteditable="true"]') as HTMLElement;
+    if (editable) {
+      const text = editable.textContent?.trim() || '';
+      if (text) {
+        // 如果有内容，则提交评论
+        handleTempReply(event, replyingToId!, text);
+      } else {
+        // 如果没有内容，则取消评论
+        replyingToId = null;
+        tempReplyContent = '';
+      }
+    } else {
+      replyingToId = null;
+      tempReplyContent = '';
+    }
   }
 
   function handleReplyClick(event: MouseEvent, commentId: number) {
@@ -223,11 +251,7 @@
 
   async function handleTempReply(event: MouseEvent, commentId: number, content: string) {
     event.stopPropagation();
-    const editable = document.querySelector('.temp-reply-content[contenteditable="true"]');
-    if (!editable) return;
-    
-    const text = editable.textContent?.trim() || '';
-    if (!text) return;
+    if (!content.trim()) return;
     
     try {
       const response = await fetch('/api/comments', {
@@ -238,7 +262,7 @@
         },
         body: JSON.stringify({
           articleId,
-          content: text,
+          content: content.trim(),
           parentId: commentId
         })
       });
@@ -378,16 +402,6 @@
                           aria-label="回复内容"
                           data-placeholder="写下你的回复..."
                         ></div>
-
-                        <button
-                          class="reply-submit-button absolute right-0 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
-                          on:click={(e) => handleTempReply(e, comment.id, tempReplyContent)}
-                          aria-label="提交回复"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-primary-500" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
-                          </svg>
-                        </button>
                       </div>
                     </div>
                   </div>
@@ -466,16 +480,6 @@
                                       aria-label="回复内容"
                                       data-placeholder="写下你的回复..."
                                     ></div>
-
-                                    <button
-                                      class="reply-submit-button absolute right-0 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
-                                      on:click={(e) => handleTempReply(e, child.id, tempReplyContent)}
-                                      aria-label="提交回复"
-                                    >
-                                      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-primary-500" viewBox="0 0 20 20" fill="currentColor">
-                                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
-                                      </svg>
-                                    </button>
                                   </div>
                                 </div>
                               </div>
