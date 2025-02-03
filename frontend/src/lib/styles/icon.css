@@ -1,6 +1,6 @@
 .icon {
   @apply h-6 w-6 stroke-zinc-500 p-0.5 transition;
-  stroke-width: 1.5;
+  stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
 }

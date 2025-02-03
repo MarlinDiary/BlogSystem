@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import Navigation from './Navigation.svelte';
-  import ThemeSwitcher from './ThemeSwitcher.svelte';
+  import SearchButton from './SearchButton.svelte';
   import UserButton from './UserButton.svelte';
   
   export let navigationItems: Array<{ href: string; text: string }>;
@@ -58,7 +58,7 @@
       <div class="flex items-center justify-end md:flex-1">
         <div class="flex items-center gap-3">
           <UserButton />
-          <ThemeSwitcher />
+          <SearchButton />
         </div>
       </div>
     </div>
