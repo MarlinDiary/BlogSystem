@@ -263,12 +263,8 @@
       loading = true;
       error = '';
       
-      // 发送相对路径的 imageUrl
-      const relativeImageUrl = imageUrl ? imageUrl.replace(SERVER_BASE, '') : '';
-      
       const response = await fetch(`${API_BASE}/articles`, {
         method: 'POST',
-        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -277,10 +273,10 @@
           title,
           content,
           htmlContent,
-          imageUrl: relativeImageUrl,
-          tags,
-          status: 'published'
-        })
+          imageUrl,
+          tags
+        }),
+        credentials: 'include'
       });
       
       if (!response.ok) {
@@ -288,12 +284,11 @@
         throw new Error(errorData.message || '发布失败');
       }
       
-      const article = await response.json();
-      isDirty = false;
-      goto(`/articles/${article.id}`);
+      const data = await response.json();
+      goto(`/articles/${data.id}`);
     } catch (err) {
       console.error('发布文章失败:', err);
-      error = err instanceof Error ? err.message : '发布失败，请重试';
+      error = err instanceof Error ? err.message : '发布失败';
     } finally {
       loading = false;
     }

@@ -70,19 +70,38 @@
 
   // 解析文章内容中的标题
   function parseToc(content: string): TocItem[] {
+    console.log('开始解析目录，HTML内容长度:', content.length);
+    console.log('HTML内容中的标题标签:', content.match(/<h[1-6][^>]*>.*?<\/h[1-6]>/g));
+    
     const parser = new DOMParser();
     const doc = parser.parseFromString(content, 'text/html');
     const headings = doc.querySelectorAll('h1, h2');
+    console.log('找到标题元素:', headings.length);
+    
+    // 检查每个标题元素的详细信息
+    headings.forEach((heading, index) => {
+      console.log(`标题 ${index + 1}:`, {
+        tagName: heading.tagName,
+        id: heading.id,
+        innerHTML: heading.innerHTML,
+        outerHTML: heading.outerHTML
+      });
+    });
+    
     const items = Array.from(headings).map(heading => {
       const text = stripHtml((heading.innerHTML || '').trim());
-      const id = generateHeadingId(text);
-      return {
+      const id = heading.id || generateHeadingId(text); // 优先使用已有的ID
+      const item = {
         id,
         text,
         level: parseInt(heading.tagName[1]),
         isActive: false
       };
+      console.log('解析标题:', item);
+      return item;
     });
+    
+    console.log('目录解析完成:', items);
     return items;
   }
 
@@ -100,6 +119,34 @@
         element.scrollIntoView({ behavior: 'smooth' });
       }
     }
+  }
+
+  // 处理标题点击事件
+  function handleHeadingClick(e: MouseEvent) {
+    const target = e.target as HTMLElement;
+    const heading = target.closest('h1, h2');
+    if (heading && heading.id) {
+      e.preventDefault();
+      const element = document.getElementById(heading.id);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
+  }
+
+  // 修改文章内容的HTML
+  function processArticleContent(content: string): string {
+    return content.replace(
+      /<(h[12])([^>]*)>(.*?)<\/\1>/g,
+      (match, tag, attrs, text) => {
+        const cleanText = stripHtml(text.trim());
+        const cleanAttrs = attrs.replace(/\s+id\s*=\s*(['"]).*?\1/, '');
+        const id = generateHeadingId(cleanText);
+        const tocItem = tocItems.find(item => item.text === cleanText);
+        const finalId = tocItem?.id || id;
+        return `<${tag}${cleanAttrs} id="${finalId}" class="heading-anchor" tabindex="0" role="link" aria-label="跳转到${cleanText}章节">${text}</${tag}>`;
+      }
+    );
   }
 
   function scrollToHeading(id: string) {
@@ -148,8 +195,36 @@
         throw new Error('获取文章详情失败');
       }
       article = await response.json();
+      console.log('获取文章数据:', { 
+        title: article?.title,
+        hasHtmlContent: !!article?.htmlContent,
+        htmlContentLength: article?.htmlContent?.length
+      });
+      
       if (article?.htmlContent) {
         tocItems = parseToc(article.htmlContent);
+        await tick();
+        
+        // 检查文章内容区域中的标题元素
+        const articleContent = document.querySelector('.article-content');
+        if (articleContent) {
+          console.log('文章内容区域中的标题元素:', {
+            html: articleContent.innerHTML.match(/<h[1-6][^>]*>.*?<\/h[1-6]>/g),
+            headings: Array.from(articleContent.querySelectorAll('h1, h2')).map(h => ({
+              id: h.id,
+              text: h.textContent,
+              outerHTML: h.outerHTML
+            }))
+          });
+        }
+        
+        console.log('目录项生成后的DOM:', {
+          tocItems: tocItems.map(item => ({
+            id: item.id,
+            elementExists: !!document.getElementById(item.id),
+            element: document.getElementById(item.id)?.outerHTML
+          }))
+        });
       }
     } catch (e) {
       console.error('获取文章详情出错:', e);
@@ -417,56 +492,22 @@
   }
 </style>
 
-<div class="article-wrapper">
-  {#if error}
-    <div class="p-4 mb-6 text-red-700 bg-red-100 rounded-lg dark:bg-red-900/30 dark:text-red-200">
-      {error}
-    </div>
-  {/if}
-
-  {#if loading}
-    <div class="flex justify-center items-center py-12">
-      <div class="animate-spin rounded-full h-8 w-8 border-2 border-lime-500 border-t-transparent"></div>
-    </div>
-  {:else if article}
+{#if article}
+  <div class="article-wrapper">
     <div class="article-container">
-      {#if article && tocItems.length > 0}
-        <nav class="toc" data-scrolled={isScrolled}>
-          <div class="toc-list">
-            {#each tocItems as item}
-              <a
-                href="#{item.id}"
-                class="toc-item"
-                data-level={item.level}
-                data-active={item.isActive}
-                on:click|preventDefault={(e) => handleTocClick(e, item.id)}
-                aria-current={item.isActive ? 'true' : undefined}
-              >
-                {item.text}
-              </a>
-            {/each}
-          </div>
-        </nav>
+      {#if article.imageUrl}
+        <div class="cover-container">
+          <div 
+            class="blur-background" 
+            style="background-image: url({article.imageUrl})"
+          ></div>
+          <img
+            src={article.imageUrl}
+            alt={article.title}
+            class="cover-image"
+          />
+        </div>
       {/if}
-
-      {#if article}
-        <ArticleReactions
-          articleId={article.id}
-          {isScrolled}
-        />
-      {/if}
-
-      <div class="cover-container">
-        <div 
-          class="blur-background" 
-          style="background-image: url({article.imageUrl})"
-        ></div>
-        <img
-          src={article.imageUrl}
-          alt={article.title}
-          class="cover-image"
-        />
-      </div>
       
       <h1 class="text-4xl font-bold mb-4 text-zinc-800 dark:text-zinc-100">
         {article.title}
@@ -490,26 +531,52 @@
         </div>
       </div>
 
+      <!-- 文章内容 -->
       <div 
         class="article-content prose dark:prose-invert max-w-none" 
         role="article"
       >
         {#if article?.htmlContent}
-          {@html article.htmlContent.replace(
-            /<(h[12])([^>]*)>(.*?)<\/\1>/g,
-            (match, tag, attrs, text) => {
-              const cleanText = stripHtml(text.trim());
-              const cleanAttrs = attrs.replace(/\s+id\s*=\s*(['"]).*?\1/, '');
-              const id = generateHeadingId(cleanText);
-              const tocItem = tocItems.find(item => item.text === cleanText);
-              const finalId = tocItem?.id || id;
-              return `<${tag}${cleanAttrs} id="${finalId}" class="heading-anchor" tabindex="0" role="link" aria-label="跳转到${cleanText}章节">${text}</${tag}>`;
-            }
-          )}
+          {@html processArticleContent(article.htmlContent)}
         {/if}
       </div>
+
+      <!-- 文章反应 -->
+      <div class="mt-8">
+        <ArticleReactions articleId={article.id} />
+      </div>
     </div>
-  {/if}
-</div>
+
+    <!-- 目录 -->
+    <nav 
+      class="toc"
+      data-scrolled={isScrolled}
+      aria-label="文章目录"
+    >
+      <div class="toc-list">
+        {#each tocItems as item}
+          <a
+            href="#{item.id}"
+            class="toc-item"
+            data-level={item.level}
+            data-active={item.isActive}
+            on:click|preventDefault={(e) => handleTocClick(e, item.id)}
+            aria-current={item.isActive ? 'true' : undefined}
+          >
+            {item.text}
+          </a>
+        {/each}
+      </div>
+    </nav>
+  </div>
+{:else if loading}
+  <div class="flex justify-center items-center min-h-screen">
+    <div class="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-lime-500"></div>
+  </div>
+{:else if error}
+  <div class="flex justify-center items-center min-h-screen">
+    <div class="text-red-500">{error}</div>
+  </div>
+{/if}
 
 <svelte:window on:click={handleContentInteraction} on:keydown={handleContentInteraction} /> 

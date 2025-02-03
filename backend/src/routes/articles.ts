@@ -63,7 +63,7 @@ const router = Router();
 // 获取所有文章（支持搜索和排序）
 router.get('/', async (req, res, next) => {
   try {
-    const { page = 1, pageSize = 10, search, sort = 'createdAt', order = 'desc', status } = req.query;
+    const { page = 1, pageSize = 10, search, sort = 'createdAt', order = 'desc', status = 'all' } = req.query;
     const offset = (Number(page) - 1) * Number(pageSize);
 
     // 构建排序条件
@@ -75,7 +75,10 @@ router.get('/', async (req, res, next) => {
     }
 
     // 构建查询条件
-    const conditions: SQL<unknown>[] = [eq(articlesTable.status, status as 'published' | 'draft' | 'pending' | 'rejected' || 'published')];
+    const conditions: SQL<unknown>[] = [];
+    if (status !== 'all') {
+      conditions.push(eq(articlesTable.status, status as 'published' | 'draft' | 'pending' | 'rejected'));
+    }
     if (search) {
       conditions.push(
         sql`(${articlesTable.title} LIKE ${'%' + search + '%'} OR ${articlesTable.content} LIKE ${'%' + search + '%'})`
@@ -171,7 +174,7 @@ router.get('/', async (req, res, next) => {
 // 创建文章
 router.post('/', authMiddleware, async (req: AuthRequest, res, next) => {
   try {
-    const { title, content, imageUrl, tags, status = 'pending' } = req.body;
+    const { title, content, htmlContent, imageUrl, tags, status = 'pending' } = req.body;
     
     if (!title || !content) {
       return res.status(400).json({ message: '标题和内容不能为空' });
@@ -185,6 +188,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res, next) => {
         .values({
           title,
           content,
+          htmlContent,  // 保存 HTML 内容
           imageUrl,
           status,
           authorId: req.userId!,
@@ -261,6 +265,7 @@ router.get('/:id', async (req, res, next) => {
       id: articlesTable.id,
       title: articlesTable.title,
       content: articlesTable.content,
+      htmlContent: articlesTable.htmlContent,
       imageUrl: articlesTable.imageUrl,
       status: articlesTable.status,
       viewCount: articlesTable.viewCount,
@@ -285,17 +290,37 @@ router.get('/:id', async (req, res, next) => {
       return res.status(404).json({ message: '文章不存在' });
     }
 
-    // 将 Markdown 内容转换为 HTML
-    const htmlContent = marked(article.content);
-    
-    // 净化 HTML 以防止 XSS 攻击
-    const sanitizedHtml = sanitizeHtml(htmlContent, {
-      allowedTags: sanitizeHtml.defaults.allowedTags.concat(['img']),
-      allowedAttributes: {
-        ...sanitizeHtml.defaults.allowedAttributes,
-        img: ['src', 'alt', 'title']
+    // 如果没有保存的 HTML 内容，则从 Markdown 生成
+    if (!article.htmlContent) {
+      const renderer = new marked.Renderer();
+      
+      // 生成标题ID的函数
+      function generateHeadingId(text: string): string {
+        return 'heading-' + text
+          .toLowerCase()
+          .replace(/[^\w\u4e00-\u9fa5]+/g, '-')
+          .replace(/^-+|-+$/g, '')
+          .replace(/-{2,}/g, '-');
       }
-    });
+
+      renderer.heading = (text, level) => {
+        const id = generateHeadingId(text);
+        console.log('后端生成标题:', { text, level, id });
+        return `<h${level} id="${id}">${text}</h${level}>`;
+      };
+
+      marked.setOptions({
+        renderer,
+        gfm: true,
+        breaks: true
+      });
+
+      article.htmlContent = marked(article.content);
+      
+      // 验证生成的HTML内容
+      const headings = article.htmlContent.match(/<h[1-6][^>]*id="[^"]*"[^>]*>.*?<\/h[1-6]>/g);
+      console.log('生成的HTML标题:', headings);
+    }
 
     // 更新浏览量
     await db.update(articlesTable)
@@ -305,10 +330,7 @@ router.get('/:id', async (req, res, next) => {
       })
       .where(eq(articlesTable.id, articleId));
 
-    res.json({
-      ...article,
-      htmlContent: sanitizedHtml
-    });
+    res.json(article);
   } catch (error) {
     next(error);
   }

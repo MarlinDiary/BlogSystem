@@ -29,6 +29,7 @@ export const articles = sqliteTable('articles', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   title: text('title').notNull(),
   content: text('content').notNull(),
+  htmlContent: text('html_content'),
   imageUrl: text('image_url'),
   status: text('status', { enum: ['draft', 'pending', 'published', 'rejected'] }).notNull().default('draft'),
   viewCount: integer('view_count').notNull().default(0),
