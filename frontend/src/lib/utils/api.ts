@@ -1,6 +1,7 @@
 import { auth } from '../stores/auth';
 import { get } from 'svelte/store';
 import { env } from '$env/dynamic/public';
+import { getToken } from './auth';
 
 const API_URL = env.PUBLIC_API_URL;
 
@@ -53,6 +54,11 @@ export async function api(endpoint: string, options: ApiOptions = {}) {
             statusText: response.statusText,
             headers: Object.fromEntries(response.headers.entries())
         });
+
+        // 对于 204 状态码，直接返回
+        if (response.status === 204) {
+            return null;
+        }
 
         const data = await response.json().catch(() => {
             console.error('[API Error] Failed to parse response as JSON');
@@ -252,6 +258,47 @@ export const userApi = {
             return result;
         } catch (error) {
             console.error('[User] Account deletion failed', error);
+            throw error;
+        }
+    },
+
+    // 获取当前用户信息
+    getCurrentUser: async () => {
+        try {
+            console.log('[User] Getting current user info');
+            const result = await api('/api/users/me');
+            console.log('[User] Got current user info', result);
+            return result;
+        } catch (error) {
+            console.error('[User] Failed to get current user info', error);
+            throw error;
+        }
+    },
+
+    // 获取用户文章列表
+    getUserArticles: async (userId: number | string) => {
+        try {
+            console.log('[User] Getting user articles', { userId });
+            const result = await api(`/api/users/${userId}/articles`);
+            console.log('[User] Got user articles', result);
+            return result;
+        } catch (error) {
+            console.error('[User] Failed to get user articles', error);
+            throw error;
+        }
+    },
+
+    // 删除文章
+    deleteArticle: async (articleId: number) => {
+        try {
+            console.log('[User] Deleting article', { articleId });
+            const result = await api(`/api/articles/${articleId}`, {
+                method: 'DELETE'
+            });
+            console.log('[User] Article deleted', result);
+            return result;
+        } catch (error) {
+            console.error('[User] Article deletion failed', error);
             throw error;
         }
     }

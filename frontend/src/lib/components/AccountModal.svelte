@@ -6,6 +6,8 @@
   import { env } from '$env/dynamic/public';
   import { invalidate } from '$app/navigation';
   import { browser } from '$app/environment';
+  import type { User } from '../stores/auth';
+  import { toast } from '$lib/utils/toast';
   
   export let isOpen = false;
   
@@ -247,8 +249,36 @@
   let loading = false;
 
   // 当前选中的菜单项
-  let currentSection: 'profile' | 'security' | 'danger' = 'profile';
+  let currentSection: 'profile' | 'security' | 'danger' | 'articles' = 'profile';
   
+  // 加载用户文章
+  async function loadUserArticles() {
+    try {
+      loading = true;
+      error = '';
+      const userId = getUserId($auth.user);
+      if (!userId) {
+        error = '无法获取用户ID';
+        return;
+      }
+      const result = await userApi.getUserArticles(userId);
+      // 更新用户数据中的文章列表
+      auth.updateUser({
+        ...$auth.user!,
+        articles: result.items
+      });
+    } catch (err: any) {
+      error = err.message;
+    } finally {
+      loading = false;
+    }
+  }
+
+  // 监听section变化，当切换到articles时加载文章
+  $: if (currentSection === 'articles') {
+    loadUserArticles();
+  }
+
   function handleClose() {
     if (dialogRef) {
       close();
@@ -315,6 +345,56 @@
       error = err.message;
     } finally {
       loading = false;
+    }
+  }
+
+  // 删除文章确认状态
+  let deletingArticleId: number | null = null;
+
+  // 开始删除确认
+  function startDelete(articleId: number) {
+    if (deletingArticleId === articleId) {
+      deleteArticle(articleId);
+    } else {
+      deletingArticleId = articleId;
+      // 3秒后自动取消确认状态
+      setTimeout(() => {
+        if (deletingArticleId === articleId) {
+          deletingArticleId = null;
+        }
+      }, 3000);
+    }
+  }
+
+  // 删除文章
+  async function deleteArticle(articleId: number) {
+    try {
+      loading = true;
+      
+      // 先在UI上移除文章
+      if ($auth.user?.articles) {
+        auth.updateUser({
+          ...$auth.user,
+          articles: $auth.user.articles.filter(article => article.id !== articleId)
+        });
+      }
+      
+      // 发送删除请求
+      await userApi.deleteArticle(articleId);
+      
+      // 如果当前在文章页面，跳转到文章列表页面
+      const currentPath = window.location.pathname;
+      if (currentPath.startsWith('/articles/') && currentPath !== '/articles') {
+        window.location.href = '/articles';
+      }
+      
+    } catch (error) {
+      console.error('删除文章失败:', error);
+      // 如果删除失败，恢复文章列表
+      await loadUserArticles();
+    } finally {
+      loading = false;
+      deletingArticleId = null;
     }
   }
 
@@ -391,6 +471,16 @@
                   <circle cx="12" cy="7" r="4" />
                 </svg>
                 <span>个人资料</span>
+              </button>
+              <button
+                class="w-full text-left px-4 py-2.5 rounded-lg transition-colors flex items-center space-x-3 {currentSection === 'articles' ? 'bg-zinc-100 dark:bg-zinc-700/70 text-zinc-900 dark:text-white font-medium' : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}"
+                on:click={() => currentSection = 'articles'}
+              >
+                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+                  <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+                </svg>
+                <span>我的文章</span>
               </button>
               <button
                 class="w-full text-left px-4 py-2.5 rounded-lg transition-colors flex items-center space-x-3 {currentSection === 'security' ? 'bg-zinc-100 dark:bg-zinc-700/70 text-zinc-900 dark:text-white font-medium' : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}"
@@ -471,8 +561,8 @@
               {/if}
             </div>
 
-            <!-- 个人资料部分 -->
             {#if currentSection === 'profile'}
+              <!-- 个人资料部分 -->
               <div>
                 <h3 class="text-lg font-semibold mb-8 dark:text-white">个人资料</h3>
                 <div class="space-y-8">
@@ -737,10 +827,117 @@
                   </div>
                 </div>
               </div>
-            {/if}
-
-            <!-- 安全设置部分 -->
-            {#if currentSection === 'security'}
+            {:else if currentSection === 'articles'}
+              <!-- 我的文章部分 -->
+              <div>
+                <h3 class="text-lg font-semibold mb-8 dark:text-white">我的文章</h3>
+                {#if loading}
+                  <div class="flex justify-center py-12">
+                    <svg class="w-8 h-8 animate-spin text-zinc-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M12 3v3m6.366-.366-2.12 2.12M21 12h-3m.366 6.366-2.12-2.12M12 21v-3m-6.366.366 2.12-2.12M3 12h3m-.366-6.366 2.12 2.12" />
+                    </svg>
+                  </div>
+                {:else if !$auth.user?.articles?.length}
+                  <div class="flex flex-col items-center justify-center py-20">
+                    <svg class="w-16 h-16 text-zinc-300 dark:text-zinc-600 mb-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+                      <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+                      <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+                    </svg>
+                    <p class="mb-6 text-zinc-500 dark:text-zinc-400">还没有发布过文章</p>
+                    <a 
+                      href="/publish" 
+                      class="inline-block px-4 py-2 text-sm bg-lime-600 text-white rounded-md hover:bg-lime-700 dark:bg-lime-500 dark:hover:bg-lime-600 transition-colors"
+                      on:click={close}
+                    >
+                      写一篇文章
+                    </a>
+                  </div>
+                {:else}
+                  <div class="space-y-4">
+                    {#each $auth.user?.articles || [] as article (article.id)}
+                      <div class="flex items-center justify-between p-4 rounded-lg bg-white/50 dark:bg-zinc-800/50 backdrop-blur-[1px] group">
+                        <div class="flex-1 min-w-0">
+                          <a 
+                            href="/articles/{article.id}" 
+                            class="block text-zinc-900 dark:text-white font-medium truncate hover:text-lime-600 dark:hover:text-lime-400 transition-colors"
+                            on:click={close}
+                          >
+                            {article.title}
+                          </a>
+                          <div class="mt-1 flex items-center text-sm text-zinc-500 dark:text-zinc-400 space-x-4">
+                            <span>{new Date(article.createdAt).toLocaleDateString()}</span>
+                            <span>阅读 {article.viewCount || 0}</span>
+                            <span>评论 {article.commentCount || 0}</span>
+                          </div>
+                        </div>
+                        <div class="flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <a
+                            href="/articles/{article.id}/edit"
+                            class="p-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-700/50 transition-colors"
+                            aria-label="编辑文章"
+                          >
+                            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                              <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                              <path d="m15 5 4 4" />
+                            </svg>
+                          </a>
+                          {#if deletingArticleId === article.id}
+                            <div class="flex items-center space-x-1 bg-zinc-100 dark:bg-zinc-700/50 rounded-full">
+                              <button
+                                type="button"
+                                class="p-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
+                                on:click={() => deletingArticleId = null}
+                                disabled={loading}
+                                aria-label="取消删除"
+                              >
+                                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                  <line x1="18" x2="6" y1="6" y2="18" />
+                                  <line x1="6" x2="18" y1="6" y2="18" />
+                                </svg>
+                              </button>
+                              <button
+                                type="button"
+                                class="p-2 text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors"
+                                on:click={() => deleteArticle(article.id)}
+                                disabled={loading}
+                                aria-label="确认删除"
+                              >
+                                {#if loading}
+                                  <svg class="w-5 h-5 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M12 3v3m6.366-.366-2.12 2.12M21 12h-3m.366 6.366-2.12-2.12M12 21v-3m-6.366.366 2.12-2.12M3 12h3m-.366-6.366 2.12 2.12" />
+                                  </svg>
+                                {:else}
+                                  <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="20 6 9 17 4 12" />
+                                  </svg>
+                                {/if}
+                              </button>
+                            </div>
+                          {:else}
+                            <button
+                              type="button"
+                              class="p-2 text-zinc-400 hover:text-red-600 dark:hover:text-red-400 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-700/50 transition-colors"
+                              on:click={() => deletingArticleId = article.id}
+                              disabled={loading}
+                              aria-label="删除文章"
+                            >
+                              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M3 6h18" />
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+                                <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                <line x1="10" x2="10" y1="11" y2="17" />
+                                <line x1="14" x2="14" y1="11" y2="17" />
+                              </svg>
+                            </button>
+                          {/if}
+                        </div>
+                      </div>
+                    {/each}
+                  </div>
+                {/if}
+              </div>
+            {:else if currentSection === 'security'}
+              <!-- 安全设置部分 -->
               <div>
                 <h3 class="text-lg font-semibold mb-4 dark:text-white">安全设置</h3>
                 {#if isChangingPassword}
@@ -805,10 +1002,8 @@
                   </button>
                 {/if}
               </div>
-            {/if}
-
-            <!-- 危险区域 -->
-            {#if currentSection === 'danger'}
+            {:else if currentSection === 'danger'}
+              <!-- 危险区域 -->
               <div>
                 <h3 class="text-lg font-semibold mb-4 text-red-600 dark:text-red-500">危险区域</h3>
                 {#if isDeleting}

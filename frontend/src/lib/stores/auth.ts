@@ -1,7 +1,7 @@
 import { writable } from 'svelte/store';
 import { authApi } from '../utils/api';
 
-interface User {
+export interface User {
     id: string;
     username: string;
     realName: string;
@@ -9,6 +9,13 @@ interface User {
     bio?: string;
     createdAt: string;
     avatarUrl?: string;
+    articles?: Array<{
+        id: number;
+        title: string;
+        createdAt: string;
+        viewCount: number;
+        commentCount: number;
+    }>;
 }
 
 interface AuthState {

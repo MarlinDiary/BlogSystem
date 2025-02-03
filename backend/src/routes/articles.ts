@@ -447,11 +447,28 @@ router.put('/:id', authMiddleware, async (req: AuthRequest, res, next) => {
 router.delete('/:id', authMiddleware, async (req: AuthRequest, res, next) => {
   try {
     const userId = req.userId;
+    const articleId = parseInt(req.params.id);
 
+    // 验证文章ID
+    if (isNaN(articleId)) {
+      return res.status(400).json({ message: '无效的文章ID' });
+    }
+
+    // 查询文章及其关联数据
     const article = await db
-      .select()
+      .select({
+        id: articlesTable.id,
+        title: articlesTable.title,
+        authorId: articlesTable.authorId,
+        imageUrl: articlesTable.imageUrl,
+        commentCount: sql<number>`count(distinct ${comments.id})`,
+        reactionCount: sql<number>`count(distinct ${articleReactions.id})`
+      })
       .from(articlesTable)
-      .where(eq(articlesTable.id, parseInt(req.params.id)))
+      .leftJoin(comments, eq(comments.articleId, articlesTable.id))
+      .leftJoin(articleReactions, eq(articleReactions.articleId, articlesTable.id))
+      .where(eq(articlesTable.id, articleId))
+      .groupBy(articlesTable.id)
       .get();
 
     if (!article) {
@@ -463,12 +480,52 @@ router.delete('/:id', authMiddleware, async (req: AuthRequest, res, next) => {
       return res.status(403).json({ message: '无权限删除此文章' });
     }
 
-    await db
-      .delete(articlesTable)
-      .where(eq(articlesTable.id, parseInt(req.params.id)));
+    // 开启事务以确保数据一致性
+    await db.transaction(async (tx) => {
+      // 1. 删除文章的所有标签关联
+      await tx
+        .delete(articleTags)
+        .where(eq(articleTags.articleId, articleId));
 
-    res.status(204).send();
+      // 2. 删除文章的所有点赞
+      await tx
+        .delete(articleReactions)
+        .where(eq(articleReactions.articleId, articleId));
+      
+      // 3. 删除文章的所有评论
+      await tx
+        .delete(comments)
+        .where(eq(comments.articleId, articleId));
+      
+      // 4. 删除文章
+      await tx
+        .delete(articlesTable)
+        .where(eq(articlesTable.id, articleId));
+
+      // 5. 如果文章有封面图，删除封面图文件
+      if (article.imageUrl) {
+        const imagePath = path.join(__dirname, '../../uploads/covers', 
+          path.basename(article.imageUrl));
+        fs.unlink(imagePath, (err) => {
+          if (err) {
+            console.error('删除封面图失败:', err);
+            // 不中断事务，仅记录错误
+          }
+        });
+      }
+    });
+
+    // 返回删除成功的消息，包含一些统计信息
+    res.status(200).json({
+      message: '文章删除成功',
+      details: {
+        title: article.title,
+        commentCount: article.commentCount,
+        reactionCount: article.reactionCount
+      }
+    });
   } catch (error) {
+    console.error('删除文章失败:', error);
     next(error);
   }
 });
