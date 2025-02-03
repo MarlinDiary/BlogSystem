@@ -474,26 +474,92 @@
   :global(.heading-anchor) {
     cursor: pointer;
     scroll-margin-top: 2rem;
+    transition: color 0.2s ease;
 
     &:hover {
-      &::after {
-        content: '#';
-        opacity: 0.5;
-        margin-left: 0.5rem;
-        font-weight: normal;
-      }
+      color: #65a30d;
     }
   }
 
   :global(.dark) {
-    :global(.heading-anchor:hover::after) {
-      opacity: 0.3;
+    :global(.heading-anchor) {
+      &:hover {
+        color: #65a30d;
+      }
+    }
+  }
+
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  
+  .animate-fade-in {
+    animation: fade-in 0.3s ease-out;
+  }
+  
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+  }
+  
+  .animate-pulse {
+    animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  :global(.article-reactions) {
+    position: fixed;
+    right: 0;
+    margin-right: calc((100vw - 1200px) / 2 + 2rem);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 10;
+
+    &[data-scrolled="true"] {
+      top: 2rem;
+    }
+
+    &:not([data-scrolled="true"]) {
+      top: 16rem;
+    }
+
+    @media (max-width: 1280px) {
+      display: none;
     }
   }
 </style>
 
 {#if article}
   <div class="article-wrapper">
+    {#if article && tocItems.length > 0}
+      <nav 
+        class="toc"
+        data-scrolled={isScrolled}
+        aria-label="文章目录"
+      >
+        <div class="toc-list">
+          {#each tocItems as item}
+            <a
+              href="#{item.id}"
+              class="toc-item"
+              data-level={item.level}
+              data-active={item.isActive}
+              on:click|preventDefault={(e) => handleTocClick(e, item.id)}
+              aria-current={item.isActive ? 'true' : undefined}
+            >
+              {item.text}
+            </a>
+          {/each}
+        </div>
+      </nav>
+    {/if}
+
+    <div class="article-reactions" data-scrolled={isScrolled}>
+      <ArticleReactions
+        articleId={article.id}
+        {isScrolled}
+      />
+    </div>
+
     <div class="article-container">
       {#if article.imageUrl}
         <div class="cover-container">
@@ -540,42 +606,52 @@
           {@html processArticleContent(article.htmlContent)}
         {/if}
       </div>
-
-      <!-- 文章反应 -->
-      <div class="mt-8">
-        <ArticleReactions articleId={article.id} />
-      </div>
     </div>
-
-    <!-- 目录 -->
-    <nav 
-      class="toc"
-      data-scrolled={isScrolled}
-      aria-label="文章目录"
-    >
-      <div class="toc-list">
-        {#each tocItems as item}
-          <a
-            href="#{item.id}"
-            class="toc-item"
-            data-level={item.level}
-            data-active={item.isActive}
-            on:click|preventDefault={(e) => handleTocClick(e, item.id)}
-            aria-current={item.isActive ? 'true' : undefined}
-          >
-            {item.text}
-          </a>
-        {/each}
-      </div>
-    </nav>
   </div>
 {:else if loading}
-  <div class="flex justify-center items-center min-h-screen">
-    <div class="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-lime-500"></div>
+  <div class="article-wrapper">
+    <div class="article-container animate-fade-in">
+      <!-- 封面图占位 -->
+      <div class="cover-container bg-zinc-100 dark:bg-zinc-800 animate-pulse"></div>
+      
+      <!-- 标题占位 -->
+      <div class="h-12 w-3/4 bg-zinc-100 dark:bg-zinc-800 rounded-lg mb-8 animate-pulse"></div>
+      
+      <!-- 作者信息占位 -->
+      <div class="flex items-center gap-4 mb-8">
+        <div class="w-12 h-12 rounded-full bg-zinc-100 dark:bg-zinc-800 animate-pulse"></div>
+        <div class="flex-1">
+          <div class="h-5 w-32 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse mb-2"></div>
+          <div class="h-4 w-24 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse"></div>
+        </div>
+        <div class="flex gap-4">
+          <div class="h-4 w-16 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse"></div>
+          <div class="h-4 w-16 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse"></div>
+        </div>
+      </div>
+      
+      <!-- 文章内容占位 -->
+      <div class="space-y-4">
+        {#each Array(6) as _, i}
+          <div class="h-4 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse" style="width: {90 - i * 5}%"></div>
+        {/each}
+        <div class="h-20"></div>
+        {#each Array(4) as _, i}
+          <div class="h-4 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse" style="width: {85 - i * 5}%"></div>
+        {/each}
+      </div>
+    </div>
   </div>
 {:else if error}
-  <div class="flex justify-center items-center min-h-screen">
-    <div class="text-red-500">{error}</div>
+  <div class="article-wrapper">
+    <div class="article-container">
+      <div class="p-4 rounded-lg bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-200 flex items-center gap-3">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <span>{error}</span>
+      </div>
+    </div>
   </div>
 {/if}
 
