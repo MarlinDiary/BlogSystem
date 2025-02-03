@@ -2,6 +2,8 @@
   import { onMount, afterUpdate, onDestroy, tick } from 'svelte';
   import { page } from '$app/stores';
   import ArticleReactions from '$lib/components/ArticleReactions.svelte';
+  import CommentList from '$lib/components/CommentList.svelte';
+  import { auth } from '$lib/stores/auth';
   
   interface Author {
     id: number;
@@ -272,13 +274,6 @@
 </script>
 
 <style lang="postcss">
-  .article-wrapper {
-    position: relative;
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 0 2rem;
-  }
-
   .article-container {
     position: relative;
     max-width: 800px;
@@ -489,24 +484,6 @@
     }
   }
 
-  @keyframes fade-in {
-    from { opacity: 0; }
-    to { opacity: 1; }
-  }
-  
-  .animate-fade-in {
-    animation: fade-in 0.3s ease-out;
-  }
-  
-  @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.7; }
-  }
-  
-  .animate-pulse {
-    animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-  }
-
   :global(.article-reactions) {
     position: fixed;
     right: 0;
@@ -528,131 +505,98 @@
   }
 </style>
 
-{#if article}
-  <div class="article-wrapper">
-    {#if article && tocItems.length > 0}
-      <nav 
-        class="toc"
-        data-scrolled={isScrolled}
-        aria-label="文章目录"
-      >
-        <div class="toc-list">
-          {#each tocItems as item}
-            <a
-              href="#{item.id}"
-              class="toc-item"
-              data-level={item.level}
-              data-active={item.isActive}
-              on:click|preventDefault={(e) => handleTocClick(e, item.id)}
-              aria-current={item.isActive ? 'true' : undefined}
-            >
-              {item.text}
-            </a>
-          {/each}
-        </div>
-      </nav>
-    {/if}
-
-    <div class="article-reactions" data-scrolled={isScrolled}>
-      <ArticleReactions
-        articleId={article.id}
-        {isScrolled}
-      />
+<div class="mx-auto max-w-4xl px-4 py-8">
+  {#if loading}
+    <div class="flex justify-center py-16">
+      <div class="h-8 w-8 animate-spin rounded-full border-2 border-primary-500 border-t-transparent"></div>
     </div>
-
-    <div class="article-container">
-      {#if article.imageUrl}
-        <div class="cover-container">
-          <div 
-            class="blur-background" 
-            style="background-image: url({article.imageUrl})"
-          ></div>
-          <img
-            src={article.imageUrl}
-            alt={article.title}
-            class="cover-image"
-          />
-        </div>
+  {:else if error}
+    <div class="py-16 text-center text-red-500">{error}</div>
+  {:else if article}
+    <article class="relative">
+      {#if article && tocItems.length > 0}
+        <nav 
+          class="toc"
+          data-scrolled={isScrolled}
+          aria-label="文章目录"
+        >
+          <div class="toc-list">
+            {#each tocItems as item}
+              <a
+                href="#{item.id}"
+                class="toc-item"
+                data-level={item.level}
+                data-active={item.isActive}
+                on:click|preventDefault={(e) => handleTocClick(e, item.id)}
+                aria-current={item.isActive ? 'true' : undefined}
+              >
+                {item.text}
+              </a>
+            {/each}
+          </div>
+        </nav>
       {/if}
-      
-      <h1 class="text-4xl font-bold mb-4 text-zinc-800 dark:text-zinc-100">
-        {article.title}
-      </h1>
 
-      <div class="article-meta">
-        <img 
-          src={article.author.avatarUrl || '/frontend/static/logo.png'} 
-          alt={article.author.username}
-          class="author-avatar"
+      <div class="article-reactions" data-scrolled={isScrolled}>
+        <ArticleReactions
+          articleId={article.id}
+          {isScrolled}
         />
-        <div>
-          <div class="font-medium text-zinc-800 dark:text-zinc-100">{article.author.username}</div>
-          <div class="text-sm text-zinc-500">
-            发布于 {formatDate(article.createdAt)}
+      </div>
+
+      <div class="article-container">
+        {#if article.imageUrl}
+          <div class="cover-container">
+            <div 
+              class="blur-background" 
+              style="background-image: url({article.imageUrl})"
+            ></div>
+            <img
+              src={article.imageUrl}
+              alt={article.title}
+              class="cover-image"
+            />
+          </div>
+        {/if}
+        
+        <h1 class="text-4xl font-bold mb-4 text-zinc-800 dark:text-zinc-100">
+          {article.title}
+        </h1>
+
+        <div class="article-meta">
+          <img 
+            src={article.author.avatarUrl || '/frontend/static/logo.png'} 
+            alt={article.author.username}
+            class="author-avatar"
+          />
+          <div>
+            <div class="font-medium text-zinc-800 dark:text-zinc-100">{article.author.username}</div>
+            <div class="text-sm text-zinc-500">
+              发布于 {formatDate(article.createdAt)}
+            </div>
+          </div>
+          <div class="ml-auto flex items-center gap-4 text-sm text-zinc-500">
+            <span>阅读 {article.viewCount}</span>
+            <span>评论 {article.commentCount}</span>
           </div>
         </div>
-        <div class="ml-auto flex items-center gap-4 text-sm text-zinc-500">
-          <span>阅读 {article.viewCount}</span>
-          <span>评论 {article.commentCount}</span>
-        </div>
-      </div>
 
-      <!-- 文章内容 -->
-      <div 
-        class="article-content prose dark:prose-invert max-w-none" 
-        role="article"
-      >
-        {#if article?.htmlContent}
-          {@html processArticleContent(article.htmlContent)}
-        {/if}
-      </div>
-    </div>
-  </div>
-{:else if loading}
-  <div class="article-wrapper">
-    <div class="article-container animate-fade-in">
-      <!-- 封面图占位 -->
-      <div class="cover-container bg-zinc-100 dark:bg-zinc-800 animate-pulse"></div>
-      
-      <!-- 标题占位 -->
-      <div class="h-12 w-3/4 bg-zinc-100 dark:bg-zinc-800 rounded-lg mb-8 animate-pulse"></div>
-      
-      <!-- 作者信息占位 -->
-      <div class="flex items-center gap-4 mb-8">
-        <div class="w-12 h-12 rounded-full bg-zinc-100 dark:bg-zinc-800 animate-pulse"></div>
-        <div class="flex-1">
-          <div class="h-5 w-32 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse mb-2"></div>
-          <div class="h-4 w-24 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse"></div>
+        <!-- 文章内容 -->
+        <div 
+          class="article-content prose dark:prose-invert max-w-none" 
+          role="article"
+        >
+          {#if article?.htmlContent}
+            {@html processArticleContent(article.htmlContent)}
+          {/if}
         </div>
-        <div class="flex gap-4">
-          <div class="h-4 w-16 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse"></div>
-          <div class="h-4 w-16 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse"></div>
+
+        <div class="mt-16">
+          <CommentList articleId={article.id} user={$auth.user} />
         </div>
       </div>
-      
-      <!-- 文章内容占位 -->
-      <div class="space-y-4">
-        {#each Array(6) as _, i}
-          <div class="h-4 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse" style="width: {90 - i * 5}%"></div>
-        {/each}
-        <div class="h-20"></div>
-        {#each Array(4) as _, i}
-          <div class="h-4 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse" style="width: {85 - i * 5}%"></div>
-        {/each}
-      </div>
-    </div>
-  </div>
-{:else if error}
-  <div class="article-wrapper">
-    <div class="article-container">
-      <div class="p-4 rounded-lg bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-200 flex items-center gap-3">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-        <span>{error}</span>
-      </div>
-    </div>
-  </div>
-{/if}
+    </article>
+  {/if}
+</div>
 
 <svelte:window on:click={handleContentInteraction} on:keydown={handleContentInteraction} /> 
