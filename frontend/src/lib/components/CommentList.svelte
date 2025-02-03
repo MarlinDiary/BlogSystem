@@ -1,3 +1,21 @@
+<style>
+  [contenteditable="true"]:empty:before {
+    content: attr(data-placeholder);
+    color: #9ca3af;
+    cursor: text;
+  }
+
+  .comment__message {
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  [contenteditable="true"].comment__message {
+    min-height: 1.5rem;
+    outline: none;
+  }
+</style>
+
 <script lang="ts">
   import { onMount } from 'svelte';
   import { fade } from 'svelte/transition';
@@ -65,6 +83,9 @@
   let comments: Comment[] = [];
   let isLoading = true;
   let avatarTimestamp = Date.now();
+  let replyingToId: number | null = null;
+  let tempReplyContent = '';
+  let editableRef: HTMLDivElement;
 
   function getAvatarUrl(userId: string | null | undefined): string {
     if (!userId) return '/uploads/avatars/default.png';
@@ -75,7 +96,11 @@
     try {
       const response = await fetch(`/api/comments/article/${articleId}`);
       if (response.ok) {
-        comments = await response.json();
+        const rawComments = await response.json();
+        // 按时间从新到旧排序
+        comments = rawComments.sort((a: Comment, b: Comment) => 
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
       }
     } catch (error) {
       console.error('Failed to load comments:', error);
@@ -95,7 +120,7 @@
           if (item.id === newComment.parentId) {
             return {
               ...item,
-              children: [...(item.children || []), { ...newComment, children: [] }]
+              children: [{ ...newComment, children: [] }, ...(item.children || [])]
             };
           }
           if (item.children?.length) {
@@ -111,7 +136,88 @@
     }
   }
 
-  onMount(loadComments);
+  function handleClickOutside(event: MouseEvent) {
+    const target = event.target as HTMLElement;
+    if (
+      target.closest('.reply-button') || 
+      target.closest('.temp-reply-input') ||
+      target.closest('.reply-submit-button')
+    ) {
+      return;
+    }
+    replyingToId = null;
+    tempReplyContent = '';
+  }
+
+  function handleReplyClick(event: MouseEvent, commentId: number) {
+    event.stopPropagation();
+    replyingToId = commentId;
+    tempReplyContent = '';
+    // 等待 DOM 更新后聚焦
+    setTimeout(() => {
+      const editable = document.querySelector('.temp-reply-content[contenteditable="true"]') as HTMLElement;
+      if (editable) {
+        editable.focus();
+      }
+    }, 0);
+  }
+
+  function handleTempReply(event: MouseEvent, commentId: number, content: string) {
+    event.stopPropagation();
+    const editable = document.querySelector('.temp-reply-content[contenteditable="true"]');
+    if (!editable) return;
+    
+    const text = editable.textContent?.trim() || '';
+    if (!text) return;
+    
+    const newComment = {
+      id: Date.now(),
+      content: text,
+      createdAt: new Date().toISOString(),
+      parentId: commentId,
+      user: user!,
+      children: []
+    };
+
+    // 直接更新评论树，而不是通过事件
+    if (commentId === null) {
+      comments = [newComment, ...comments];
+    } else {
+      comments = comments.map(item => {
+        if (item.id === commentId) {
+          return {
+            ...item,
+            children: [newComment, ...(item.children || [])]
+          };
+        }
+        if (item.children?.length) {
+          return {
+            ...item,
+            children: item.children.map(child => {
+              if (child.id === commentId) {
+                return {
+                  ...child,
+                  children: [newComment, ...(child.children || [])]
+                };
+              }
+              return child;
+            })
+          };
+        }
+        return item;
+      });
+    }
+
+    // 最后再清除回复状态
+    replyingToId = null;
+    tempReplyContent = '';
+  }
+
+  onMount(() => {
+    loadComments();
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  });
 </script>
 
 <div class="space-y-6">
@@ -129,18 +235,26 @@
     <div class="px-4 md:px-6">
       <ul class="space-y-4">
         {#each comments as comment (comment.id)}
-          <li class="group relative" transition:fade>
-            <article 
-              class="relative flex gap-4"
-              style="margin-left: 0;"
-            >
-              <div class="relative flex-none">
-                <img
-                  src={getAvatarUrl(comment.user.id)}
-                  alt={comment.user.username}
-                  class="h-10 w-10 select-none rounded-full ring-2 ring-zinc-200 dark:ring-zinc-800 relative z-10 bg-white dark:bg-zinc-900"
-                  loading="lazy"
-                />
+          <li class="group relative">
+            <article class="relative flex gap-4">
+              <div class="relative flex-none group/avatar">
+                <div class="relative">
+                  <img
+                    src={getAvatarUrl(comment.user.id)}
+                    alt={comment.user.username}
+                    class="h-10 w-10 select-none rounded-full ring-2 ring-zinc-200 dark:ring-zinc-800 relative z-10 bg-white dark:bg-zinc-900 transition-opacity group-hover/avatar:opacity-80"
+                    loading="lazy"
+                  />
+                  <button
+                    class="reply-button absolute inset-0 z-20 flex items-center justify-center bg-black/0 opacity-0 group-hover/avatar:opacity-100 transition-opacity rounded-full cursor-pointer"
+                    on:click={(e) => handleReplyClick(e, comment.id)}
+                    aria-label={`回复 ${comment.user.username} 的评论`}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white drop-shadow" viewBox="0 0 20 20" fill="currentColor">
+                      <path fill-rule="evenodd" d="M7.707 3.293a1 1 0 010 1.414L5.414 7H11a7 7 0 017 7v2a1 1 0 11-2 0v-2a5 5 0 00-5-5H5.414l2.293 2.293a1 1 0 11-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
+                    </svg>
+                  </button>
+                </div>
               </div>
 
               <div class="flex-1 min-w-0 -mt-1">
@@ -159,21 +273,75 @@
                   <MarkdownRenderer content={comment.content} />
                 </div>
 
+                {#if replyingToId === comment.id}
+                  <div 
+                    class="temp-reply-input mt-4 mb-8 flex items-start gap-4"
+                  >
+                    <div class="relative flex-none">
+                      <img
+                        src={getAvatarUrl(user?.id)}
+                        alt={user?.username}
+                        class="h-10 w-10 select-none rounded-full ring-2 ring-zinc-200 dark:ring-zinc-800 relative z-10 bg-white dark:bg-zinc-900"
+                      />
+                    </div>
+                    <div class="flex-1 min-w-0">
+                      <header class="flex items-center">
+                        <div class="flex items-center gap-1 text-[14px]">
+                          <span class="font-medium text-zinc-900 dark:text-zinc-100 uppercase">
+                            {user?.username}
+                          </span>
+                          <time class="select-none text-zinc-400">
+                            刚刚
+                          </time>
+                        </div>
+                      </header>
+
+                      <div class="relative">
+                        <div 
+                          class="temp-reply-content comment__message prose-zinc dark:prose-invert text-[13px] [&>p]:m-0 [&>p:first-child]:-mt-1"
+                          contenteditable="true"
+                          role="textbox"
+                          aria-label="回复内容"
+                          data-placeholder="写下你的回复..."
+                        ></div>
+
+                        <button
+                          class="reply-submit-button absolute right-0 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+                          on:click={(e) => handleTempReply(e, comment.id, tempReplyContent)}
+                          aria-label="提交回复"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-primary-500" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                {/if}
+
                 {#if comment.children && comment.children.length > 0}
                   <ul class="mt-4 space-y-4">
                     {#each comment.children as child (child.id)}
-                      <li class="group relative" transition:fade>
-                        <article 
-                          class="relative flex gap-4"
-                          style="margin-left: 0;"
-                        >
-                          <div class="relative flex-none">
-                            <img
-                              src={getAvatarUrl(child.user.id)}
-                              alt={child.user.username}
-                              class="h-10 w-10 select-none rounded-full ring-2 ring-zinc-200 dark:ring-zinc-800 relative z-10 bg-white dark:bg-zinc-900"
-                              loading="lazy"
-                            />
+                      <li class="group relative">
+                        <article class="relative flex gap-4">
+                          <div class="relative flex-none group/avatar">
+                            <div class="relative">
+                              <img
+                                src={getAvatarUrl(child.user.id)}
+                                alt={child.user.username}
+                                class="h-10 w-10 select-none rounded-full ring-2 ring-zinc-200 dark:ring-zinc-800 relative z-10 bg-white dark:bg-zinc-900 transition-opacity group-hover/avatar:opacity-80"
+                                loading="lazy"
+                              />
+                              <button
+                                class="reply-button absolute inset-0 z-20 flex items-center justify-center bg-black/0 opacity-0 group-hover/avatar:opacity-100 transition-opacity rounded-full cursor-pointer"
+                                on:click={(e) => handleReplyClick(e, child.id)}
+                                aria-label={`回复 ${child.user.username} 的评论`}
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white drop-shadow" viewBox="0 0 20 20" fill="currentColor">
+                                  <path fill-rule="evenodd" d="M7.707 3.293a1 1 0 010 1.414L5.414 7H11a7 7 0 017 7v2a1 1 0 11-2 0v-2a5 5 0 00-5-5H5.414l2.293 2.293a1 1 0 11-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
+                                </svg>
+                              </button>
+                            </div>
                           </div>
 
                           <div class="flex-1 min-w-0 -mt-1">
@@ -192,14 +360,57 @@
                               <MarkdownRenderer content={child.content} />
                             </div>
 
+                            {#if replyingToId === child.id}
+                              <div 
+                                class="temp-reply-input mt-4 mb-4 flex items-start gap-4"
+                              >
+                                <div class="relative flex-none">
+                                  <img
+                                    src={getAvatarUrl(user?.id)}
+                                    alt={user?.username}
+                                    class="h-10 w-10 select-none rounded-full ring-2 ring-zinc-200 dark:ring-zinc-800 relative z-10 bg-white dark:bg-zinc-900"
+                                  />
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                  <header class="flex items-center">
+                                    <div class="flex items-center gap-1 text-[14px]">
+                                      <span class="font-medium text-zinc-900 dark:text-zinc-100 uppercase">
+                                        {user?.username}
+                                      </span>
+                                      <time class="select-none text-zinc-400">
+                                        刚刚
+                                      </time>
+                                    </div>
+                                  </header>
+
+                                  <div class="relative">
+                                    <div 
+                                      class="temp-reply-content comment__message prose-zinc dark:prose-invert text-[13px] [&>p]:m-0 [&>p:first-child]:-mt-1"
+                                      contenteditable="true"
+                                      role="textbox"
+                                      aria-label="回复内容"
+                                      data-placeholder="写下你的回复..."
+                                    ></div>
+
+                                    <button
+                                      class="reply-submit-button absolute right-0 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+                                      on:click={(e) => handleTempReply(e, child.id, tempReplyContent)}
+                                      aria-label="提交回复"
+                                    >
+                                      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-primary-500" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                                      </svg>
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            {/if}
+
                             {#if child.children && child.children.length > 0}
                               <ul class="mt-4 space-y-4">
                                 {#each child.children as grandChild (grandChild.id)}
-                                  <li class="group relative" transition:fade>
-                                    <article 
-                                      class="relative flex gap-4"
-                                      style="margin-left: 0;"
-                                    >
+                                  <li class="group relative">
+                                    <article class="relative flex gap-4">
                                       <div class="relative flex-none">
                                         <img
                                           src={getAvatarUrl(grandChild.user.id)}
