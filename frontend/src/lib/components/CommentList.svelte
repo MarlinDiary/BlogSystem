@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { fade } from 'svelte/transition';
   import CommentInput from './CommentInput.svelte';
+  import { env } from '$env/dynamic/public';
 
   interface User {
     id: string;
@@ -36,11 +37,32 @@
   let comments: Comment[] = [];
   let isLoading = true;
 
+  let avatarTimestamp = Date.now();
+
+  // 获取头像 URL
+  function getAvatarUrl(userId: string | null | undefined): string {
+    if (!userId) return '/uploads/avatars/default.png';
+    const url = `${env.PUBLIC_API_URL}/api/users/${userId}/avatar?t=${avatarTimestamp}`;
+    return url;
+  }
+
   async function loadComments() {
     try {
       const response = await fetch(`/api/comments/article/${articleId}`);
       if (response.ok) {
-        comments = await response.json();
+        const rawComments = await response.json();
+        // 一级评论按时间从新到旧排序
+        comments = rawComments
+          .sort((a: Comment, b: Comment) => 
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          )
+          .map((comment: Comment) => ({
+            ...comment,
+            // 如果有子评论，按时间从旧到新排序
+            children: comment.children?.sort((a: Comment, b: Comment) => 
+              new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+            )
+          }));
       }
     } catch (error) {
       console.error('Failed to load comments:', error);
@@ -52,13 +74,19 @@
   function handleCommentAdded(event: CustomEvent<NewComment>) {
     const newComment = event.detail;
     if (newComment.parentId === null) {
+      // 一级评论添加到顶部
       comments = [{ ...newComment, children: [] }, ...comments];
     } else {
       comments = comments.map(comment => {
         if (comment.id === newComment.parentId) {
+          const updatedChildren = [...(comment.children || []), { ...newComment }];
+          // 子评论按时间从旧到新排序
+          updatedChildren.sort((a, b) => 
+            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+          );
           return {
             ...comment,
-            children: [...(comment.children || []), newComment]
+            children: updatedChildren
           };
         }
         return comment;
@@ -88,11 +116,13 @@
           class="rounded-lg bg-white/80 p-4 shadow-sm backdrop-blur-sm dark:bg-zinc-800/80"
         >
           <div class="flex gap-3">
+            {#key comment.user.id}
             <img
-              src={comment.user.avatarUrl || '/default-avatar.png'}
+              src={getAvatarUrl(comment.user.id)}
               alt={comment.user.username}
               class="h-10 w-10 rounded-full"
             />
+            {/key}
             <div class="flex-1">
               <div class="flex items-center gap-2">
                 <span class="font-medium text-zinc-900 dark:text-zinc-100">
@@ -110,11 +140,13 @@
                 <div class="mt-4 space-y-4 rounded-lg bg-zinc-50 p-4 dark:bg-zinc-900/50">
                   {#each comment.children as reply (reply.id)}
                     <div class="flex gap-3">
+                      {#key reply.user.id}
                       <img
-                        src={reply.user.avatarUrl || '/default-avatar.png'}
+                        src={getAvatarUrl(reply.user.id)}
                         alt={reply.user.username}
                         class="h-8 w-8 rounded-full"
                       />
+                      {/key}
                       <div class="flex-1">
                         <div class="flex items-center gap-2">
                           <span class="font-medium text-zinc-900 dark:text-zinc-100">

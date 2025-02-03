@@ -3,6 +3,7 @@
   import { fade, scale } from 'svelte/transition';
   import { createEventDispatcher } from 'svelte';
   import MarkdownRenderer from './MarkdownRenderer.svelte';
+  import { env } from '$env/dynamic/public';
 
   interface User {
     id: string;
@@ -23,10 +24,18 @@
   let isSubmitting = false;
   let lastTextareaHeight = '24px'; // 记住textarea的高度
   const MAX_LENGTH = 1000;
+  let avatarTimestamp = Date.now();
 
   // 鼠标位置状态
   let mouseX = 0;
   let mouseY = 0;
+
+  // 获取头像 URL
+  function getAvatarUrl(userId: string | null | undefined): string {
+    if (!userId) return '/uploads/avatars/default.png';
+    const url = `${env.PUBLIC_API_URL}/api/users/${userId}/avatar?t=${avatarTimestamp}`;
+    return url;
+  }
 
   function handleMouseMove(event: MouseEvent) {
     const bounds = (event.currentTarget as HTMLElement).getBoundingClientRect();
@@ -69,9 +78,16 @@
 
       if (response.ok) {
         const newComment = await response.json();
+        dispatch('commentAdded', {
+          ...newComment,
+          user: {
+            ...user,
+            avatarUrl: getAvatarUrl(user?.id)
+          },
+          createdAt: new Date().toISOString()
+        });
         content = '';
         isPreview = false;
-        dispatch('commentAdded', newComment);
       } else {
         const error = await response.json();
         alert(error.message || '评论发送失败');
@@ -119,13 +135,15 @@
   {:else}
     <div class="relative flex space-x-4">
       <div class="h-10 w-10 shrink-0">
+        {#key user?.id}
         <img
-          src={user.avatarUrl || '/uploads/avatars/default.png'}
-          alt={user.username}
+          src={getAvatarUrl(user?.id)}
+          alt={user?.username}
           class="h-10 w-10 select-none rounded-full object-cover bg-zinc-100 dark:bg-zinc-800"
           loading="lazy"
           on:error={handleImageError}
         />
+        {/key}
       </div>
 
       <div class="ml-2 flex-1 shrink-0 md:ml-4">
