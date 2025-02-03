@@ -391,7 +391,7 @@
   .article-meta {
     display: flex;
     align-items: stretch;
-    margin: 1rem 0 2rem;
+    margin: 2rem 0;
     font-size: 0.875rem;
     color: rgb(161 161 170);
     height: 40px;
@@ -618,7 +618,7 @@
           </div>
         {/if}
         
-        <h1 class="text-5xl font-bold mb-6 text-zinc-800 dark:text-zinc-100">
+        <h1 class="text-5xl font-bold mb-8 text-zinc-800 dark:text-zinc-100">
           {article.title}
         </h1>
 
