@@ -559,7 +559,7 @@
           </div>
         {/if}
         
-        <h1 class="text-4xl font-bold mb-4 text-zinc-800 dark:text-zinc-100">
+        <h1 class="text-5xl font-bold mb-6 text-zinc-800 dark:text-zinc-100">
           {article.title}
         </h1>
 
