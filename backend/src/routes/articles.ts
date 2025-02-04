@@ -290,6 +290,22 @@ router.get('/:id', async (req, res, next) => {
       return res.status(404).json({ message: '文章不存在' });
     }
 
+    // 获取文章的标签
+    const tags = await db
+      .select({
+        id: tagsTable.id,
+        name: tagsTable.name
+      })
+      .from(articleTags)
+      .leftJoin(tagsTable, eq(tagsTable.id, articleTags.tagId))
+      .where(eq(articleTags.articleId, articleId));
+
+    // 将标签添加到文章对象中
+    const articleWithTags = {
+      ...article,
+      tags: tags
+    };
+
     // 如果没有保存的 HTML 内容，则从 Markdown 生成
     if (!article.htmlContent) {
       const renderer = new marked.Renderer();
@@ -315,10 +331,10 @@ router.get('/:id', async (req, res, next) => {
         breaks: true
       });
 
-      article.htmlContent = marked(article.content);
+      articleWithTags.htmlContent = marked(articleWithTags.content);
       
       // 验证生成的HTML内容
-      const headings = article.htmlContent.match(/<h[1-6][^>]*id="[^"]*"[^>]*>.*?<\/h[1-6]>/g);
+      const headings = articleWithTags.htmlContent.match(/<h[1-6][^>]*id="[^"]*"[^>]*>.*?<\/h[1-6]>/g);
       console.log('生成的HTML标题:', headings);
     }
 
@@ -330,7 +346,7 @@ router.get('/:id', async (req, res, next) => {
       })
       .where(eq(articlesTable.id, articleId));
 
-    res.json(article);
+    res.json(articleWithTags);
   } catch (error) {
     next(error);
   }
@@ -367,6 +383,10 @@ router.get('/:id', async (req, res, next) => {
  *                 type: string
  *               imageUrl:
  *                 type: string
+ *               tags:
+ *                 type: array
+ *                 items:
+ *                   type: string
  *     responses:
  *       200:
  *         description: 文章更新成功
@@ -383,13 +403,14 @@ router.get('/:id', async (req, res, next) => {
  */
 router.put('/:id', authMiddleware, async (req: AuthRequest, res, next) => {
   try {
-    const { title, content, imageUrl } = req.body;
+    const { title, content, htmlContent, imageUrl, tags } = req.body;
     const userId = req.userId;
+    const articleId = parseInt(req.params.id);
 
     const article = await db
       .select()
       .from(articlesTable)
-      .where(eq(articlesTable.id, parseInt(req.params.id)))
+      .where(eq(articlesTable.id, articleId))
       .get();
 
     if (!article) {
@@ -401,18 +422,74 @@ router.put('/:id', authMiddleware, async (req: AuthRequest, res, next) => {
       return res.status(403).json({ message: '无权限修改此文章' });
     }
 
-    const updatedArticle = await db
-      .update(articlesTable)
-      .set({
-        title,
-        content,
-        imageUrl,
-        updatedAt: new Date().toISOString()
-      })
-      .where(eq(articlesTable.id, parseInt(req.params.id)))
-      .returning();
+    // 开启事务以确保数据一致性
+    const result = await db.transaction(async (tx) => {
+      // 1. 更新文章基本信息
+      const [updatedArticle] = await tx
+        .update(articlesTable)
+        .set({
+          title,
+          content,
+          htmlContent,
+          imageUrl,
+          updatedAt: new Date().toISOString()
+        })
+        .where(eq(articlesTable.id, articleId))
+        .returning();
 
-    res.json(updatedArticle[0]);
+      // 2. 如果提供了标签，更新标签
+      if (tags && Array.isArray(tags)) {
+        // 2.1 删除原有的标签关联
+        await tx
+          .delete(articleTags)
+          .where(eq(articleTags.articleId, articleId));
+
+        // 2.2 添加新的标签
+        for (const tagName of tags) {
+          // 查找或创建标签
+          const existingTags = await tx
+            .select()
+            .from(tagsTable)
+            .where(eq(tagsTable.name, tagName));
+
+          let tagId;
+          if (existingTags.length > 0) {
+            tagId = existingTags[0].id;
+          } else {
+            const [newTag] = await tx
+              .insert(tagsTable)
+              .values({ name: tagName })
+              .returning();
+            tagId = newTag.id;
+          }
+
+          // 创建文章-标签关联
+          await tx
+            .insert(articleTags)
+            .values({
+              articleId,
+              tagId
+            });
+        }
+      }
+
+      // 3. 获取更新后的标签
+      const updatedTags = await tx
+        .select({
+          id: tagsTable.id,
+          name: tagsTable.name
+        })
+        .from(articleTags)
+        .leftJoin(tagsTable, eq(tagsTable.id, articleTags.tagId))
+        .where(eq(articleTags.articleId, articleId));
+
+      return {
+        ...updatedArticle,
+        tags: updatedTags
+      };
+    });
+
+    res.json(result);
   } catch (error) {
     next(error);
   }

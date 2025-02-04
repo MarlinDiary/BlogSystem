@@ -84,11 +84,24 @@
         }
   
         const articleData = await res.json();
+        console.log('获取到的文章数据:', articleData);
+        
+        // 检查所有可能的标签字段名
+        console.log('检查可能的标签字段:', {
+          tags: articleData.tags,
+          tag: articleData.tag,
+          tagList: articleData.tagList,
+          articleTags: articleData.articleTags
+        });
+        
         title = articleData.title || '';
         content = articleData.content || '';
         htmlContent = articleData.htmlContent || '';
         imageUrl = articleData.imageUrl || '';
-        tags = articleData.tags || [];
+        
+        // 从后端获取的标签数据现在是一个对象数组，直接提取 name 字段
+        tags = (articleData.tags || []).map((tag: { id: number; name: string }) => tag.name);
+        console.log('处理后的标签数组:', tags);
   
       } catch (err) {
         console.error('获取文章数据失败:', err);
@@ -137,10 +150,11 @@
             class: 'prose prose-zinc dark:prose-invert max-w-none focus:outline-none min-h-[300px] px-4 py-2',
           },
         },
-        content: htmlContent, // 将后端返回的 HTML 内容注入编辑器
+        content: content,
         onUpdate: ({ editor }) => {
           content = editor.getText();
           htmlContent = editor.getHTML();
+          isDirty = true;
         },
       });
     });
