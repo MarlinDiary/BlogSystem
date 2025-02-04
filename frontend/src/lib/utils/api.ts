@@ -11,10 +11,11 @@ interface ApiOptions {
     headers?: Record<string, string>;
     useStoredToken?: boolean;
     isFormData?: boolean;
+    params?: Record<string, any>;
 }
 
 export async function api(endpoint: string, options: ApiOptions = {}) {
-    const { method = 'GET', body, headers = {}, useStoredToken = true, isFormData = false } = options;
+    const { method = 'GET', body, headers = {}, useStoredToken = true, isFormData = false, params } = options;
 
     // 获取认证token
     if (useStoredToken) {
@@ -35,7 +36,22 @@ export async function api(endpoint: string, options: ApiOptions = {}) {
     }
 
     try {
-        const url = `${API_URL}${endpoint}`;
+        let url = `${API_URL}${endpoint}`;
+        
+        // 添加 URL 参数
+        if (params) {
+            const searchParams = new URLSearchParams();
+            Object.entries(params).forEach(([key, value]) => {
+                if (value !== undefined && value !== null) {
+                    searchParams.append(key, String(value));
+                }
+            });
+            const queryString = searchParams.toString();
+            if (queryString) {
+                url += `?${queryString}`;
+            }
+        }
+
         console.log(`[API Request] ${method} ${url}`, {
             headers,
             body: isFormData ? '[FormData]' : (body ? JSON.stringify(body) : undefined)
