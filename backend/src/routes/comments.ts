@@ -197,7 +197,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res, next) => {
         content,
         parentId,
         createdAt: new Date().toISOString(),
-        visibility: 1
+        visibility: 'visible'
       })
       .returning();
 
@@ -242,6 +242,12 @@ router.patch('/:id/visibility', authMiddleware, async (req: AuthRequest, res, ne
     const commentId = parseInt(req.params.id);
     const userId = req.userId!;
 
+    console.log('[Comments] 尝试切换评论可见性:', {
+      commentId,
+      userId,
+      requestBody: req.body
+    });
+
     // 获取评论
     const comment = await db
       .select()
@@ -249,23 +255,45 @@ router.patch('/:id/visibility', authMiddleware, async (req: AuthRequest, res, ne
       .where(eq(comments.id, commentId))
       .get();
 
+    console.log('[Comments] 找到评论:', comment);
+
     if (!comment) {
       return res.status(404).json({ message: '评论不存在' });
     }
 
-    // 检查权限（评论作者或管理员可以修改可见性）
-    const isAdmin = await db
+    // 获取当前用户信息
+    const currentUser = await db
       .select()
-      .from(adminUsers)
-      .where(eq(adminUsers.userId, userId))
+      .from(users)
+      .where(eq(users.id, userId))
       .get();
 
-    if (comment.userId !== userId && !isAdmin) {
+    console.log('[Comments] 当前用户:', currentUser);
+
+    if (!currentUser) {
+      return res.status(404).json({ message: '用户不存在' });
+    }
+
+    // 检查权限（评论作者或管理员可以修改可见性）
+    const isAdmin = currentUser.role === 'admin';
+    const isAuthor = comment.userId === userId;
+
+    console.log('[Comments] 权限检查:', {
+      isAdmin,
+      isAuthor,
+      userRole: currentUser.role
+    });
+
+    if (!isAuthor && !isAdmin) {
       return res.status(403).json({ message: '无权限修改此评论' });
     }
 
     // 切换可见性
-    const newVisibility = comment.visibility === 1 ? 0 : 1;
+    const newVisibility = comment.visibility === 'visible' ? 'hidden' : 'visible';
+    console.log('[Comments] 切换可见性:', {
+      oldVisibility: comment.visibility,
+      newVisibility
+    });
     
     const updatedComment = await db
       .update(comments)
@@ -273,8 +301,11 @@ router.patch('/:id/visibility', authMiddleware, async (req: AuthRequest, res, ne
       .where(eq(comments.id, commentId))
       .returning();
 
+    console.log('[Comments] 更新结果:', updatedComment);
+
     res.json(updatedComment[0]);
   } catch (error) {
+    console.error('[Comments] 切换可见性失败:', error);
     next(error);
   }
 });

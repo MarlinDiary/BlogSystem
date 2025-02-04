@@ -661,7 +661,12 @@
         </div>
 
         <div class="mt-16">
-          <CommentList articleId={article.id} user={$auth.user} />
+          <CommentList 
+            articleId={article.id} 
+            user={$auth.user} 
+            isAuthor={$auth.user?.id ? parseInt($auth.user.id) === article.author.id : false} 
+            isAdmin={$auth.user?.role === 'admin'} 
+          />
         </div>
       </div>
     </article>
