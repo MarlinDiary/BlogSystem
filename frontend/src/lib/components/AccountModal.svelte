@@ -1051,6 +1051,10 @@
                             href="/articles/{article.id}/edit"
                             class="p-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-700/50 transition-colors"
                             aria-label="编辑文章"
+                            on:click|preventDefault={() => {
+                              close();
+                              window.location.href = `/articles/${article.id}/edit`;
+                            }}
                           >
                             <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                               <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
