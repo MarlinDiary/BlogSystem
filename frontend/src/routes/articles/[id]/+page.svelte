@@ -1,14 +1,19 @@
 <script lang="ts">
   import { onMount, afterUpdate, onDestroy, tick } from 'svelte';
   import { page } from '$app/stores';
+  import { browser } from '$app/environment';
   import ArticleReactions from '$lib/components/ArticleReactions.svelte';
   import CommentList from '$lib/components/CommentList.svelte';
   import { auth } from '$lib/stores/auth';
+  import UserCard from '$lib/components/UserCard.svelte';
   
   interface Author {
     id: number;
     username: string;
     avatarUrl: string;
+    realName: string;
+    bio: string;
+    dateOfBirth: string;
   }
 
   interface Article {
@@ -40,6 +45,9 @@
   let activeHeadingId = '';
   let observer: IntersectionObserver | null = null;
   let isScrolled = false;
+  let showUserCard = false;
+  let userCardPosition = { x: 0, y: 0 };
+  let isMobile = false;
 
   // 生成标题ID
   function generateHeadingId(text: string): string {
@@ -240,6 +248,8 @@
   // 组件销毁时清理观察器
   onDestroy(() => {
     observer?.disconnect();
+    window.removeEventListener('scroll', handleScroll);
+    window.removeEventListener('resize', handleResize);
   });
 
   // 格式化日期
@@ -281,6 +291,28 @@
     }
   }
 
+  function handleResize() {
+    isMobile = browser && window.innerWidth < 768;
+  }
+
+  function handleAuthorClick(event: MouseEvent) {
+    event.stopPropagation();
+    showUserCard = !showUserCard;
+  }
+
+  function handleBackgroundClick() {
+    showUserCard = false;
+  }
+
+  // 修改事件处理函数
+  function handleWindowEvents(event: Event) {
+    if (event instanceof MouseEvent) {
+      handleContentInteraction(event);
+    } else if (event instanceof KeyboardEvent) {
+      handleContentInteraction(event);
+    }
+  }
+
   onMount(async () => {
     const id = $page.params.id;
     if (id) {
@@ -292,11 +324,14 @@
     }
 
     window.addEventListener('scroll', handleScroll);
+    handleResize();
+    window.addEventListener('resize', handleResize);
   });
 
   onDestroy(() => {
     observer?.disconnect();
     window.removeEventListener('scroll', handleScroll);
+    window.removeEventListener('resize', handleResize);
   });
 </script>
 
@@ -624,13 +659,51 @@
         </h1>
 
         <div class="article-meta">
-          <img 
-            src={article.author.avatarUrl || '/frontend/static/logo.png'} 
-            alt={article.author.username}
-            class="author-avatar"
-          />
+          <div class="relative">
+            <button
+              class="block rounded-full overflow-hidden hover:ring-2 hover:ring-offset-2 hover:ring-lime-500/50 dark:hover:ring-lime-400/50 dark:hover:ring-offset-zinc-900 transition-all"
+              on:click={handleAuthorClick}
+            >
+              <img
+                src={article.author.avatarUrl || '/frontend/static/logo.png'}
+                alt={article.author.username}
+                class="w-10 h-10 object-cover"
+              />
+            </button>
+
+            {#if showUserCard}
+              <div 
+                class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center"
+                role="dialog"
+                aria-modal="true"
+                on:click={handleBackgroundClick}
+                on:keydown={(e) => {
+                  if (e.key === 'Escape') handleBackgroundClick();
+                }}
+                tabindex="0"
+              >
+                <div 
+                  role="document"
+                  on:click|stopPropagation
+                  on:keydown|stopPropagation
+                >
+                  <UserCard
+                    userId={article.author.id}
+                    username={article.author.username}
+                    avatarUrl={article.author.avatarUrl}
+                    realName={article.author.realName}
+                    bio={article.author.bio}
+                    dateOfBirth={article.author.dateOfBirth}
+                    on:close={() => showUserCard = false}
+                  />
+                </div>
+              </div>
+            {/if}
+          </div>
           <div class="meta-item">
-            <span class="meta-text username text-zinc-500">{article.author.username}</span>
+            <span class="meta-text text-zinc-500 uppercase">
+              {article.author.username}
+            </span>
             <div class="divider"></div>
             <span class="meta-text">{getTimeAgo(article.createdAt)}</span>
             <div class="divider"></div>
@@ -673,4 +746,7 @@
   {/if}
 </div>
 
-<svelte:window on:click={handleContentInteraction} on:keydown={handleContentInteraction} /> 
+<svelte:window 
+  on:click={handleWindowEvents} 
+  on:keydown={handleWindowEvents} 
+/> 

@@ -628,6 +628,7 @@ router.get('/:id', async (req, res, next) => {
         id: users.id,
         username: users.username,
         realName: users.realName,
+        dateOfBirth: users.dateOfBirth,
         bio: users.bio,
         avatarUrl: users.avatarUrl,
         createdAt: users.createdAt,
