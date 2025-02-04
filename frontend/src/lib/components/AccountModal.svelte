@@ -19,6 +19,7 @@
   let avatarTimestamp = Date.now();
   
   type EditableField = 'username' | 'realName' | 'dateOfBirth' | 'bio';
+  type SectionType = 'profile' | 'articles' | 'comments' | 'security' | 'danger';
   
   // 编辑状态
   let editingField: EditableField | null = null;
@@ -33,10 +34,51 @@
   // 临时编辑值
   let tempEditValue = '';
   
+  // 添加验证规则
+  const USERNAME_REGEX = /^[a-zA-Z0-9_]{3,20}$/;
+  const REALNAME_REGEX = /^[\u4e00-\u9fa5a-zA-Z0-9_\s]{2,20}$/;
+  
+  // 验证状态
+  let validationState = {
+    username: true,
+    realName: true,
+    dateOfBirth: true,
+    bio: true
+  };
+  
+  // 验证函数
+  function validateField(field: EditableField, value: string): boolean {
+    switch (field) {
+      case 'username':
+        return USERNAME_REGEX.test(value);
+      case 'realName':
+        return value === '' || REALNAME_REGEX.test(value);
+      case 'dateOfBirth':
+        if (!value) return true;
+        const date = new Date(value);
+        const now = new Date();
+        return date <= now;
+      case 'bio':
+        return value.length <= 500;
+      default:
+        return true;
+    }
+  }
+  
   // 开始编辑字段
   function startEditing(field: EditableField) {
     editingField = field;
-    tempEditValue = editForm[field];
+    if (field === 'dateOfBirth' && editForm.dateOfBirth) {
+      const date = new Date(editForm.dateOfBirth);
+      dateForm = {
+        year: date.getFullYear().toString(),
+        month: (date.getMonth() + 1).toString(),
+        day: date.getDate().toString()
+      };
+    } else {
+      tempEditValue = editForm[field];
+    }
+    validationState[field] = validateField(field, tempEditValue);
   }
   
   // 取消编辑
@@ -114,8 +156,15 @@
     };
   }
 
+  // 监听编辑值变化时验证
+  $: if (editingField && tempEditValue !== undefined) {
+    validationState[editingField] = validateField(editingField, tempEditValue);
+  }
+
   // 保存单个字段
   async function saveField(field: EditableField) {
+    if (!validationState[field]) return;
+    
     try {
       loading = true;
       error = '';
@@ -252,7 +301,7 @@
   let loading = false;
 
   // 当前选中的菜单项
-  let currentSection: 'profile' | 'security' | 'danger' | 'articles' | 'comments' = 'profile';
+  let currentSection: SectionType = 'profile';
   
   // 评论列表状态
   let comments: Array<{
@@ -499,6 +548,69 @@
     close();
     window.location.href = `/articles/${articleId}`;
   }
+
+  // 添加响应式状态
+  let isMobile: boolean;
+  let showContent = false;
+  
+  function handleResize() {
+    isMobile = window.innerWidth < 768;
+    if (!isMobile) {
+      showContent = false;
+    }
+  }
+  
+  onMount(() => {
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      document.body.style.overflow = '';
+    };
+  });
+
+  // 添加日期相关的状态和函数
+  let dateForm = {
+    year: '',
+    month: '',
+    day: ''
+  };
+  
+  const years = Array.from({ length: 100 }, (_, i) => new Date().getFullYear() - i);
+  const months = Array.from({ length: 12 }, (_, i) => i + 1);
+  const days = Array.from({ length: 31 }, (_, i) => i + 1);
+  
+  function formatDate(dateStr: string) {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    return `${date.getFullYear()} 年 ${date.getMonth() + 1} 月 ${date.getDate()} 日`;
+  }
+  
+  function saveDateOfBirth() {
+    if (!dateForm.year || !dateForm.month || !dateForm.day) return;
+    const dateStr = `${dateForm.year}-${String(dateForm.month).padStart(2, '0')}-${String(dateForm.day).padStart(2, '0')}`;
+    tempEditValue = dateStr;
+    saveField('dateOfBirth');
+  }
+
+  // 修改移动端点击处理
+  function handleSectionClick(section: SectionType) {
+    currentSection = section;
+    if (isMobile) {
+      showContent = true;
+    }
+  }
+
+  // 处理日期输入
+  function handleDateInput(event: Event) {
+    const input = event.target as HTMLInputElement;
+    let value = input.value.replace(/\D/g, '');
+    if (value.length > 8) value = value.slice(0, 8);
+    if (value.length >= 4) value = value.slice(0, 4) + '-' + value.slice(4);
+    if (value.length >= 7) value = value.slice(0, 7) + '-' + value.slice(7);
+    input.value = value;
+    tempEditValue = value;
+  }
 </script>
 
 {#if isOpen}
@@ -507,10 +619,8 @@
   class="fixed inset-0 z-50 bg-transparent p-0 m-0 max-w-none max-h-none w-screen h-screen {isClosing ? 'closing' : ''}"
   on:close={handleClose}
 >
-  <!-- 卡片容器 -->
   <div class="h-full overflow-y-auto">
     <div class="flex min-h-full items-center justify-center p-4">
-      <!-- 背景遮罩按钮 - 用于处理点击背景关闭 -->
       <div class="fixed inset-0 bg-zinc-50/80 backdrop-blur-sm dark:bg-zinc-900/80"></div>
       <button
         class="fixed inset-0 w-full h-full bg-transparent cursor-default"
@@ -518,23 +628,26 @@
         aria-label="关闭对话框"
       ></button>
 
-      <!-- 卡片 -->
-      <div class="relative bg-white/90 dark:bg-zinc-800/90 backdrop-blur-[2px] rounded-lg shadow-2xl shadow-zinc-500/20 dark:shadow-zinc-900/30 w-full max-w-4xl h-[600px] flex overflow-hidden {isClosing ? 'modal-closing' : 'modal-open'}">
+      <div class="relative bg-white/90 dark:bg-zinc-800/90 backdrop-blur-[2px] rounded-lg shadow-2xl shadow-zinc-500/20 dark:shadow-zinc-900/30 w-full {isMobile ? 'max-w-sm' : 'max-w-4xl'} h-[600px] flex overflow-hidden {isClosing ? 'modal-closing' : 'modal-open'}">
         <!-- 左侧边栏 -->
-        <div class="w-64 flex flex-col">
+        <div class="w-full md:w-64 flex flex-col {showContent && isMobile ? 'hidden' : ''}">
           <div class="flex-1 p-6 space-y-6">
             <!-- 用户信息 -->
             <div class="flex items-center space-x-3">
-              <!-- 小头像 -->
-              {#key avatarTimestamp}
-              <img
-                src={getAvatarUrl(getUserId($auth.user))}
-                alt={$auth.user?.username || '用户头像'}
-                class="h-12 w-12 rounded-full object-cover ring-2 ring-white/50 dark:ring-zinc-700/50"
-              />
-              {/key}
+              <!-- 小头像和在线状态 -->
+              <div class="relative">
+                {#key avatarTimestamp}
+                <img
+                  src={getAvatarUrl(getUserId($auth.user))}
+                  alt={$auth.user?.username || '用户头像'}
+                  class="h-12 w-12 rounded-full object-cover ring-2 ring-white/50 dark:ring-zinc-700/50"
+                />
+                {/key}
+                <!-- 在线状态指示器 -->
+                <div class="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-green-400 ring-2 ring-white dark:ring-zinc-800"></div>
+              </div>
               <div>
-                <p class="font-medium dark:text-white">{$auth.user?.username || '未知用户'}</p>
+                <p class="font-medium dark:text-white uppercase">{$auth.user?.username || '未知用户'}</p>
                 <p class="text-sm text-zinc-500 dark:text-zinc-400">{$auth.user?.realName || ''}</p>
               </div>
             </div>
@@ -543,7 +656,7 @@
             <nav class="space-y-1">
               <button
                 class="w-full text-left px-4 py-2.5 rounded-lg transition-colors flex items-center space-x-3 {currentSection === 'profile' ? 'bg-zinc-100 dark:bg-zinc-700/70 text-zinc-900 dark:text-white font-medium' : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}"
-                on:click={() => currentSection = 'profile'}
+                on:click={() => handleSectionClick('profile')}
               >
                 <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
@@ -553,7 +666,7 @@
               </button>
               <button
                 class="w-full text-left px-4 py-2.5 rounded-lg transition-colors flex items-center space-x-3 {currentSection === 'articles' ? 'bg-zinc-100 dark:bg-zinc-700/70 text-zinc-900 dark:text-white font-medium' : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}"
-                on:click={() => currentSection = 'articles'}
+                on:click={() => handleSectionClick('articles')}
               >
                 <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
@@ -563,7 +676,7 @@
               </button>
               <button
                 class="w-full text-left px-4 py-2.5 rounded-lg transition-colors flex items-center space-x-3 {currentSection === 'comments' ? 'bg-zinc-100 dark:bg-zinc-700/70 text-zinc-900 dark:text-white font-medium' : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}"
-                on:click={() => currentSection = 'comments'}
+                on:click={() => handleSectionClick('comments')}
               >
                 <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
@@ -572,7 +685,7 @@
               </button>
               <button
                 class="w-full text-left px-4 py-2.5 rounded-lg transition-colors flex items-center space-x-3 {currentSection === 'security' ? 'bg-zinc-100 dark:bg-zinc-700/70 text-zinc-900 dark:text-white font-medium' : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}"
-                on:click={() => currentSection = 'security'}
+                on:click={() => handleSectionClick('security')}
               >
                 <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
@@ -582,7 +695,7 @@
               </button>
               <button
                 class="w-full text-left px-4 py-2.5 rounded-lg transition-colors flex items-center space-x-3 {currentSection === 'danger' ? 'bg-zinc-100 dark:bg-zinc-700/70 text-zinc-900 dark:text-white font-medium' : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}"
-                on:click={() => currentSection = 'danger'}
+                on:click={() => handleSectionClick('danger')}
               >
                 <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
@@ -594,13 +707,8 @@
             </nav>
           </div>
 
-          <!-- 分割线 -->
-          <div class="px-6 py-4">
-            <div class="h-[1px] bg-gradient-to-r from-transparent via-zinc-200 dark:via-zinc-700 to-transparent"></div>
-          </div>
-
           <!-- 退出登录按钮 -->
-          <div class="p-6 pt-0">
+          <div class="p-6">
             <button
               class="w-full px-4 py-2.5 text-zinc-600 hover:bg-zinc-50 dark:text-zinc-400 dark:hover:bg-zinc-800/50 rounded-lg transition-all flex items-center space-x-3 group"
               on:click={handleLogout}
@@ -616,24 +724,26 @@
         </div>
 
         <!-- 右侧内容区 -->
-        <div class="flex-1 relative">
-          <!-- 添加渐变分割线 -->
-          <div class="absolute left-0 top-0 bottom-0 w-[1px]">
-            <div class="h-full bg-gradient-to-b from-transparent via-zinc-200 dark:via-zinc-700 to-transparent"></div>
-          </div>
-          <div class="h-full p-8 overflow-y-auto">
-            <!-- 关闭按钮 -->
-            <button 
-              class="absolute top-4 right-4 text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 transition-all rounded-full p-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-700/50 group"
-              on:click={close}
-              aria-label="关闭对话框"
-            >
-              <svg class="w-5 h-5 transition-transform group-hover:rotate-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="18" x2="6" y1="6" y2="18" />
-                <line x1="6" x2="18" y1="6" y2="18" />
-              </svg>
-            </button>
+        <div class="flex-1 relative {!showContent && isMobile ? 'hidden' : ''} p-8">
+          <!-- 移动端顶部栏 -->
+          {#if isMobile}
+            <div class="fixed top-0 left-0 right-0 z-10 bg-white/80 dark:bg-zinc-800/80 backdrop-blur-sm border-b border-zinc-200 dark:border-zinc-700/50">
+              <div class="h-14 px-4 flex items-center">
+                <button
+                  class="p-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-700/50"
+                  on:click={() => showContent = false}
+                  aria-label="返回"
+                >
+                  <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 12H5M12 19l-7-7 7-7"/>
+                  </svg>
+                </button>
+                <h3 class="absolute left-1/2 -translate-x-1/2 text-base font-medium dark:text-white">{currentSection === 'profile' ? '个人资料' : currentSection === 'articles' ? '我的文章' : currentSection === 'comments' ? '我的评论' : currentSection === 'security' ? '安全设置' : '危险区域'}</h3>
+              </div>
+            </div>
+          {/if}
 
+          <div class="h-full overflow-y-auto {isMobile ? 'mt-14' : ''} scrollbar-none">
             <!-- 错误/成功提示 -->
             <div class="fixed top-4 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 pointer-events-none">
               {#if error}
@@ -651,85 +761,80 @@
 
             {#if currentSection === 'profile'}
               <!-- 个人资料部分 -->
-              <div>
-                <h3 class="text-lg font-semibold mb-8 dark:text-white">个人资料</h3>
-                <div class="space-y-8">
-                  <!-- 头像部分 -->
-                  <div class="flex items-start space-x-4">
-                    <div class="shrink-0">
-                      <div class="relative group">
-                        <!-- 大头像 -->
-                        {#key avatarTimestamp}
-                        <img
-                          src={getAvatarUrl(getUserId($auth.user))}
-                          alt="用户头像"
-                          class="h-20 w-20 rounded-full object-cover ring-2 ring-white/50 dark:ring-zinc-700/50 transition-opacity group-hover:opacity-75"
-                        />
-                        {/key}
-                        <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button
-                            type="button"
-                            class="p-2 bg-black/50 backdrop-blur-sm rounded-full text-white hover:bg-black/60 transition-colors {loading ? 'opacity-50 cursor-not-allowed' : ''}"
-                            on:click={() => fileInput.click()}
-                            disabled={loading}
-                          >
-                            {#if loading}
-                              <svg class="w-5 h-5 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M12 3v3m6.366-.366-2.12 2.12M21 12h-3m.366 6.366-2.12-2.12M12 21v-3m-6.366.366 2.12-2.12M3 12h3m-.366-6.366 2.12 2.12" />
-                              </svg>
-                            {:else}
-                              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                                <polyline points="17 8 12 3 7 8" />
-                                <line x1="12" x2="12" y1="3" y2="15" />
-                              </svg>
-                            {/if}
-                          </button>
-                        </div>
-                      </div>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        class="hidden"
-                        bind:this={fileInput}
-                        on:change={handleAvatarUpload}
+              <div class="space-y-8">
+                {#if !isMobile}
+                  <h3 class="text-lg font-semibold mb-8 dark:text-white">个人资料</h3>
+                {/if}
+                <!-- 头像部分 -->
+                <div class="flex items-start space-x-4">
+                  <div class="shrink-0">
+                    <div class="relative group">
+                      <!-- 大头像 -->
+                      {#key avatarTimestamp}
+                      <img
+                        src={getAvatarUrl(getUserId($auth.user))}
+                        alt="用户头像"
+                        class="h-20 w-20 rounded-full object-cover ring-2 ring-white/50 dark:ring-zinc-700/50 transition-opacity group-hover:opacity-75"
                       />
+                      {/key}
+                      <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          type="button"
+                          class="p-2 bg-black/50 backdrop-blur-sm rounded-full text-white hover:bg-black/60 transition-colors {loading ? 'opacity-50 cursor-not-allowed' : ''}"
+                          on:click={() => fileInput.click()}
+                          disabled={loading}
+                          aria-label="上传头像"
+                        >
+                          {#if loading}
+                            <svg class="w-5 h-5 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                              <path d="M12 3v3m6.366-.366-2.12 2.12M21 12h-3m.366 6.366-2.12-2.12M12 21v-3m-6.366.366 2.12-2.12M3 12h3m-.366-6.366 2.12 2.12" />
+                            </svg>
+                          {:else}
+                            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                              <polyline points="17 8 12 3 7 8" />
+                              <line x1="12" x2="12" y1="3" y2="15" />
+                            </svg>
+                          {/if}
+                        </button>
+                      </div>
                     </div>
-                    <div class="flex-1">
-                      <h4 class="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">头像</h4>
-                      <p class="text-sm text-zinc-500 dark:text-zinc-400">推荐使用正方形图片，支持 PNG、JPG 格式，大小不超过 2MB</p>
-                    </div>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      class="hidden"
+                      bind:this={fileInput}
+                      on:change={handleAvatarUpload}
+                    />
                   </div>
+                  <div class="flex-1">
+                    <h4 class="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">头像</h4>
+                    <p class="text-sm text-zinc-500 dark:text-zinc-400">{isMobile ? '推荐使用正方形图片，大小不超过 2MB' : '推荐使用正方形图片，支持 PNG、JPG 格式，大小不超过 2MB'}</p>
+                  </div>
+                </div>
 
+                <!-- 用户信息表单 -->
+                <div class="space-y-6">
                   <!-- 用户名 -->
-                  <div class="flex items-center space-x-4">
-                    <div class="w-32 shrink-0">
+                  <div class="flex {isMobile ? 'flex-col space-y-2' : 'items-center space-x-4'}">
+                    <div class="{isMobile ? 'w-full' : 'w-32 shrink-0'}">
                       <span class="block text-sm font-medium text-zinc-500 dark:text-zinc-400">用户名</span>
                     </div>
-                    <div class="flex-1 flex items-center justify-between min-h-[2.5rem]">
+                    <div class="flex-1">
                       {#if editingField === 'username'}
-                        <input
-                          type="text"
-                          bind:value={tempEditValue}
-                          on:keydown={e => e.key === 'Enter' && saveField('username')}
-                          class="block flex-1 h-[38px] rounded-md border-zinc-300 bg-white/50 shadow-sm focus:border-zinc-500 focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800/50 dark:text-zinc-100"
-                        />
-                        <div class="flex items-center ml-4 space-x-2">
+                        <div class="flex items-center space-x-2">
+                          <input
+                            type="text"
+                            bind:value={tempEditValue}
+                            on:keydown={e => e.key === 'Enter' && validationState.username && saveField('username')}
+                            on:blur={cancelEditing}
+                            class="block flex-1 h-[38px] rounded-md border-zinc-300 bg-white/50 shadow-sm focus:border-zinc-500 focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800/50 dark:text-zinc-100 {!validationState.username ? 'border-red-300' : ''}"
+                          />
                           <button
                             type="button"
-                            class="p-1 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
-                            on:click={cancelEditing}
-                            aria-label="取消编辑"
-                          >
-                            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                              <line x1="18" x2="6" y1="6" y2="18" />
-                              <line x1="6" x2="18" y1="6" y2="18" />
-                            </svg>
-                          </button>
-                          <button
-                            type="button"
-                            class="p-1 text-zinc-900 hover:text-zinc-700 dark:text-zinc-100 dark:hover:text-zinc-300"
-                            on:click={() => saveField('username')}
+                            class="p-1 {validationState.username ? 'text-zinc-900 hover:text-zinc-700 dark:text-zinc-100 dark:hover:text-zinc-300' : 'text-zinc-400 cursor-not-allowed'}"
+                            on:click={() => validationState.username && saveField('username')}
+                            disabled={!validationState.username}
                             aria-label="保存修改"
                           >
                             <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -740,9 +845,8 @@
                       {:else}
                         <button 
                           type="button"
-                          class="flex-1 h-[38px] flex items-center text-zinc-900 dark:text-white cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-700/50 px-3 rounded-md transition-colors text-left"
+                          class="w-full h-[38px] flex items-center text-zinc-900 dark:text-white cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-700/50 px-3 rounded-md transition-colors text-left"
                           on:click={() => startEditing('username')}
-                          on:keydown={e => e.key === 'Enter' && startEditing('username')}
                         >
                           {editForm.username}
                         </button>
@@ -751,34 +855,25 @@
                   </div>
 
                   <!-- 真实姓名 -->
-                  <div class="flex items-center space-x-4">
-                    <div class="w-32 shrink-0">
+                  <div class="flex {isMobile ? 'flex-col space-y-2' : 'items-center space-x-4'}">
+                    <div class="{isMobile ? 'w-full' : 'w-32 shrink-0'}">
                       <span class="block text-sm font-medium text-zinc-500 dark:text-zinc-400">真实姓名</span>
                     </div>
-                    <div class="flex-1 flex items-center justify-between min-h-[2.5rem]">
+                    <div class="flex-1">
                       {#if editingField === 'realName'}
-                        <input
-                          type="text"
-                          bind:value={tempEditValue}
-                          on:keydown={e => e.key === 'Enter' && saveField('realName')}
-                          class="block flex-1 h-[38px] rounded-md border-zinc-300 bg-white/50 shadow-sm focus:border-zinc-500 focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800/50 dark:text-zinc-100"
-                        />
-                        <div class="flex items-center ml-4 space-x-2">
+                        <div class="flex items-center space-x-2">
+                          <input
+                            type="text"
+                            bind:value={tempEditValue}
+                            on:keydown={e => e.key === 'Enter' && validationState.realName && saveField('realName')}
+                            on:blur={cancelEditing}
+                            class="block flex-1 h-[38px] rounded-md border-zinc-300 bg-white/50 shadow-sm focus:border-zinc-500 focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800/50 dark:text-zinc-100 {!validationState.realName ? 'border-red-300' : ''}"
+                          />
                           <button
                             type="button"
-                            class="p-1 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
-                            on:click={cancelEditing}
-                            aria-label="取消编辑"
-                          >
-                            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                              <line x1="18" x2="6" y1="6" y2="18" />
-                              <line x1="6" x2="18" y1="6" y2="18" />
-                            </svg>
-                          </button>
-                          <button
-                            type="button"
-                            class="p-1 text-zinc-900 hover:text-zinc-700 dark:text-zinc-100 dark:hover:text-zinc-300"
-                            on:click={() => saveField('realName')}
+                            class="p-1 {validationState.realName ? 'text-zinc-900 hover:text-zinc-700 dark:text-zinc-100 dark:hover:text-zinc-300' : 'text-zinc-400 cursor-not-allowed'}"
+                            on:click={() => validationState.realName && saveField('realName')}
+                            disabled={!validationState.realName}
                             aria-label="保存修改"
                           >
                             <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -789,9 +884,8 @@
                       {:else}
                         <button 
                           type="button"
-                          class="flex-1 h-[38px] flex items-center cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-700/50 px-3 rounded-md transition-colors text-left"
+                          class="w-full h-[38px] flex items-center cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-700/50 px-3 rounded-md transition-colors text-left"
                           on:click={() => startEditing('realName')}
-                          on:keydown={e => e.key === 'Enter' && startEditing('realName')}
                         >
                           {#if editForm.realName}
                             <span class="text-zinc-900 dark:text-white">{editForm.realName}</span>
@@ -804,34 +898,26 @@
                   </div>
 
                   <!-- 出生日期 -->
-                  <div class="flex items-center space-x-4">
-                    <div class="w-32 shrink-0">
+                  <div class="flex {isMobile ? 'flex-col space-y-2' : 'items-center space-x-4'}">
+                    <div class="{isMobile ? 'w-full' : 'w-32 shrink-0'}">
                       <span class="block text-sm font-medium text-zinc-500 dark:text-zinc-400">出生日期</span>
                     </div>
-                    <div class="flex-1 flex items-center justify-between min-h-[2.5rem]">
+                    <div class="flex-1">
                       {#if editingField === 'dateOfBirth'}
-                        <input
-                          type="date"
-                          bind:value={tempEditValue}
-                          on:keydown={e => e.key === 'Enter' && saveField('dateOfBirth')}
-                          class="block flex-1 h-[38px] rounded-md border-zinc-300 bg-white/50 shadow-sm focus:border-zinc-500 focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800/50 dark:text-zinc-100"
-                        />
-                        <div class="flex items-center ml-4 space-x-2">
-                          <button
-                            type="button"
-                            class="p-1 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
-                            on:click={cancelEditing}
-                            aria-label="取消编辑"
-                          >
-                            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                              <line x1="18" x2="6" y1="6" y2="18" />
-                              <line x1="6" x2="18" y1="6" y2="18" />
-                            </svg>
-                          </button>
+                        <div class="flex items-center space-x-2">
+                          <input
+                            type="text"
+                            bind:value={tempEditValue}
+                            placeholder="YYYY-MM-DD"
+                            pattern="\d{4}-\d{2}-\d{2}"
+                            on:input={handleDateInput}
+                            on:blur={cancelEditing}
+                            class="block flex-1 h-[38px] rounded-md border-zinc-300 bg-white/50 shadow-sm focus:border-zinc-500 focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800/50 dark:text-zinc-100"
+                          />
                           <button
                             type="button"
                             class="p-1 text-zinc-900 hover:text-zinc-700 dark:text-zinc-100 dark:hover:text-zinc-300"
-                            on:click={() => saveField('dateOfBirth')}
+                            on:click={saveDateOfBirth}
                             aria-label="保存修改"
                           >
                             <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -842,12 +928,11 @@
                       {:else}
                         <button 
                           type="button"
-                          class="flex-1 h-[38px] flex items-center cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-700/50 px-3 rounded-md transition-colors text-left"
+                          class="w-full h-[38px] flex items-center cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-700/50 px-3 rounded-md transition-colors text-left"
                           on:click={() => startEditing('dateOfBirth')}
-                          on:keydown={e => e.key === 'Enter' && startEditing('dateOfBirth')}
                         >
                           {#if editForm.dateOfBirth}
-                            <span class="text-zinc-900 dark:text-white">{editForm.dateOfBirth}</span>
+                            <span class="text-zinc-900 dark:text-white">{formatDate(editForm.dateOfBirth)}</span>
                           {:else}
                             <span class="text-zinc-400 dark:text-zinc-500 italic">未设置</span>
                           {/if}
@@ -857,35 +942,26 @@
                   </div>
 
                   <!-- 个人简介 -->
-                  <div class="flex items-start space-x-4">
-                    <div class="w-32 shrink-0 pt-2">
+                  <div class="flex {isMobile ? 'flex-col space-y-2' : 'items-center space-x-4'}">
+                    <div class="{isMobile ? 'w-full' : 'w-32 shrink-0'}">
                       <span class="block text-sm font-medium text-zinc-500 dark:text-zinc-400">个人简介</span>
                     </div>
-                    <div class="flex-1 flex items-start justify-between min-h-[2.5rem]">
+                    <div class="flex-1">
                       {#if editingField === 'bio'}
-                        <textarea
-                          bind:value={tempEditValue}
-                          on:keydown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), saveField('bio'))}
-                          class="block flex-1 min-h-[38px] max-h-[200px] rounded-md border-zinc-300 bg-white/50 shadow-sm focus:border-zinc-500 focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800/50 dark:text-zinc-100 resize-none overflow-hidden"
-                          placeholder="写点什么来介绍一下自己吧..."
-                          style="height: {Math.max(38, tempEditValue.split('\n').length * 24)}px;"
-                        ></textarea>
-                        <div class="flex items-start ml-4 space-x-2">
+                        <div class="flex items-start space-x-2">
+                          <textarea
+                            bind:value={tempEditValue}
+                            on:keydown={e => e.key === 'Enter' && validationState.bio && saveField('bio')}
+                            on:blur={cancelEditing}
+                            class="block flex-1 min-h-[38px] max-h-[200px] rounded-md border-zinc-300 bg-white/50 shadow-sm focus:border-zinc-500 focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800/50 dark:text-zinc-100 resize-none overflow-hidden"
+                            placeholder="写点什么来介绍一下自己吧..."
+                            style="height: {Math.max(38, tempEditValue.split('\n').length * 24)}px;"
+                          ></textarea>
                           <button
                             type="button"
-                            class="p-1 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
-                            on:click={cancelEditing}
-                            aria-label="取消编辑"
-                          >
-                            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                              <line x1="18" x2="6" y1="6" y2="18" />
-                              <line x1="6" x2="18" y1="6" y2="18" />
-                            </svg>
-                          </button>
-                          <button
-                            type="button"
-                            class="p-1 text-zinc-900 hover:text-zinc-700 dark:text-zinc-100 dark:hover:text-zinc-300"
-                            on:click={() => saveField('bio')}
+                            class="p-1 {validationState.bio ? 'text-zinc-900 hover:text-zinc-700 dark:text-zinc-100 dark:hover:text-zinc-300' : 'text-zinc-400 cursor-not-allowed'}"
+                            on:click={() => validationState.bio && saveField('bio')}
+                            disabled={!validationState.bio}
                             aria-label="保存修改"
                           >
                             <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -896,12 +972,11 @@
                       {:else}
                         <button 
                           type="button"
-                          class="flex-1 min-h-[38px] cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-700/50 px-3 py-2 rounded-md transition-colors text-left"
+                          class="w-full h-[38px] flex items-center cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-700/50 px-3 rounded-md transition-colors text-left"
                           on:click={() => startEditing('bio')}
-                          on:keydown={e => e.key === 'Enter' && startEditing('bio')}
                         >
                           {#if editForm.bio}
-                            <span class="text-zinc-900 dark:text-white whitespace-pre-wrap">{editForm.bio}</span>
+                            <span class="text-zinc-900 dark:text-white">{editForm.bio}</span>
                           {:else}
                             <span class="text-zinc-400 dark:text-zinc-500 italic">未设置</span>
                           {/if}
@@ -914,7 +989,9 @@
             {:else if currentSection === 'articles'}
               <!-- 我的文章部分 -->
               <div>
-                <h3 class="text-lg font-semibold mb-8 dark:text-white">我的文章</h3>
+                {#if !isMobile}
+                  <h3 class="text-lg font-semibold mb-8 dark:text-white">我的文章</h3>
+                {/if}
                 {#if loading}
                   <div class="flex justify-center py-12">
                     <svg class="w-8 h-8 animate-spin text-zinc-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1023,7 +1100,9 @@
             {:else if currentSection === 'comments'}
               <!-- 我的评论部分 -->
               <div>
-                <h3 class="text-lg font-semibold mb-8 dark:text-white">我的评论</h3>
+                {#if !isMobile}
+                  <h3 class="text-lg font-semibold mb-8 dark:text-white">我的评论</h3>
+                {/if}
                 {#if loading}
                   <div class="flex justify-center py-12">
                     <svg class="w-8 h-8 animate-spin text-zinc-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1118,7 +1197,9 @@
             {:else if currentSection === 'security'}
               <!-- 安全设置部分 -->
               <div>
-                <h3 class="text-lg font-semibold mb-4 dark:text-white">安全设置</h3>
+                {#if !isMobile}
+                  <h3 class="text-lg font-semibold mb-8 dark:text-white">安全设置</h3>
+                {/if}
                 {#if isChangingPassword}
                   <form on:submit|preventDefault={changePassword} class="space-y-4">
                     <div>
@@ -1184,7 +1265,9 @@
             {:else if currentSection === 'danger'}
               <!-- 危险区域 -->
               <div>
-                <h3 class="text-lg font-semibold mb-4 text-red-600 dark:text-red-500">危险区域</h3>
+                {#if !isMobile}
+                  <h3 class="text-lg font-semibold mb-8 dark:text-white">危险区域</h3>
+                {/if}
                 {#if isDeleting}
                   <form on:submit|preventDefault={deleteAccount} class="space-y-4">
                     <div>
@@ -1292,5 +1375,66 @@
       opacity: 0;
       transform: scale(0.95);
     }
+  }
+
+  /* 添加移动端过渡动画 */
+  @media (max-width: 767px) {
+    .modal-open {
+      animation: modal-slide-in 0.2s ease-out;
+    }
+    
+    .modal-closing {
+      animation: modal-slide-out 0.2s ease-in;
+    }
+  }
+  
+  @keyframes modal-slide-in {
+    from {
+      opacity: 0;
+      transform: translateX(-100%);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+  
+  @keyframes modal-slide-out {
+    from {
+      opacity: 1;
+      transform: translateX(0);
+    }
+    to {
+      opacity: 0;
+      transform: translateX(-100%);
+    }
+  }
+
+  /* 优化滚动条样式 */
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 0, 0, 0.1);
+    border-radius: 3px;
+  }
+  
+  :global(.dark) ::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+
+  /* 隐藏滚动条但保持可滚动 */
+  .scrollbar-none {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
   }
 </style> 
