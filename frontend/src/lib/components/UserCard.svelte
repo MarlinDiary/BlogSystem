@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, createEventDispatcher } from 'svelte';
   import { userApi } from '$lib/utils/api';
+  import { goto } from '$app/navigation';
 
   export let userId: number;
   export let username: string = '';
@@ -47,8 +48,9 @@
     }
   }
 
-  function handleArticleClick() {
+  async function handleArticleClick(articleId: number) {
     dispatch('close');
+    window.location.href = `/articles/${articleId}`;
   }
 
   onMount(() => {
@@ -85,7 +87,7 @@
 </style>
 
 <div class="user-card-enter w-[min(90vw,420px)] bg-white/95 dark:bg-zinc-800/95 backdrop-blur-[2px] rounded-xl shadow-xl ring-1 ring-zinc-900/5 dark:ring-white/10 overflow-hidden">
-  <div class="p-8 space-y-6">
+  <div class="p-12 space-y-6">
     <!-- 头像 -->
     <div class="flex justify-center">
       <img
@@ -142,7 +144,7 @@
   <div class="h-px bg-gradient-to-r from-transparent via-zinc-200 dark:via-zinc-700 to-transparent"></div>
 
   <!-- 文章列表部分 -->
-  <div class="px-8 py-6">
+  <div class="px-12 py-6">
     {#if loading}
       <div class="flex justify-center py-8">
         <div class="w-8 h-8 border-2 border-zinc-300 dark:border-zinc-600 border-t-zinc-900 dark:border-t-zinc-300 rounded-full animate-spin"></div>
@@ -154,10 +156,9 @@
     {:else}
       <div class="space-y-4">
         {#each articles as article}
-          <a
-            href="/articles/{article.id}"
-            class="block group"
-            on:click={handleArticleClick}
+          <button
+            class="block group w-full text-left"
+            on:click={() => handleArticleClick(article.id)}
           >
             <h5 class="text-sm font-medium text-zinc-900 dark:text-white group-hover:text-lime-600 dark:group-hover:text-lime-400 truncate">
               {article.title}
@@ -167,7 +168,7 @@
               <span>·</span>
               <span>{article.viewCount} 阅读</span>
             </div>
-          </a>
+          </button>
         {/each}
       </div>
     {/if}
