@@ -6,6 +6,7 @@
   import { env } from '$env/dynamic/public';
   import { invalidate } from '$app/navigation';
   import { browser } from '$app/environment';
+  import { goto } from '$app/navigation';
   import type { User } from '../stores/auth';
   import { toast } from '$lib/utils/toast';
   
@@ -53,6 +54,8 @@
       }
       dispatch('close');
       isClosing = false;
+      // 重置为个人资料页面
+      currentSection = 'profile';
     }, 200);
   }
   
@@ -420,6 +423,12 @@
       document.body.style.overflow = '';
     };
   });
+
+  // 处理文章链接点击
+  function handleArticleClick(articleId: number) {
+    close();
+    window.location.href = `/articles/${articleId}`;
+  }
 </script>
 
 {#if isOpen}
@@ -624,7 +633,7 @@
                           type="text"
                           bind:value={tempEditValue}
                           on:keydown={e => e.key === 'Enter' && saveField('username')}
-                          class="block flex-1 rounded-md border-zinc-300 bg-white/50 shadow-sm focus:border-zinc-500 focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800/50 dark:text-zinc-100"
+                          class="block flex-1 h-[38px] rounded-md border-zinc-300 bg-white/50 shadow-sm focus:border-zinc-500 focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800/50 dark:text-zinc-100"
                         />
                         <div class="flex items-center ml-4 space-x-2">
                           <button
@@ -640,7 +649,7 @@
                           </button>
                           <button
                             type="button"
-                            class="p-1 text-lime-600 hover:text-lime-700 dark:text-lime-500 dark:hover:text-lime-400"
+                            class="p-1 text-zinc-900 hover:text-zinc-700 dark:text-zinc-100 dark:hover:text-zinc-300"
                             on:click={() => saveField('username')}
                             aria-label="保存修改"
                           >
@@ -650,17 +659,13 @@
                           </button>
                         </div>
                       {:else}
-                        <div class="flex-1 text-zinc-900 dark:text-white">{editForm.username}</div>
-                        <button
+                        <button 
                           type="button"
-                          class="ml-4 p-1 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+                          class="flex-1 h-[38px] flex items-center text-zinc-900 dark:text-white cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-700/50 px-3 rounded-md transition-colors text-left"
                           on:click={() => startEditing('username')}
-                          aria-label="编辑用户名"
+                          on:keydown={e => e.key === 'Enter' && startEditing('username')}
                         >
-                          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-                            <path d="m15 5 4 4" />
-                          </svg>
+                          {editForm.username}
                         </button>
                       {/if}
                     </div>
@@ -677,7 +682,7 @@
                           type="text"
                           bind:value={tempEditValue}
                           on:keydown={e => e.key === 'Enter' && saveField('realName')}
-                          class="block flex-1 rounded-md border-zinc-300 bg-white/50 shadow-sm focus:border-zinc-500 focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800/50 dark:text-zinc-100"
+                          class="block flex-1 h-[38px] rounded-md border-zinc-300 bg-white/50 shadow-sm focus:border-zinc-500 focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800/50 dark:text-zinc-100"
                         />
                         <div class="flex items-center ml-4 space-x-2">
                           <button
@@ -693,7 +698,7 @@
                           </button>
                           <button
                             type="button"
-                            class="p-1 text-lime-600 hover:text-lime-700 dark:text-lime-500 dark:hover:text-lime-400"
+                            class="p-1 text-zinc-900 hover:text-zinc-700 dark:text-zinc-100 dark:hover:text-zinc-300"
                             on:click={() => saveField('realName')}
                             aria-label="保存修改"
                           >
@@ -703,17 +708,17 @@
                           </button>
                         </div>
                       {:else}
-                        <div class="flex-1 text-zinc-900 dark:text-white">{editForm.realName || '未设置'}</div>
-                        <button
+                        <button 
                           type="button"
-                          class="ml-4 p-1 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+                          class="flex-1 h-[38px] flex items-center cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-700/50 px-3 rounded-md transition-colors text-left"
                           on:click={() => startEditing('realName')}
-                          aria-label="编辑真实姓名"
+                          on:keydown={e => e.key === 'Enter' && startEditing('realName')}
                         >
-                          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-                            <path d="m15 5 4 4" />
-                          </svg>
+                          {#if editForm.realName}
+                            <span class="text-zinc-900 dark:text-white">{editForm.realName}</span>
+                          {:else}
+                            <span class="text-zinc-400 dark:text-zinc-500 italic">未设置</span>
+                          {/if}
                         </button>
                       {/if}
                     </div>
@@ -730,7 +735,7 @@
                           type="date"
                           bind:value={tempEditValue}
                           on:keydown={e => e.key === 'Enter' && saveField('dateOfBirth')}
-                          class="block flex-1 rounded-md border-zinc-300 bg-white/50 shadow-sm focus:border-zinc-500 focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800/50 dark:text-zinc-100"
+                          class="block flex-1 h-[38px] rounded-md border-zinc-300 bg-white/50 shadow-sm focus:border-zinc-500 focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800/50 dark:text-zinc-100"
                         />
                         <div class="flex items-center ml-4 space-x-2">
                           <button
@@ -746,7 +751,7 @@
                           </button>
                           <button
                             type="button"
-                            class="p-1 text-lime-600 hover:text-lime-700 dark:text-lime-500 dark:hover:text-lime-400"
+                            class="p-1 text-zinc-900 hover:text-zinc-700 dark:text-zinc-100 dark:hover:text-zinc-300"
                             on:click={() => saveField('dateOfBirth')}
                             aria-label="保存修改"
                           >
@@ -756,17 +761,17 @@
                           </button>
                         </div>
                       {:else}
-                        <div class="flex-1 text-zinc-900 dark:text-white">{editForm.dateOfBirth || '未设置'}</div>
-                        <button
+                        <button 
                           type="button"
-                          class="ml-4 p-1 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+                          class="flex-1 h-[38px] flex items-center cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-700/50 px-3 rounded-md transition-colors text-left"
                           on:click={() => startEditing('dateOfBirth')}
-                          aria-label="编辑出生日期"
+                          on:keydown={e => e.key === 'Enter' && startEditing('dateOfBirth')}
                         >
-                          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-                            <path d="m15 5 4 4" />
-                          </svg>
+                          {#if editForm.dateOfBirth}
+                            <span class="text-zinc-900 dark:text-white">{editForm.dateOfBirth}</span>
+                          {:else}
+                            <span class="text-zinc-400 dark:text-zinc-500 italic">未设置</span>
+                          {/if}
                         </button>
                       {/if}
                     </div>
@@ -782,11 +787,11 @@
                         <textarea
                           bind:value={tempEditValue}
                           on:keydown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), saveField('bio'))}
-                          rows="4"
-                          class="block flex-1 rounded-md border-zinc-300 bg-white/50 shadow-sm focus:border-zinc-500 focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800/50 dark:text-zinc-100 resize-none"
+                          class="block flex-1 min-h-[38px] max-h-[200px] rounded-md border-zinc-300 bg-white/50 shadow-sm focus:border-zinc-500 focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800/50 dark:text-zinc-100 resize-none overflow-hidden"
                           placeholder="写点什么来介绍一下自己吧..."
+                          style="height: {Math.max(38, tempEditValue.split('\n').length * 24)}px;"
                         ></textarea>
-                        <div class="flex items-center ml-4 space-x-2">
+                        <div class="flex items-start ml-4 space-x-2">
                           <button
                             type="button"
                             class="p-1 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
@@ -800,7 +805,7 @@
                           </button>
                           <button
                             type="button"
-                            class="p-1 text-lime-600 hover:text-lime-700 dark:text-lime-500 dark:hover:text-lime-400"
+                            class="p-1 text-zinc-900 hover:text-zinc-700 dark:text-zinc-100 dark:hover:text-zinc-300"
                             on:click={() => saveField('bio')}
                             aria-label="保存修改"
                           >
@@ -810,17 +815,17 @@
                           </button>
                         </div>
                       {:else}
-                        <div class="flex-1 text-zinc-900 dark:text-white whitespace-pre-wrap">{editForm.bio || '未设置'}</div>
-                        <button
+                        <button 
                           type="button"
-                          class="ml-4 p-1 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+                          class="flex-1 min-h-[38px] cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-700/50 px-3 py-2 rounded-md transition-colors text-left"
                           on:click={() => startEditing('bio')}
-                          aria-label="编辑个人简介"
+                          on:keydown={e => e.key === 'Enter' && startEditing('bio')}
                         >
-                          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-                            <path d="m15 5 4 4" />
-                          </svg>
+                          {#if editForm.bio}
+                            <span class="text-zinc-900 dark:text-white whitespace-pre-wrap">{editForm.bio}</span>
+                          {:else}
+                            <span class="text-zinc-400 dark:text-zinc-500 italic">未设置</span>
+                          {/if}
                         </button>
                       {/if}
                     </div>
@@ -846,7 +851,7 @@
                     <p class="mb-6 text-zinc-500 dark:text-zinc-400">还没有发布过文章</p>
                     <a 
                       href="/publish" 
-                      class="inline-block px-4 py-2 text-sm bg-lime-600 text-white rounded-md hover:bg-lime-700 dark:bg-lime-500 dark:hover:bg-lime-600 transition-colors"
+                      class="inline-block px-4 py-2 text-sm bg-zinc-900 text-white rounded-md hover:bg-zinc-800 dark:bg-zinc-800 dark:hover:bg-zinc-700 transition-colors"
                       on:click={close}
                     >
                       写一篇文章
@@ -860,7 +865,7 @@
                           <a 
                             href="/articles/{article.id}" 
                             class="block text-zinc-900 dark:text-white font-medium truncate hover:text-lime-600 dark:hover:text-lime-400 transition-colors"
-                            on:click={close}
+                            on:click|preventDefault={() => handleArticleClick(article.id)}
                           >
                             {article.title}
                           </a>
@@ -986,7 +991,7 @@
                       </button>
                       <button
                         type="submit"
-                        class="px-4 py-2 text-sm bg-lime-600 text-white rounded-md hover:bg-lime-700 dark:bg-lime-500 dark:hover:bg-lime-600 disabled:opacity-50"
+                        class="px-4 py-2 text-sm bg-zinc-900 text-white rounded-md hover:bg-zinc-800 dark:bg-zinc-800 dark:hover:bg-zinc-700 disabled:opacity-50"
                         disabled={loading}
                       >
                         {loading ? '修改中...' : '修改密码'}
