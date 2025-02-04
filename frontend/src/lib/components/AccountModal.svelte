@@ -252,7 +252,16 @@
   let loading = false;
 
   // 当前选中的菜单项
-  let currentSection: 'profile' | 'security' | 'danger' | 'articles' = 'profile';
+  let currentSection: 'profile' | 'security' | 'danger' | 'articles' | 'comments' = 'profile';
+  
+  // 评论列表状态
+  let comments: Array<{
+    id: number;
+    content: string;
+    createdAt: string;
+    articleId: number;
+    articleTitle: string;
+  }> = [];
   
   // 加载用户文章
   async function loadUserArticles() {
@@ -277,9 +286,33 @@
     }
   }
 
+  // 加载用户评论
+  async function loadUserComments() {
+    try {
+      loading = true;
+      error = '';
+      const userId = getUserId($auth.user);
+      if (!userId) {
+        error = '无法获取用户ID';
+        return;
+      }
+      const result = await userApi.getUserComments(userId);
+      comments = result.items;
+    } catch (err: any) {
+      error = err.message;
+    } finally {
+      loading = false;
+    }
+  }
+
   // 监听section变化，当切换到articles时加载文章
   $: if (currentSection === 'articles') {
     loadUserArticles();
+  }
+
+  // 监听section变化，当切换到comments时加载评论
+  $: if (currentSection === 'comments') {
+    loadUserComments();
   }
 
   function handleClose() {
@@ -401,6 +434,43 @@
     }
   }
 
+  // 删除评论确认状态
+  let deletingCommentId: number | null = null;
+
+  // 开始删除评论确认
+  function startDeleteComment(commentId: number) {
+    if (deletingCommentId === commentId) {
+      deleteComment(commentId);
+    } else {
+      deletingCommentId = commentId;
+      // 3秒后自动取消确认状态
+      setTimeout(() => {
+        if (deletingCommentId === commentId) {
+          deletingCommentId = null;
+        }
+      }, 3000);
+    }
+  }
+
+  // 删除评论
+  async function deleteComment(commentId: number) {
+    try {
+      // 先在UI上移除评论
+      comments = comments.filter(comment => comment.id !== commentId);
+      
+      // 发送删除请求
+      await userApi.deleteComment(commentId);
+    } catch (error: any) {
+      console.error('删除评论失败:', error);
+      error = error.message || '删除评论失败';
+      // 如果删除失败，恢复被删除的评论
+      comments = [...comments];
+    } finally {
+      loading = false;
+      deletingCommentId = null;
+    }
+  }
+
   // 监听isOpen变化，控制对话框显示状态
   $: if (isOpen) {
     isClosing = false;
@@ -490,6 +560,15 @@
                   <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
                 </svg>
                 <span>我的文章</span>
+              </button>
+              <button
+                class="w-full text-left px-4 py-2.5 rounded-lg transition-colors flex items-center space-x-3 {currentSection === 'comments' ? 'bg-zinc-100 dark:bg-zinc-700/70 text-zinc-900 dark:text-white font-medium' : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}"
+                on:click={() => currentSection = 'comments'}
+              >
+                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                </svg>
+                <span>我的评论</span>
               </button>
               <button
                 class="w-full text-left px-4 py-2.5 rounded-lg transition-colors flex items-center space-x-3 {currentSection === 'security' ? 'bg-zinc-100 dark:bg-zinc-700/70 text-zinc-900 dark:text-white font-medium' : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}"
@@ -925,6 +1004,101 @@
                               on:click={() => deletingArticleId = article.id}
                               disabled={loading}
                               aria-label="删除文章"
+                            >
+                              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M3 6h18" />
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+                                <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                <line x1="10" x2="10" y1="11" y2="17" />
+                                <line x1="14" x2="14" y1="11" y2="17" />
+                              </svg>
+                            </button>
+                          {/if}
+                        </div>
+                      </div>
+                    {/each}
+                  </div>
+                {/if}
+              </div>
+            {:else if currentSection === 'comments'}
+              <!-- 我的评论部分 -->
+              <div>
+                <h3 class="text-lg font-semibold mb-8 dark:text-white">我的评论</h3>
+                {#if loading}
+                  <div class="flex justify-center py-12">
+                    <svg class="w-8 h-8 animate-spin text-zinc-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M12 3v3m6.366-.366-2.12 2.12M21 12h-3m.366 6.366-2.12-2.12M12 21v-3m-6.366.366 2.12-2.12M3 12h3m-.366-6.366 2.12 2.12" />
+                    </svg>
+                  </div>
+                {:else if !comments.length}
+                  <div class="flex flex-col items-center justify-center py-20">
+                    <svg class="w-16 h-16 text-zinc-300 dark:text-zinc-600 mb-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                    </svg>
+                    <p class="text-zinc-500 dark:text-zinc-400">还没有发表过评论</p>
+                  </div>
+                {:else}
+                  <div class="space-y-4">
+                    {#each comments as comment (comment.id)}
+                      <div class="flex items-center justify-between p-4 rounded-lg bg-white/50 dark:bg-zinc-800/50 backdrop-blur-[1px] group">
+                        <div class="flex-1 min-w-0">
+                          <div class="text-zinc-900 dark:text-white whitespace-pre-wrap break-words">
+                            {comment.content}
+                          </div>
+                          <div class="mt-2 flex items-center text-sm text-zinc-500 dark:text-zinc-400 space-x-4">
+                            <span>{new Date(comment.createdAt).toLocaleDateString()}</span>
+                            <a 
+                              href="/articles/{comment.articleId}" 
+                              class="hover:text-lime-600 dark:hover:text-lime-400 transition-colors"
+                              on:click|preventDefault={() => {
+                                close();
+                                window.location.href = `/articles/${comment.articleId}`;
+                              }}
+                            >
+                              评论于：{comment.articleTitle}
+                            </a>
+                          </div>
+                        </div>
+                        <div class="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                          {#if deletingCommentId === comment.id}
+                            <div class="flex items-center space-x-1 bg-zinc-100 dark:bg-zinc-700/50 rounded-full">
+                              <button
+                                type="button"
+                                class="p-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
+                                on:click={() => deletingCommentId = null}
+                                disabled={loading}
+                                aria-label="取消删除"
+                              >
+                                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                  <line x1="18" x2="6" y1="6" y2="18" />
+                                  <line x1="6" x2="18" y1="6" y2="18" />
+                                </svg>
+                              </button>
+                              <button
+                                type="button"
+                                class="p-2 text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors"
+                                on:click={() => deleteComment(comment.id)}
+                                disabled={loading}
+                                aria-label="确认删除"
+                              >
+                                {#if loading}
+                                  <svg class="w-5 h-5 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M12 3v3m6.366-.366-2.12 2.12M21 12h-3m.366 6.366-2.12-2.12M12 21v-3m-6.366.366 2.12-2.12M3 12h3m-.366-6.366 2.12 2.12" />
+                                  </svg>
+                                {:else}
+                                  <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="20 6 9 17 4 12" />
+                                  </svg>
+                                {/if}
+                              </button>
+                            </div>
+                          {:else}
+                            <button
+                              type="button"
+                              class="p-2 text-zinc-400 hover:text-red-600 dark:hover:text-red-400 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-700/50 transition-colors"
+                              on:click={() => startDeleteComment(comment.id)}
+                              disabled={loading}
+                              aria-label="删除评论"
                             >
                               <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M3 6h18" />

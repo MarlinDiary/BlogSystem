@@ -248,7 +248,10 @@ export const userApi = {
             console.log('[User] Changing password');
             const result = await api('/api/users/me/password', {
                 method: 'PUT',
-                body: { currentPassword, newPassword }
+                body: {
+                    currentPassword,
+                    newPassword
+                }
             });
             console.log('[User] Password changed');
             return result;
@@ -292,7 +295,7 @@ export const userApi = {
     },
 
     // 获取用户文章列表
-    getUserArticles: async (userId: number | string) => {
+    getUserArticles: async (userId: number) => {
         try {
             console.log('[User] Getting user articles', { userId });
             const result = await api(`/api/users/${userId}/articles`);
@@ -311,10 +314,38 @@ export const userApi = {
             const result = await api(`/api/articles/${articleId}`, {
                 method: 'DELETE'
             });
-            console.log('[User] Article deleted', result);
+            console.log('[User] Article deleted');
             return result;
         } catch (error) {
             console.error('[User] Article deletion failed', error);
+            throw error;
+        }
+    },
+
+    // 获取用户评论列表
+    getUserComments: async (userId: number) => {
+        try {
+            console.log('[User] Getting user comments', { userId });
+            const result = await api(`/api/users/${userId}/comments`);
+            console.log('[User] Got user comments', result);
+            return result;
+        } catch (error) {
+            console.error('[User] Failed to get user comments', error);
+            throw error;
+        }
+    },
+
+    // 删除评论
+    deleteComment: async (commentId: number) => {
+        try {
+            console.log('[User] Deleting comment', { commentId });
+            const result = await api(`/api/comments/${commentId}`, {
+                method: 'DELETE'
+            });
+            console.log('[User] Comment deleted');
+            return result;
+        } catch (error) {
+            console.error('[User] Comment deletion failed', error);
             throw error;
         }
     }

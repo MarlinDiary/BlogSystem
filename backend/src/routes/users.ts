@@ -749,7 +749,7 @@ router.get('/:id/articles', async (req, res, next) => {
  * /api/users/{id}/comments:
  *   get:
  *     summary: 获取用户评论列表
- *     description: 获取指定用户发表的所有评论
+ *     description: 获取指定用户的所有评论
  *     tags: [Users]
  *     parameters:
  *       - in: path
@@ -758,16 +758,6 @@ router.get('/:id/articles', async (req, res, next) => {
  *         schema:
  *           type: integer
  *         description: 用户ID
- *       - in: query
- *         name: page
- *         schema:
- *           type: integer
- *         description: 页码
- *       - in: query
- *         name: pageSize
- *         schema:
- *           type: integer
- *         description: 每页数量
  *     responses:
  *       200:
  *         description: 成功返回评论列表
@@ -779,54 +769,56 @@ router.get('/:id/articles', async (req, res, next) => {
  *                 items:
  *                   type: array
  *                   items:
- *                     $ref: '#/components/schemas/Comment'
- *                 total:
- *                   type: integer
- *                 page:
- *                   type: integer
- *                 pageSize:
- *                   type: integer
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: integer
+ *                       content:
+ *                         type: string
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                       articleId:
+ *                         type: integer
+ *                       articleTitle:
+ *                         type: string
  *       404:
- *         description: 用户不存在
+ *         description: 用户未找到
  */
 router.get('/:id/comments', async (req, res, next) => {
   try {
     const userId = parseInt(req.params.id);
-    const { page = 1, pageSize = 10 } = req.query;
-    const offset = (Number(page) - 1) * Number(pageSize);
-
     if (isNaN(userId)) {
       return res.status(400).json({ message: '无效的用户ID' });
     }
 
-    // 并发查询：评论列表和总数
-    const [commentsList, total] = await Promise.all([
-      db.select({
+    // 检查用户是否存在
+    const user = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, userId))
+      .get();
+
+    if (!user) {
+      return res.status(404).json({ message: '用户未找到' });
+    }
+
+    // 获取用户的评论列表，包括文章标题
+    const userComments = await db
+      .select({
         id: comments.id,
         content: comments.content,
         createdAt: comments.createdAt,
-        visibility: comments.visibility,
-        article: {
-          id: articles.id,
-          title: articles.title
-        }
+        articleId: comments.articleId,
+        articleTitle: articles.title
       })
-        .from(comments)
-        .leftJoin(articles, eq(articles.id, comments.articleId))
-        .where(eq(comments.userId, userId))
-        .orderBy(desc(comments.createdAt))
-        .limit(Number(pageSize))
-        .offset(offset),
-      db.select({ count: sql<number>`count(*)` })
-        .from(comments)
-        .where(eq(comments.userId, userId))
-    ]);
+      .from(comments)
+      .leftJoin(articles, eq(comments.articleId, articles.id))
+      .where(eq(comments.userId, userId))
+      .orderBy(desc(comments.createdAt));
 
     res.json({
-      items: commentsList,
-      total: total[0].count,
-      page: Number(page),
-      pageSize: Number(pageSize)
+      items: userComments
     });
   } catch (error) {
     next(error);

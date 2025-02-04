@@ -379,7 +379,66 @@ router.put('/:id', authMiddleware, async (req: AuthRequest, res, next) => {
  *         description: 评论不存在
  */
 router.delete('/:id', authMiddleware, async (req: AuthRequest, res, next) => {
-  // ... existing code ...
+  try {
+    const commentId = parseInt(req.params.id);
+    const userId = req.userId!;
+
+    console.log('[Comments] Attempting to delete comment:', { commentId, userId });
+
+    // 获取评论
+    const comment = await db
+      .select()
+      .from(comments)
+      .where(eq(comments.id, commentId))
+      .get();
+
+    console.log('[Comments] Found comment:', comment);
+
+    if (!comment) {
+      return res.status(404).json({ message: '评论不存在' });
+    }
+
+    // 检查权限（仅评论作者可删除）
+    if (comment.userId !== userId) {
+      return res.status(403).json({ message: '无权限删除此评论' });
+    }
+
+    try {
+      // 开启事务以确保数据一致性
+      await db.transaction(async (tx) => {
+        console.log('[Comments] Starting transaction');
+        
+        // 先删除所有子评论
+        const deleteChildrenResult = await tx
+          .delete(comments)
+          .where(eq(comments.parentId, commentId))
+          .returning();
+        
+        console.log('[Comments] Deleted children:', deleteChildrenResult);
+
+        // 再删除当前评论
+        const deleteCommentResult = await tx
+          .delete(comments)
+          .where(eq(comments.id, commentId))
+          .returning();
+        
+        console.log('[Comments] Deleted comment:', deleteCommentResult);
+      });
+
+      console.log('[Comments] Transaction completed successfully');
+      res.json({ message: '评论已删除' });
+    } catch (txError) {
+      console.error('[Comments] Transaction failed:', txError);
+      throw txError;
+    }
+  } catch (error) {
+    console.error('[Comments] Error in delete route:', error);
+    // 返回更具体的错误信息
+    res.status(500).json({ 
+      message: '删除评论失败',
+      error: error instanceof Error ? error.message : '未知错误'
+    });
+  }
 });
 
 /**
