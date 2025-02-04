@@ -9,6 +9,7 @@ export interface User {
     bio?: string;
     createdAt: string;
     avatarUrl?: string;
+    role?: string;
     articles?: Array<{
         id: number;
         title: string;
