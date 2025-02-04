@@ -651,7 +651,7 @@
                                     </time>
                                     {#if isAuthor || isAdmin || (user && user.id === child.user.id)}
                                       <div class="comment-actions">
-                                        {#if isAuthor}
+                                        {#if isAuthor && comment.visibility === 'visible'}
                                           <button
                                             class="action-button"
                                             on:click={() => handleVisibilityToggle(child.id)}
@@ -729,33 +729,67 @@
                                     {#each child.children as grandChild (grandChild.id)}
                                       <li class="group relative timeline-container">
                                         <div class="timeline-line"></div>
-                                        <article class="relative flex gap-4">
-                                          <div class="relative flex-none">
-                                            <img
-                                              src={getAvatarUrl(grandChild.user.id)}
-                                              alt={grandChild.user.username}
-                                              class="h-10 w-10 select-none rounded-full ring-2 ring-zinc-200 dark:ring-zinc-800 relative z-10 bg-white dark:bg-zinc-900"
-                                              loading="lazy"
-                                            />
-                                          </div>
-
-                                          <div class="flex-1 min-w-0 -mt-1">
-                                            <header class="flex items-center">
-                                              <div class="flex items-center gap-1 text-[14px]">
-                                                <span class="font-medium text-zinc-900 dark:text-zinc-100 uppercase">
-                                                  {grandChild.user.username}
-                                                </span>
-                                                <time class="select-none text-zinc-400">
-                                                  {formatRelativeTime(grandChild.createdAt)}
-                                                </time>
-                                              </div>
-                                            </header>
-
-                                            <div class="comment__message prose-zinc dark:prose-invert text-[13px] [&>p]:m-0 [&>p:first-child]:-mt-1">
-                                              <MarkdownRenderer content={grandChild.content} />
+                                        {#if grandChild.visibility !== 'hidden' || isAuthor}
+                                          <article class="relative flex gap-4 comment-item" class:hidden-comment={grandChild.visibility === 'hidden' && isAuthor}>
+                                            <div class="relative flex-none">
+                                              <img
+                                                src={getAvatarUrl(grandChild.user.id)}
+                                                alt={grandChild.user.username}
+                                                class="h-10 w-10 select-none rounded-full ring-2 ring-zinc-200 dark:ring-zinc-800 relative z-10 bg-white dark:bg-zinc-900"
+                                                loading="lazy"
+                                              />
                                             </div>
-                                          </div>
-                                        </article>
+
+                                            <div class="flex-1 min-w-0 -mt-1">
+                                              <header class="flex items-center comment-header">
+                                                <div class="flex items-center gap-1 text-[14px]">
+                                                  <span class="font-medium text-zinc-900 dark:text-zinc-100 uppercase">
+                                                    {grandChild.user.username}
+                                                  </span>
+                                                  <time class="select-none text-zinc-400">
+                                                    {formatRelativeTime(grandChild.createdAt)}
+                                                  </time>
+                                                  {#if isAuthor || isAdmin || (user && user.id === grandChild.user.id)}
+                                                    <div class="comment-actions">
+                                                      {#if isAuthor && comment.visibility === 'visible' && child.visibility === 'visible'}
+                                                        <button
+                                                          class="action-button"
+                                                          on:click={() => handleVisibilityToggle(grandChild.id)}
+                                                          aria-label={grandChild.visibility === 'visible' ? '隐藏回复' : '显示回复'}
+                                                        >
+                                                          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                                            {#if grandChild.visibility === 'visible'}
+                                                              <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                                                              <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" />
+                                                            {:else}
+                                                              <path fill-rule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z" clip-rule="evenodd" />
+                                                              <path d="M12.454 16.697L9.75 13.992a4 4 0 01-3.742-3.741L2.335 6.578A9.98 9.98 0 00.458 10c1.274 4.057 5.065 7 9.542 7 .847 0 1.669-.105 2.454-.303z" />
+                                                            {/if}
+                                                          </svg>
+                                                        </button>
+                                                      {/if}
+                                                      {#if isAdmin || (user && user.id === grandChild.user.id)}
+                                                        <button
+                                                          class="action-button"
+                                                          on:click={() => handleDelete(grandChild.id)}
+                                                          aria-label="删除回复"
+                                                        >
+                                                          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                                            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                                          </svg>
+                                                        </button>
+                                                      {/if}
+                                                    </div>
+                                                  {/if}
+                                                </div>
+                                              </header>
+
+                                              <div class="comment__message prose-zinc dark:prose-invert text-[13px] [&>p]:m-0 [&>p:first-child]:-mt-1">
+                                                <MarkdownRenderer content={grandChild.content} />
+                                              </div>
+                                            </div>
+                                          </article>
+                                        {/if}
                                       </li>
                                     {/each}
                                   </ul>
