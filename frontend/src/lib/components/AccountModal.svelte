@@ -954,13 +954,13 @@
                   </div>
 
                   <!-- 个人简介 -->
-                  <div class="flex {isMobile ? 'flex-col space-y-2' : 'items-start space-x-4'}">
+                  <div class="flex {isMobile ? 'flex-col space-y-2' : 'items-center space-x-4'}">
                     <div class="{isMobile ? 'w-full' : 'w-32 shrink-0'}">
                       <span class="block text-sm font-medium text-zinc-500 dark:text-zinc-400">个人简介</span>
                     </div>
                     <div class="flex-1">
                       {#if editingField === 'bio'}
-                        <div class="flex items-start space-x-2">
+                        <div class="flex items-center space-x-2">
                           <input
                             type="text"
                             bind:value={tempEditValue}
@@ -987,7 +987,7 @@
                       {:else}
                         <button 
                           type="button"
-                          class="w-full min-h-[38px] flex items-center cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-700/50 px-3 rounded-md transition-colors text-left"
+                          class="w-full h-[38px] flex items-center cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-700/50 px-3 rounded-md transition-colors text-left"
                           on:click={() => startEditing('bio')}
                         >
                           {#if editForm.bio}
