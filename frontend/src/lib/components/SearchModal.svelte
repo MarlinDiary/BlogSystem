@@ -7,6 +7,8 @@
   import { api } from '$lib/utils/api';
   import { debounce } from 'lodash-es';
   import Portal from './Portal.svelte';
+  import { goto } from '$app/navigation';
+  import { page } from '$app/stores';
   
   export let isOpen = false;
   
@@ -171,10 +173,14 @@
             {:else}
               <div class="space-y-2">
                 {#each searchResults as result}
-                  <a
-                    href="/articles/{result.id}"
-                    class="block p-3 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-700/50 transition-colors"
-                    on:click={close}
+                  <button
+                    class="block w-full text-left p-3 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-700/50 transition-colors"
+                    on:click={() => {
+                      close();
+                      if (browser) {
+                        window.location.href = `/articles/${result.id}`;
+                      }
+                    }}
                   >
                     <h3 class="text-zinc-900 dark:text-white font-medium">{result.title}</h3>
                     <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400 line-clamp-2">{result.content}</p>
@@ -183,7 +189,7 @@
                       <span>阅读 {result.viewCount || 0}</span>
                       <span>评论 {result.commentCount || 0}</span>
                     </div>
-                  </a>
+                  </button>
                 {/each}
               </div>
             {/if}
