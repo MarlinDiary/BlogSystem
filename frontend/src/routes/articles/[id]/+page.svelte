@@ -434,25 +434,6 @@
     width: 100%;
   }
 
-  .author-avatar {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    object-fit: cover;
-    flex-shrink: 0;
-  }
-
-  .divider {
-    width: 1px;
-    height: 100%;
-    background: linear-gradient(180deg, 
-      rgba(161, 161, 170, 0) 0%,
-      rgba(161, 161, 170, 0.4) 20%,
-      rgba(161, 161, 170, 0.4) 80%,
-      rgba(161, 161, 170, 0) 100%
-    );
-  }
-
   .meta-item {
     display: flex;
     align-items: center;
@@ -467,9 +448,15 @@
     height: 100%;
   }
 
-  .username {
-    text-transform: uppercase;
-    font-weight: 500;
+  .divider {
+    width: 1px;
+    height: 100%;
+    background: linear-gradient(180deg, 
+      rgba(161, 161, 170, 0) 0%,
+      rgba(161, 161, 170, 0.4) 20%,
+      rgba(161, 161, 170, 0.4) 80%,
+      rgba(161, 161, 170, 0) 100%
+    );
   }
 
   .toc {
@@ -676,16 +663,20 @@
                 class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center"
                 role="dialog"
                 aria-modal="true"
-                on:click={handleBackgroundClick}
-                on:keydown={(e) => {
-                  if (e.key === 'Escape') handleBackgroundClick();
-                }}
-                tabindex="0"
+                aria-label="用户信息"
               >
+                <button
+                  class="absolute inset-0 w-full h-full cursor-default"
+                  on:click={handleBackgroundClick}
+                  on:keydown={(e) => {
+                    if (e.key === 'Escape') handleBackgroundClick();
+                  }}
+                >
+                  <span class="sr-only">关闭</span>
+                </button>
                 <div 
+                  class="relative"
                   role="document"
-                  on:click|stopPropagation
-                  on:keydown|stopPropagation
                 >
                   <UserCard
                     userId={article.author.id}
