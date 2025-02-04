@@ -312,6 +312,7 @@
     createdAt: string;
     articleId: number;
     articleTitle: string;
+    visibility: string;
   }> = [];
   
   // 加载用户文章
@@ -611,6 +612,51 @@
   function handleKeydown(event: KeyboardEvent) {
     if (event.key === 'Escape') {
       cancelEditing();
+    }
+  }
+
+  // 修改 toggleCommentVisibility 函数实现乐观更新
+  async function toggleCommentVisibility(commentId: number) {
+    try {
+      const targetComment = comments.find(c => c.id === commentId);
+      if (!targetComment) return;
+
+      // 乐观更新
+      const newVisibility = targetComment.visibility === 'visible' ? 'hidden' : 'visible';
+      comments = comments.map(comment => 
+        comment.id === commentId 
+          ? { ...comment, visibility: newVisibility }
+          : comment
+      );
+      
+      // 发送请求
+      const response = await fetch(`/api/comments/${commentId}/visibility`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${$auth.token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        // 如果请求失败，回滚更改
+        comments = comments.map(comment => 
+          comment.id === commentId 
+            ? { ...comment, visibility: targetComment.visibility }
+            : comment
+        );
+        throw new Error('切换评论可见性失败');
+      }
+
+      // 请求成功，使用服务器返回的状态更新（以防万一）
+      const updatedComment = await response.json();
+      comments = comments.map(comment => 
+        comment.id === commentId 
+          ? { ...comment, visibility: updatedComment.visibility }
+          : comment
+      );
+    } catch (err: any) {
+      console.error('切换评论可见性失败:', err);
     }
   }
 </script>
@@ -1138,7 +1184,7 @@
                 {:else}
                   <div class="space-y-4">
                     {#each comments as comment (comment.id)}
-                      <div class="flex items-center justify-between p-4 rounded-lg bg-white/50 dark:bg-zinc-800/50 backdrop-blur-[1px] group">
+                      <div class="flex items-center justify-between p-4 rounded-lg bg-white/50 dark:bg-zinc-800/50 backdrop-blur-[1px] group {comment.visibility === 'hidden' ? 'opacity-50' : ''} transition-opacity">
                         <div class="flex-1 min-w-0">
                           <div class="text-zinc-900 dark:text-white whitespace-pre-wrap break-words">
                             {comment.content}
@@ -1158,6 +1204,35 @@
                           </div>
                         </div>
                         <div class="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                          <!-- 可见性控制按钮 -->
+                          {#if comment.visibility === 'hidden'}
+                            <button
+                              type="button"
+                              class="p-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-700/50 transition-colors"
+                              on:click={() => toggleCommentVisibility(comment.id)}
+                              disabled={loading}
+                              aria-label="显示评论"
+                            >
+                              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                <circle cx="12" cy="12" r="3" />
+                              </svg>
+                            </button>
+                          {:else}
+                            <button
+                              type="button"
+                              class="p-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-700/50 transition-colors"
+                              on:click={() => toggleCommentVisibility(comment.id)}
+                              disabled={loading}
+                              aria-label="隐藏评论"
+                            >
+                              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                                <line x1="1" y1="1" x2="23" y2="23" />
+                              </svg>
+                            </button>
+                          {/if}
+                          
                           {#if deletingCommentId === comment.id}
                             <div class="flex items-center space-x-1 bg-zinc-100 dark:bg-zinc-700/50 rounded-full">
                               <button
