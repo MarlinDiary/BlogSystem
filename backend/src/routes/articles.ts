@@ -502,16 +502,16 @@ router.delete('/:id', authMiddleware, async (req: AuthRequest, res, next) => {
         .delete(articlesTable)
         .where(eq(articlesTable.id, articleId));
 
-      // 5. 如果文章有封面图，删除封面图文件
+      // 5. 如果文章有封面图，同步删除封面图文件
       if (article.imageUrl) {
-        const imagePath = path.join(__dirname, '../../uploads/covers', 
-          path.basename(article.imageUrl));
-        fs.unlink(imagePath, (err) => {
-          if (err) {
-            console.error('删除封面图失败:', err);
-            // 不中断事务，仅记录错误
-          }
-        });
+        try {
+          const imagePath = path.join(__dirname, '../../uploads/covers', 
+            path.basename(article.imageUrl));
+          await fs.promises.unlink(imagePath);
+        } catch (error) {
+          console.error('删除封面图失败:', error);
+          // 记录错误但不中断事务
+        }
       }
     });
 

@@ -1012,20 +1012,24 @@ router.post('/articles/batch-delete', async (req, res) => {
         .delete(articlesTable)
         .where(sql`id = any(${articleIds})`);
 
-      // 删除封面图文件
-      articlesToDelete.forEach(article => {
+      // 同步删除封面图文件
+      for (const article of articlesToDelete) {
         if (article.imageUrl) {
-          const imagePath = path.join(__dirname, '../../uploads/covers', 
-            path.basename(article.imageUrl));
-          fs.unlink(imagePath, (err) => {
-            if (err) console.error(`删除文章 ${article.id} 的封面图失败:`, err);
-          });
+          try {
+            const imagePath = path.join(__dirname, '../../uploads/covers', 
+              path.basename(article.imageUrl));
+            await fs.promises.unlink(imagePath);
+          } catch (error) {
+            console.error(`删除文章 ${article.id} 的封面图失败:`, error);
+            // 记录错误但不中断事务
+          }
         }
-      });
+      }
     });
 
     res.json({ message: '文章已批量删除' });
   } catch (error) {
+    console.error('批量删除文章失败:', error);
     res.status(500).json({ error: '批量删除文章失败' });
   }
 });
