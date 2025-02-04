@@ -637,14 +637,16 @@
             <span class="meta-text">{article.viewCount} 阅读</span>
             <div class="divider"></div>
             <span class="meta-text">{article.commentCount} 评论</span>
-            {#if article.tags && article.tags.length > 0}
-              <div class="divider"></div>
-              <span class="meta-text">{article.tags[0].name}</span>
-              {#if article.tags.length > 1}
+            <div class="hidden md:contents">
+              {#if article.tags && article.tags.length > 0}
                 <div class="divider"></div>
-                <span class="meta-text">{article.tags[1].name}</span>
+                <span class="meta-text">{article.tags[0].name}</span>
+                {#if article.tags.length > 1}
+                  <div class="divider"></div>
+                  <span class="meta-text">{article.tags[1].name}</span>
+                {/if}
               {/if}
-            {/if}
+            </div>
           </div>
         </div>
 
