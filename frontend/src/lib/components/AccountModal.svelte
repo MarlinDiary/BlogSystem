@@ -68,17 +68,19 @@
   // 开始编辑字段
   function startEditing(field: EditableField) {
     editingField = field;
-    if (field === 'dateOfBirth' && editForm.dateOfBirth) {
-      const date = new Date(editForm.dateOfBirth);
-      dateForm = {
-        year: date.getFullYear().toString(),
-        month: (date.getMonth() + 1).toString(),
-        day: date.getDate().toString()
-      };
+    if (field === 'dateOfBirth') {
+      tempEditValue = editForm.dateOfBirth || '';
     } else {
       tempEditValue = editForm[field];
     }
     validationState[field] = validateField(field, tempEditValue);
+    // 下一个事件循环中聚焦输入框
+    setTimeout(() => {
+      const input = document.querySelector(`[data-field="${field}"]`) as HTMLInputElement | HTMLTextAreaElement;
+      if (input) {
+        input.focus();
+      }
+    }, 0);
   }
   
   // 取消编辑
@@ -586,11 +588,15 @@
     return `${date.getFullYear()} 年 ${date.getMonth() + 1} 月 ${date.getDate()} 日`;
   }
   
-  function saveDateOfBirth() {
-    if (!dateForm.year || !dateForm.month || !dateForm.day) return;
-    const dateStr = `${dateForm.year}-${String(dateForm.month).padStart(2, '0')}-${String(dateForm.day).padStart(2, '0')}`;
-    tempEditValue = dateStr;
-    saveField('dateOfBirth');
+  function handleDateInput(event: Event) {
+    const input = event.target as HTMLInputElement;
+    let value = input.value.replace(/\D/g, '');
+    if (value.length > 8) value = value.slice(0, 8);
+    if (value.length >= 4) value = value.slice(0, 4) + '-' + value.slice(4);
+    if (value.length >= 7) value = value.slice(0, 7) + '-' + value.slice(7);
+    input.value = value;
+    tempEditValue = value;
+    validationState.dateOfBirth = validateField('dateOfBirth', value);
   }
 
   // 修改移动端点击处理
@@ -601,15 +607,11 @@
     }
   }
 
-  // 处理日期输入
-  function handleDateInput(event: Event) {
-    const input = event.target as HTMLInputElement;
-    let value = input.value.replace(/\D/g, '');
-    if (value.length > 8) value = value.slice(0, 8);
-    if (value.length >= 4) value = value.slice(0, 4) + '-' + value.slice(4);
-    if (value.length >= 7) value = value.slice(0, 7) + '-' + value.slice(7);
-    input.value = value;
-    tempEditValue = value;
+  // 修改取消编辑函数，只在按 Escape 键时触发
+  function handleKeydown(event: KeyboardEvent) {
+    if (event.key === 'Escape') {
+      cancelEditing();
+    }
   }
 </script>
 
@@ -809,7 +811,7 @@
                   </div>
                   <div class="flex-1">
                     <h4 class="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">头像</h4>
-                    <p class="text-sm text-zinc-500 dark:text-zinc-400">{isMobile ? '推荐使用正方形图片，大小不超过 2MB' : '推荐使用正方形图片，支持 PNG、JPG 格式，大小不超过 2MB'}</p>
+                    <p class="text-sm text-zinc-500 dark:text-zinc-400">{'推荐使用正方形图片，支持 PNG、JPG 格式，大小不超过 2 MB'}</p>
                   </div>
                 </div>
 
@@ -826,8 +828,11 @@
                           <input
                             type="text"
                             bind:value={tempEditValue}
-                            on:keydown={e => e.key === 'Enter' && validationState.username && saveField('username')}
-                            on:blur={cancelEditing}
+                            on:keydown={e => {
+                              handleKeydown(e);
+                              if (e.key === 'Enter' && validationState.username) saveField('username');
+                            }}
+                            data-field="username"
                             class="block flex-1 h-[38px] rounded-md border-zinc-300 bg-white/50 shadow-sm focus:border-zinc-500 focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800/50 dark:text-zinc-100 {!validationState.username ? 'border-red-300' : ''}"
                           />
                           <button
@@ -865,8 +870,11 @@
                           <input
                             type="text"
                             bind:value={tempEditValue}
-                            on:keydown={e => e.key === 'Enter' && validationState.realName && saveField('realName')}
-                            on:blur={cancelEditing}
+                            on:keydown={e => {
+                              handleKeydown(e);
+                              if (e.key === 'Enter' && validationState.realName) saveField('realName');
+                            }}
+                            data-field="realName"
                             class="block flex-1 h-[38px] rounded-md border-zinc-300 bg-white/50 shadow-sm focus:border-zinc-500 focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800/50 dark:text-zinc-100 {!validationState.realName ? 'border-red-300' : ''}"
                           />
                           <button
@@ -911,13 +919,17 @@
                             placeholder="YYYY-MM-DD"
                             pattern="\d{4}-\d{2}-\d{2}"
                             on:input={handleDateInput}
-                            on:blur={cancelEditing}
+                            on:keydown={e => {
+                              handleKeydown(e);
+                              if (e.key === 'Enter' && validationState.dateOfBirth) saveField('dateOfBirth');
+                            }}
+                            data-field="dateOfBirth"
                             class="block flex-1 h-[38px] rounded-md border-zinc-300 bg-white/50 shadow-sm focus:border-zinc-500 focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800/50 dark:text-zinc-100"
                           />
                           <button
                             type="button"
                             class="p-1 text-zinc-900 hover:text-zinc-700 dark:text-zinc-100 dark:hover:text-zinc-300"
-                            on:click={saveDateOfBirth}
+                            on:click={() => saveField('dateOfBirth')}
                             aria-label="保存修改"
                           >
                             <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -942,21 +954,24 @@
                   </div>
 
                   <!-- 个人简介 -->
-                  <div class="flex {isMobile ? 'flex-col space-y-2' : 'items-center space-x-4'}">
+                  <div class="flex {isMobile ? 'flex-col space-y-2' : 'items-start space-x-4'}">
                     <div class="{isMobile ? 'w-full' : 'w-32 shrink-0'}">
                       <span class="block text-sm font-medium text-zinc-500 dark:text-zinc-400">个人简介</span>
                     </div>
                     <div class="flex-1">
                       {#if editingField === 'bio'}
                         <div class="flex items-start space-x-2">
-                          <textarea
+                          <input
+                            type="text"
                             bind:value={tempEditValue}
-                            on:keydown={e => e.key === 'Enter' && validationState.bio && saveField('bio')}
-                            on:blur={cancelEditing}
-                            class="block flex-1 min-h-[38px] max-h-[200px] rounded-md border-zinc-300 bg-white/50 shadow-sm focus:border-zinc-500 focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800/50 dark:text-zinc-100 resize-none overflow-hidden"
                             placeholder="写点什么来介绍一下自己吧..."
-                            style="height: {Math.max(38, tempEditValue.split('\n').length * 24)}px;"
-                          ></textarea>
+                            on:keydown={e => {
+                              handleKeydown(e);
+                              if (e.key === 'Enter' && validationState.bio) saveField('bio');
+                            }}
+                            data-field="bio"
+                            class="block flex-1 h-[38px] rounded-md border-zinc-300 bg-white/50 shadow-sm focus:border-zinc-500 focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800/50 dark:text-zinc-100"
+                          />
                           <button
                             type="button"
                             class="p-1 {validationState.bio ? 'text-zinc-900 hover:text-zinc-700 dark:text-zinc-100 dark:hover:text-zinc-300' : 'text-zinc-400 cursor-not-allowed'}"
@@ -972,11 +987,11 @@
                       {:else}
                         <button 
                           type="button"
-                          class="w-full h-[38px] flex items-center cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-700/50 px-3 rounded-md transition-colors text-left"
+                          class="w-full min-h-[38px] flex items-center cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-700/50 px-3 rounded-md transition-colors text-left"
                           on:click={() => startEditing('bio')}
                         >
                           {#if editForm.bio}
-                            <span class="text-zinc-900 dark:text-white">{editForm.bio}</span>
+                            <span class="text-zinc-900 dark:text-white whitespace-pre-wrap">{editForm.bio}</span>
                           {:else}
                             <span class="text-zinc-400 dark:text-zinc-500 italic">未设置</span>
                           {/if}
