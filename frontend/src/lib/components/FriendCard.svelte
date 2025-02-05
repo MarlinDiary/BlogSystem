@@ -12,9 +12,25 @@
     let darkColor = '';
     const colorThief = new ColorThief();
   
+    // 记录鼠标在卡片内的位置与计算出的半径
+    let mouseX = 0;
+    let mouseY = 0;
+    let radius = 0;
+    let spotlightBackground = '';
+  
+    // 处理鼠标移动事件
+    function handleMouseMove(event: MouseEvent) {
+      const bounds = (event.currentTarget as HTMLElement).getBoundingClientRect();
+      mouseX = event.clientX - bounds.left;
+      mouseY = event.clientY - bounds.top;
+      radius = Math.sqrt(bounds.width ** 2 + bounds.height ** 2) / 1.8;
+      spotlightBackground = `radial-gradient(${radius}px circle at ${mouseX}px ${mouseY}px, color-mix(in srgb, var(--card-color) 8%, transparent) 0%, transparent 80%)`;
+    }
+  
     // 处理鼠标进入事件
-    function handleMouseEnter() {
+    function handleMouseEnter(event: MouseEvent) {
       focusingFriendId.set(user.id.toString());
+      handleMouseMove(event);
     }
   
     // 处理鼠标离开事件
@@ -81,8 +97,8 @@
     <div
       role="article"
       aria-label="{user.realName}的个人卡片"
-      class="not-prose group flex flex-col justify-between rounded-2xl p-6
-        border transition-all duration-300 backdrop-blur-sm
+      class="group relative not-prose flex flex-col justify-between rounded-2xl p-6
+        border transition-all duration-300 backdrop-blur-md
         hover:bg-opacity-95 hover:border-opacity-50
         {$focusingFriendId && $focusingFriendId !== user.id.toString() ? 'md:opacity-80 md:blur-[1px]' : 'blur-none'}"
       style="--card-color: {dominantColor};
@@ -92,9 +108,17 @@
         border-color: color-mix(in srgb, var(--card-color) 10%, transparent)"
       on:mouseenter={handleMouseEnter}
       on:mouseleave={handleMouseLeave}
+      on:mousemove={handleMouseMove}
     >
+      <!-- 光晕效果背景 -->
+      <div
+        class="pointer-events-none absolute inset-0 rounded-2xl opacity-0 transition-opacity duration-500 group-hover:opacity-100"
+        style="background: {spotlightBackground}"
+        aria-hidden="true"
+      ></div>
+  
       <!-- 头像 + 名称 + 简介 -->
-      <header class="mb-6 flex flex-col items-center">
+      <header class="relative mb-6 flex flex-col items-center">
         <img
           src={user.avatarUrl}
           alt={user.realName}
@@ -120,7 +144,7 @@
       </header>
   
       <!-- 统计信息 -->
-      <div class="mb-6 flex justify-center gap-12">
+      <div class="relative mb-6 flex justify-center gap-12">
         <div class="text-center">
           <span class="block text-2xl font-bold"
             style="color: var(--card-color)">
@@ -144,7 +168,7 @@
       </div>
   
       <!-- 底部信息：加入时间 -->
-      <footer class="mt-auto flex w-full items-center justify-between">
+      <footer class="relative mt-auto flex w-full items-center justify-between">
         <time
           class="select-none rounded-lg border p-2 text-xs tracking-wider"
           style="
