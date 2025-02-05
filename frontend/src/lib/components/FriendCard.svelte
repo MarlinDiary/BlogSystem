@@ -97,9 +97,8 @@
     <div
       role="article"
       aria-label="{user.realName}的个人卡片"
-      class="group relative not-prose flex flex-col justify-between rounded-2xl p-6
+      class="friend-card group relative not-prose flex flex-col justify-between rounded-2xl p-6
         border transition-all duration-300 backdrop-blur-md
-        hover:bg-opacity-95 hover:border-opacity-50
         {$focusingFriendId && $focusingFriendId !== user.id.toString() ? 'md:opacity-80 md:blur-[1px]' : 'blur-none'}"
       style="--card-color: {dominantColor};
         --bg-base: white;
@@ -184,6 +183,16 @@
   </TiltCard>
   
   <style>
+    .friend-card {
+      border-width: 1px;
+    }
+    
+    .friend-card:hover {
+      border-width: 1.5px;
+      border-color: color-mix(in srgb, var(--card-color) 35%, transparent);
+      box-shadow: 0 0 0 1px color-mix(in srgb, var(--card-color) 15%, transparent);
+    }
+
     div {
       --bg-base: white;
       --bg-mix: 98%;
