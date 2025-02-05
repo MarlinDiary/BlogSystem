@@ -119,6 +119,7 @@
   import CommentInput from './CommentInput.svelte';
   import { env } from '$env/dynamic/public';
   import MarkdownRenderer from './MarkdownRenderer.svelte';
+  import AuthModal from './AuthModal.svelte';
 
   interface User {
     id: string;
@@ -187,6 +188,8 @@
   let tempReplyContent = '';
   let editableRef: HTMLDivElement;
   let currentKeydownHandler: ((e: Event) => void) | null = null;
+  let showAuthModal = false;
+  let authMode: 'login' | 'register' = 'login';
 
   function getAvatarUrl(userId: string | null | undefined): string {
     if (!userId) return '/uploads/avatars/default.png';
@@ -481,6 +484,15 @@
     } catch (error) {
       console.error('删除评论失败:', error);
     }
+  }
+
+  function handleAuth() {
+    showAuthModal = true;
+    authMode = 'login';
+  }
+
+  function handleCloseModal() {
+    showAuthModal = false;
   }
 
   onMount(() => {
@@ -809,4 +821,10 @@
       </ul>
     </div>
   {/if}
-</div> 
+</div>
+
+<AuthModal 
+  isOpen={showAuthModal} 
+  mode={authMode}
+  on:close={handleCloseModal}
+/> 

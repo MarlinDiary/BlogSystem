@@ -2,6 +2,8 @@
   import { enhance } from '$app/forms';
   import { fade, scale } from 'svelte/transition';
   import { createEventDispatcher } from 'svelte';
+  import { auth } from '../stores/auth';
+  import AuthModal from './AuthModal.svelte';
   import MarkdownRenderer from './MarkdownRenderer.svelte';
   import { env } from '$env/dynamic/public';
 
@@ -25,6 +27,8 @@
   let lastTextareaHeight = '24px'; // 记住textarea的高度
   const MAX_LENGTH = 1000;
   let avatarTimestamp = Date.now();
+  let showAuthModal = false;
+  let authMode: 'login' | 'register' = 'login';
 
   // 鼠标位置状态
   let mouseX = 0;
@@ -112,6 +116,15 @@
     lastTextareaHeight = `${newHeight}px`; // 保存当前高度
   }
 
+  function handleAuth() {
+    showAuthModal = true;
+    authMode = 'login';
+  }
+
+  function handleCloseModal() {
+    showAuthModal = false;
+  }
+
   $: background = `radial-gradient(320px circle at ${mouseX}px ${mouseY}px, var(--spotlight-color) 0%, transparent 85%)`;
 </script>
 
@@ -129,8 +142,8 @@
   ></div>
 
   {#if !user}
-    <div class="relative text-center text-sm text-zinc-600 dark:text-zinc-400">
-      请<a href="/login" class="text-primary-600 hover:underline dark:text-primary-400">登录</a>后发表评论
+    <div class="text-center py-8 text-sm text-zinc-500 dark:text-zinc-400">
+      请<button on:click={handleAuth} class="text-primary-600 hover:underline dark:text-primary-400">登录</button>后发表评论
     </div>
   {:else}
     <div class="relative flex space-x-4">
@@ -221,6 +234,12 @@
     </div>
   {/if}
 </div>
+
+<AuthModal 
+  isOpen={showAuthModal} 
+  mode={authMode}
+  on:close={handleCloseModal}
+/>
 
 <style>
   :global(.dark) .comment__message {
