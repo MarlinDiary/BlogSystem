@@ -174,7 +174,7 @@ router.get('/', async (req, res, next) => {
 // 创建文章
 router.post('/', authMiddleware, async (req: AuthRequest, res, next) => {
   try {
-    const { title, content, htmlContent, imageUrl, tags, status = 'pending' } = req.body;
+    const { title, content, htmlContent, imageUrl, tags, status = 'published' } = req.body;
     
     if (!title || !content) {
       return res.status(400).json({ message: '标题和内容不能为空' });
@@ -192,6 +192,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res, next) => {
           imageUrl,
           status,
           authorId: req.userId!,
+          publishedAt: status === 'published' ? new Date().toISOString() : null,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
         })
