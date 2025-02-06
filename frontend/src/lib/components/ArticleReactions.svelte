@@ -79,7 +79,7 @@
     display: none;
     z-index: 100;
     transition: all 0.3s ease;
-    @screen lg {
+    @media (min-width: 1024px) {
       display: block;
       position: fixed;
       left: 50%;

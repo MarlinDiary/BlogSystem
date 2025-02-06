@@ -412,7 +412,7 @@
     height: fit-content;
     display: none;
     transition: all 0.3s ease;
-    @screen lg {
+    @media (min-width: 1024px) {
       display: block;
       position: fixed;
       left: 50%;
@@ -515,10 +515,13 @@
 
   :global(.article-reactions) {
     position: fixed;
-    right: 0;
-    margin-right: calc((100vw - 1200px) / 2 + 2rem);
+    right: 2rem;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     z-index: 10;
+
+    @media (min-width: 1024px) {
+      right: max(2rem, calc((100vw - 1200px) / 2 + 2rem));
+    }
 
     &[data-scrolled="true"] {
       top: 2rem;
@@ -528,7 +531,7 @@
       top: 16rem;
     }
 
-    @media (max-width: 1280px) {
+    @media (max-width: 1023px) {
       display: none;
     }
   }
@@ -566,12 +569,12 @@
         </nav>
       {/if}
 
-      <div class="article-reactions" data-scrolled={isScrolled}>
+      <aside class="article-reactions" data-scrolled={isScrolled}>
         <ArticleReactions
           articleId={article.id}
           {isScrolled}
         />
-      </div>
+      </aside>
 
       <div class="article-container">
         {#if article.imageUrl}
