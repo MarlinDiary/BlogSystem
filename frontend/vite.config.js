@@ -8,6 +8,14 @@ export default defineConfig({
 			$lib: '/src/lib'
 		}
 	},
+	ssr: {
+		noExternal: ['marked']
+	},
+	build: {
+		rollupOptions: {
+			external: ['marked']
+		}
+	},
 	server: {
 		proxy: {
 			'/api': {
