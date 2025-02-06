@@ -1,6 +1,6 @@
 [build]
 builder = "nixpacks"
-buildCommand = "npm install"
+buildCommand = "npm ci"
 
 [deploy]
 startCommand = "npm start"
@@ -10,4 +10,5 @@ restartPolicyType = "on_failure"
 numReplicas = 1
 
 [env]
-NODE_ENV = "production" 
+NODE_ENV = "production"
+PORT = "3000" 
