@@ -1,11 +1,10 @@
 <!-- icons/index.svelte -->
-<script lang="ts">
+<script>
   import Icon from './Icon.svelte';
-  import type { IconProps } from './types';
 
-  export let className: IconProps['className'] = undefined;
-  export let width: IconProps['width'] = undefined;
-  export let height: IconProps['height'] = undefined;
+  export let className = undefined;
+  export let width = undefined;
+  export let height = undefined;
 </script>
 
 <!-- 月亮图标 -->
@@ -83,4 +82,4 @@
       stroke-linejoin="round"
     />
   </svg>
-</Icon> 
+</Icon>

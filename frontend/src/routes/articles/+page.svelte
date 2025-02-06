@@ -1,30 +1,8 @@
-<script lang="ts">
+<script>
   import { onMount } from 'svelte';
   import ColorThief from 'colorthief';
   
-  interface Author {
-    id: number;
-    username: string;
-    avatarUrl: string;
-  }
-
-  interface Article {
-    id: number;
-    title: string;
-    content: string;
-    htmlContent: string;
-    imageUrl: string;
-    status: string;
-    viewCount: number;
-    createdAt: string;
-    updatedAt: string;
-    author: Author;
-    commentCount: number;
-    likeCount: number;
-    dominantColor?: string;
-  }
-
-  let articles: Article[] = [];
+  let articles = [];
   let loading = false;
   let error = '';
   const colorThief = new ColorThief();
@@ -75,21 +53,21 @@
   }
 
   // 处理图片 URL
-  function getImageUrl(url: string | null | undefined): string {
+  function getImageUrl(url) {
     if (!url) return '';
     if (url.startsWith('http')) return url;
     return url;
   }
 
   // 处理头像 URL
-  function getAvatarUrl(url: string | null | undefined): string {
+  function getAvatarUrl(url) {
     if (!url) return '';
     if (url.startsWith('http')) return url;
     return url;
   }
 
   // 生成卡片样式
-  function getCardStyle(article: Article): string {
+  function getCardStyle(article) {
     if (!article.dominantColor) return '';
     return `--card-color: ${article.dominantColor}`;
   }
@@ -200,4 +178,4 @@
       {/each}
     </div>
   {/if}
-</div> 
+</div>

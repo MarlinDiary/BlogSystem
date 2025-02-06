@@ -1,5 +1,5 @@
 <!-- Navigation.svelte -->
-<script lang="ts">
+<script>
   import NavigationMobile from './NavigationMobile.svelte';
   import NavigationDesktop from './NavigationDesktop.svelte';
 

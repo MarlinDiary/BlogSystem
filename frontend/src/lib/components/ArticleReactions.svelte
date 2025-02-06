@@ -1,9 +1,9 @@
-<script lang="ts">
+<script>
   import { createEventDispatcher, onMount } from 'svelte';
   import ReactionIcon from './ReactionIcon.svelte';
   import { auth } from '$lib/stores/auth';
 
-  export let articleId: number;
+  export let articleId;
   export let reactions = {
     like: 0,
     love: 0,
@@ -12,10 +12,9 @@
   };
   export let isScrolled = false;
 
-  type ReactionType = 'like' | 'love' | 'haha' | 'angry';
-  const reactionTypes: ReactionType[] = ['like', 'love', 'haha', 'angry'];
+  const reactionTypes = ['like', 'love', 'haha', 'angry'];
 
-  let userReaction: ReactionType | null = null;
+  let userReaction = null;
 
   // 获取反应状态
   async function fetchReactionStatus() {
@@ -36,7 +35,7 @@
   }
 
   // 处理反应
-  async function handleReaction(type: ReactionType) {
+  async function handleReaction(type) {
     if (!$auth.token) {
       // 如果用户未登录，显示登录提示
       const event = new CustomEvent('showAuthModal');

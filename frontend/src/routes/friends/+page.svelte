@@ -1,11 +1,7 @@
-<script lang="ts">
+<script>
   import FriendCard from '$lib/components/FriendCard.svelte';
-  import type { User } from '$lib/types/user';
 
-  export let data: {
-    users: User[];
-    total: number;
-  };
+  export let data;
 </script>
 
 <div class="container mx-auto max-w-6xl px-4 py-12">

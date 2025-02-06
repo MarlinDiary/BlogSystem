@@ -1,5 +1,5 @@
 <!-- NavigationMobile.svelte -->
-<script lang="ts">
+<script>
   import { fade, scale } from 'svelte/transition';
   import { quartOut, quartIn } from 'svelte/easing';
   import { page } from '$app/stores';
@@ -14,7 +14,7 @@
   ];
 
   let mobileMenuOpen = false;
-  let portalContainer: HTMLElement;
+  let portalContainer;
   
   $: pathname = $page.url.pathname;
   $: if (browser && !portalContainer) {

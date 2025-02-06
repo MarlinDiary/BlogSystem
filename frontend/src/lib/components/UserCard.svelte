@@ -1,29 +1,23 @@
-<script lang="ts">
+<script>
   import { onMount, createEventDispatcher, onDestroy } from 'svelte';
   import { userApi } from '$lib/utils/api';
   import { goto } from '$app/navigation';
   import { fade, scale } from 'svelte/transition';
   import { cubicOut } from 'svelte/easing';
 
-  export let userId: number;
-  export let username: string = '';
-  export let avatarUrl: string = '';
-  export let realName: string = '';
-  export let bio: string = '';
-  export let dateOfBirth: string = '';
+  export let userId;
+  export let username = '';
+  export let avatarUrl = '';
+  export let realName = '';
+  export let bio = '';
+  export let dateOfBirth = '';
   
   const dispatch = createEventDispatcher();
   
-  let articles: Array<{
-    id: number;
-    title: string;
-    createdAt: string;
-    viewCount: number;
-  }> = [];
-  
+  let articles = [];
   let loading = false;
   let error = '';
-  let userInfo: any = null;
+  let userInfo = null;
 
   async function loadUserData() {
     try {
@@ -42,7 +36,7 @@
       // 加载用户文章
       const result = await userApi.getUserArticles(userId);
       articles = result.items.slice(0, 3);
-    } catch (err: any) {
+    } catch (err) {
       console.error('加载用户数据失败:', err);
       error = err.message;
     } finally {
@@ -50,7 +44,7 @@
     }
   }
 
-  async function handleArticleClick(articleId: number) {
+  async function handleArticleClick(articleId) {
     dispatch('close');
     window.location.href = `/articles/${articleId}`;
   }
@@ -71,13 +65,13 @@
     window.removeEventListener('scroll', handleScroll);
   });
 
-  function formatDate(dateString: string): string {
+  function formatDate(dateString) {
     if (!dateString) return '';
     const date = new Date(dateString);
     return `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}`;
   }
 
-  function trimText(text: string, maxLength: number = 100): string {
+  function trimText(text, maxLength = 100) {
     if (!text) return '';
     return text.length > maxLength ? text.slice(0, maxLength) + '...' : text;
   }

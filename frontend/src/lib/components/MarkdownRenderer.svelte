@@ -1,10 +1,9 @@
-<script lang="ts">
+<script>
   import { marked } from 'marked';
   import { onMount } from 'svelte';
   import DOMPurify from 'dompurify';
-  import type { TokenizerAndRendererExtension, RendererExtensionFunction } from 'marked';
 
-  export let content: string;
+  export let content;
 
   let html = '';
 
@@ -16,11 +15,11 @@
     });
 
     // 添加GFM扩展
-    const gfmExtension: TokenizerAndRendererExtension = {
+    const gfmExtension = {
       name: 'gfm',
-      level: 'block' as const,
-      start(src: string) { return src.match(/^~~/)?.index; },
-      tokenizer(src: string) {
+      level: 'block',
+      start(src) { return src.match(/^~~/)?.index; },
+      tokenizer(src) {
         const rule = /^~~(.+?)~~/;
         const match = rule.exec(src);
         if (match) {
@@ -33,9 +32,9 @@
         }
         return undefined;
       },
-      renderer: ((token) => {
+      renderer: (token) => {
         return `<del>${token.text}</del>`;
-      }) as RendererExtensionFunction
+      }
     };
 
     marked.use({ extensions: [gfmExtension] });

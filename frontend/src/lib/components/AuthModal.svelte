@@ -1,10 +1,10 @@
-<script lang="ts">
+<script>
     import { createEventDispatcher, onMount } from 'svelte';
     import { auth } from '../stores/auth';
     import { authApi } from '../utils/api';
     
     export let isOpen = false;
-    export let mode: 'login' | 'register' = 'login';
+    export let mode = 'login';
     
     const dispatch = createEventDispatcher();
     
@@ -16,7 +16,7 @@
     let error = '';
     let showPassword = false;
     let loading = false;
-    let dialogRef: HTMLDialogElement;
+    let dialogRef;
     let isClosing = false;
     
     // 表单验证状态
@@ -33,16 +33,16 @@
     let isShaking = false;
     
     // 防抖函数
-    function debounce<T extends (...args: any[]) => any>(fn: T, delay: number) {
-        let timeoutId: ReturnType<typeof setTimeout>;
-        return function (...args: Parameters<T>) {
+    function debounce(fn, delay) {
+        let timeoutId;
+        return function (...args) {
             clearTimeout(timeoutId);
             timeoutId = setTimeout(() => fn.apply(null, args), delay);
         };
     }
     
     // 检查用户名是否已存在
-    const checkUsername = debounce(async (value: string) => {
+    const checkUsername = debounce(async (value) => {
         if (!value || !isValidUsername(value)) return;
         try {
             usernameChecking = true;
@@ -58,7 +58,7 @@
     }, 500);
     
     // 验证用户名格式
-    const isValidUsername = (value: string) => {
+    const isValidUsername = (value) => {
         return /^[a-zA-Z0-9_]{6,20}$/.test(value);
     };
     
@@ -213,7 +213,7 @@
             }
             
             close();
-        } catch (err: any) {
+        } catch (err) {
             error = err.message;
         } finally {
             loading = false;
@@ -411,7 +411,7 @@
                                         placeholder="YYYY-MM-DD"
                                         pattern="\d{4}-\d{2}-\d{2}"
                                         on:input={(e) => {
-                                            const input = e.target as HTMLInputElement;
+                                            const input = e.target;
                                             let value = input.value.replace(/\D/g, '');
                                             if (value.length > 8) value = value.slice(0, 8);
                                             if (value.length >= 4) value = value.slice(0, 4) + '-' + value.slice(4);

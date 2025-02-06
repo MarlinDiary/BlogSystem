@@ -5,19 +5,10 @@ import { getToken } from './auth';
 
 const API_URL = env.PUBLIC_API_URL;
 
-interface ApiOptions {
-    method?: string;
-    body?: any;
-    headers?: Record<string, string>;
-    useStoredToken?: boolean;
-    isFormData?: boolean;
-    params?: Record<string, any>;
-}
-
-export async function api(endpoint: string, options: ApiOptions = {}) {
+export async function api(endpoint, options = {}) {
     const { method = 'GET', body, headers = {}, useStoredToken = true, isFormData = false, params } = options;
 
-    // 获取认证token
+    // Get the token for authentication
     if (useStoredToken) {
         const storedToken = localStorage.getItem('token');
         if (storedToken) {
@@ -30,7 +21,7 @@ export async function api(endpoint: string, options: ApiOptions = {}) {
         }
     }
 
-    // 设置默认headers
+    // Set default headers
     if (!isFormData) {
         headers['Content-Type'] = 'application/json';
     }
@@ -38,7 +29,7 @@ export async function api(endpoint: string, options: ApiOptions = {}) {
     try {
         let url = `${API_URL}${endpoint}`;
         
-        // 添加 URL 参数
+        // Add URL parameters
         if (params) {
             const searchParams = new URLSearchParams();
             Object.entries(params).forEach(([key, value]) => {
@@ -71,7 +62,7 @@ export async function api(endpoint: string, options: ApiOptions = {}) {
             headers: Object.fromEntries(response.headers.entries())
         });
 
-        // 对于 204 状态码，直接返回
+        // For 204 status, return null
         if (response.status === 204) {
             return null;
         }
@@ -89,7 +80,7 @@ export async function api(endpoint: string, options: ApiOptions = {}) {
                 statusText: response.statusText,
                 data
             });
-            throw new Error(data?.message || `请求失败 (${response.status})`);
+            throw new Error(data?.message || `Request failed (${response.status})`);
         }
 
         return data;
@@ -105,19 +96,19 @@ export async function api(endpoint: string, options: ApiOptions = {}) {
         });
 
         if (error instanceof TypeError && error.message === 'Failed to fetch') {
-            throw new Error('无法连接到服务器，请检查网络连接或确认服务器是否正在运行');
+            throw new Error('Unable to connect to the server. Please check your network connection or ensure the server is running.');
         }
 
         if (error instanceof Error) {
             throw error;
         }
-        throw new Error('请求失败，请稍后重试');
+        throw new Error('Request failed. Please try again later.');
     }
 }
 
-// 认证相关API
+// Authentication related API
 export const authApi = {
-    login: async (username: string, password: string) => {
+    login: async (username, password) => {
         try {
             console.log('[Auth] Attempting login', { username });
             const result = await api('/api/auth/login', {
@@ -132,13 +123,7 @@ export const authApi = {
         }
     },
 
-    register: async (userData: {
-        username: string;
-        password: string;
-        realName: string;
-        dateOfBirth: string;
-        bio?: string;
-    }) => {
+    register: async (userData) => {
         try {
             console.log('[Auth] Attempting registration', { username: userData.username });
             const result = await api('/api/auth/register', {
@@ -189,7 +174,7 @@ export const authApi = {
         }
     },
 
-    checkUsername: async (username: string) => {
+    checkUsername: async (username) => {
         try {
             console.log('[Auth] Checking username availability', { username });
             const result = await api(`/api/auth/check-username/${username}`);
@@ -202,15 +187,10 @@ export const authApi = {
     }
 };
 
-// 用户相关API
+// User related API
 export const userApi = {
-    // 更新个人资料
-    updateProfile: async (data: {
-        username: string;
-        realName: string;
-        dateOfBirth: string;
-        bio?: string;
-    }) => {
+    // Update user profile
+    updateProfile: async (data) => {
         try {
             console.log('[User] Updating profile', { username: data.username });
             const result = await api('/api/users/me', {
@@ -225,8 +205,8 @@ export const userApi = {
         }
     },
 
-    // 上传头像
-    uploadAvatar: async (formData: FormData) => {
+    // Upload avatar
+    uploadAvatar: async (formData) => {
         try {
             console.log('[User] Uploading avatar');
             const result = await api('/api/users/me/avatar', {
@@ -242,8 +222,8 @@ export const userApi = {
         }
     },
 
-    // 修改密码
-    changePassword: async (currentPassword: string, newPassword: string) => {
+    // Change password
+    changePassword: async (currentPassword, newPassword) => {
         try {
             console.log('[User] Changing password');
             const result = await api('/api/users/me/password', {
@@ -261,12 +241,8 @@ export const userApi = {
         }
     },
 
-    // 删除账户
-    deleteAccount: async (data: {
-        password: string;
-        deleteArticles: boolean;
-        deleteComments: boolean;
-    }) => {
+    // Delete account
+    deleteAccount: async (data) => {
         try {
             console.log('[User] Deleting account');
             const result = await api('/api/users/me', {
@@ -281,7 +257,7 @@ export const userApi = {
         }
     },
 
-    // 获取当前用户信息
+    // Get current user info
     getCurrentUser: async () => {
         try {
             console.log('[User] Getting current user info');
@@ -294,8 +270,8 @@ export const userApi = {
         }
     },
 
-    // 获取用户文章列表
-    getUserArticles: async (userId: number) => {
+    // Get user articles
+    getUserArticles: async (userId) => {
         try {
             console.log('[User] Getting user articles', { userId });
             const result = await api(`/api/users/${userId}/articles`);
@@ -307,8 +283,8 @@ export const userApi = {
         }
     },
 
-    // 删除文章
-    deleteArticle: async (articleId: number) => {
+    // Delete article
+    deleteArticle: async (articleId) => {
         try {
             console.log('[User] Deleting article', { articleId });
             const result = await api(`/api/articles/${articleId}`, {
@@ -322,8 +298,8 @@ export const userApi = {
         }
     },
 
-    // 获取用户评论列表
-    getUserComments: async (userId: number) => {
+    // Get user comments
+    getUserComments: async (userId) => {
         try {
             console.log('[User] Getting user comments', { userId });
             const result = await api(`/api/users/${userId}/comments`);
@@ -335,8 +311,8 @@ export const userApi = {
         }
     },
 
-    // 删除评论
-    deleteComment: async (commentId: number) => {
+    // Delete comment
+    deleteComment: async (commentId) => {
         try {
             console.log('[User] Deleting comment', { commentId });
             const result = await api(`/api/comments/${commentId}`, {
@@ -349,4 +325,4 @@ export const userApi = {
             throw error;
         }
     }
-}; 
+};

@@ -1,18 +1,18 @@
 <!-- ThemeSwitcher.svelte -->
-<script lang="ts">
+<script>
   import { onMount } from 'svelte';
   import Moon from './icons/Moon.svelte';
   import Sun from './icons/Sun.svelte';
   import '../styles/icon.css';
   
-  let theme: 'light' | 'dark' = 'light';
+  let theme = 'light';
   let mounted = false;
   
   onMount(() => {
     mounted = true;
     // 检查系统主题偏好
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    const savedTheme = localStorage.getItem('theme') as typeof theme | null;
+    const savedTheme = localStorage.getItem('theme');
     
     if (savedTheme) {
       theme = savedTheme;

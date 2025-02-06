@@ -1,5 +1,5 @@
 <!-- NavigationDesktop.svelte -->
-<script lang="ts">
+<script>
   import { page } from '$app/stores';
 
   // 模拟导航数据，你也可以从外部传入
@@ -18,8 +18,8 @@
   $: pathname = $page.url.pathname;
 
   // 当鼠标移动时，更新相关数据
-  function handleMouseMove(event: MouseEvent) {
-    const bounds = (event.currentTarget as HTMLElement).getBoundingClientRect();
+  function handleMouseMove(event) {
+    const bounds = event.currentTarget.getBoundingClientRect();
     mouseX = event.clientX - bounds.left;
     mouseY = event.clientY - bounds.top;
     radius = Math.sqrt(bounds.width ** 2 + bounds.height ** 2) / 2.5;
@@ -29,7 +29,7 @@
   $: background = `radial-gradient(${radius}px circle at ${mouseX}px ${mouseY}px, var(--spotlight-color) 0%, transparent 65%)`;
 
   // 计算链接的类名，当前激活项使用特殊颜色
-  function navLinkClasses(isActive: boolean) {
+  function navLinkClasses(isActive) {
     return `relative block whitespace-nowrap px-3 py-2 transition ${
       isActive
         ? 'text-lime-600 dark:text-lime-400'

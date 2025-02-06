@@ -1,4 +1,4 @@
-<script lang="ts">
+<script>
   import { enhance } from '$app/forms';
   import { fade, scale } from 'svelte/transition';
   import { createEventDispatcher } from 'svelte';
@@ -7,19 +7,9 @@
   import MarkdownRenderer from './MarkdownRenderer.svelte';
   import { env } from '$env/dynamic/public';
 
-  interface User {
-    id: string;
-    username: string;
-    realName: string;
-    dateOfBirth: string;
-    bio?: string;
-    createdAt: string;
-    avatarUrl?: string;
-  }
-
-  export let articleId: number;
-  export let user: User | null = null;
-  export let parentId: number | null = null;
+  export let articleId;
+  export let user = null;
+  export let parentId = null;
 
   let content = '';
   let isPreview = false;
@@ -28,37 +18,29 @@
   const MAX_LENGTH = 1000;
   let avatarTimestamp = Date.now();
   let showAuthModal = false;
-  let authMode: 'login' | 'register' = 'login';
+  let authMode = 'login';
 
   // 鼠标位置状态
   let mouseX = 0;
   let mouseY = 0;
 
   // 获取头像 URL
-  function getAvatarUrl(userId: string | null | undefined): string {
+  function getAvatarUrl(userId) {
     if (!userId) return '/uploads/avatars/default.png';
     const url = `${env.PUBLIC_API_URL}/api/users/${userId}/avatar?t=${avatarTimestamp}`;
     return url;
   }
 
-  function handleMouseMove(event: MouseEvent) {
-    const bounds = (event.currentTarget as HTMLElement).getBoundingClientRect();
+  function handleMouseMove(event) {
+    const bounds = event.currentTarget.getBoundingClientRect();
     mouseX = event.clientX - bounds.left;
     mouseY = event.clientY - bounds.top;
   }
 
-  const dispatch = createEventDispatcher<{
-    commentAdded: {
-      id: number;
-      content: string;
-      createdAt: string;
-      parentId: number | null;
-      user: User;
-    };
-  }>();
+  const dispatch = createEventDispatcher();
 
-  function handleImageError(event: Event) {
-    const img = event.target as HTMLImageElement;
+  function handleImageError(event) {
+    const img = event.target;
     img.src = '/uploads/avatars/default.png';
   }
 
@@ -103,8 +85,8 @@
     }
   }
 
-  function adjustHeight(e: Event) {
-    const textarea = e.target as HTMLTextAreaElement;
+  function adjustHeight(e) {
+    const textarea = e.target;
     const lineHeight = 24;
     const maxHeight = 200;
     

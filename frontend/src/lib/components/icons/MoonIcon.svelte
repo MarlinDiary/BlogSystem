@@ -1,19 +1,23 @@
 <!-- MoonIcon.svelte -->
-<script lang="ts">
-  export let class_name = '';
+<script>
+  import Icon from './Icon.svelte';
+
+  export let className = undefined;
+  export let width = undefined;
+  export let height = undefined;
 </script>
 
-<svg
-  xmlns="http://www.w3.org/2000/svg"
-  class={class_name}
-  fill="none"
-  viewBox="0 0 24 24"
-  stroke="currentColor"
-  stroke-width="2"
->
-  <path
-    stroke-linecap="round"
-    stroke-linejoin="round"
-    d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
-  />
-</svg> 
+<Icon {className} {width} {height}>
+  <svg 
+    viewBox="0 0 24 24" 
+    fill="none" 
+    aria-hidden="true"
+  >
+    <path
+      d="M17.25 16.22a6.937 6.937 0 0 1-9.47-9.47 7.451 7.451 0 1 0 9.47 9.47ZM12.75 7C17 7 17 2.75 17 2.75S17 7 21.25 7C17 7 17 11.25 17 11.25S17 7 12.75 7Z"
+      stroke-width="1.5"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+  </svg>
+</Icon> 

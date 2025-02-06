@@ -1,13 +1,13 @@
-<script lang="ts">
+<script>
   import { onMount } from 'svelte';
   import Navigation from './Navigation.svelte';
   import SearchButton from './SearchButton.svelte';
   import UserButton from './UserButton.svelte';
   
-  export let navigationItems: Array<{ href: string; text: string }>;
+  export let navigationItems;
   
   let lastScrollY = 0;
-  let headerRef: HTMLElement;
+  let headerRef;
   
   function handleScroll() {
     if (!headerRef) return;

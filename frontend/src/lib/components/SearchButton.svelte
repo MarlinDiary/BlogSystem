@@ -1,5 +1,5 @@
 <!-- SearchButton.svelte -->
-<script lang="ts">
+<script>
   import { onMount } from 'svelte';
   import '../styles/icon.css';
   import SearchModal from './SearchModal.svelte';

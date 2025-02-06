@@ -1,4 +1,4 @@
-<script lang="ts">
+<script>
   import { onMount, onDestroy } from 'svelte';
 
   // 配置参数
@@ -8,14 +8,14 @@
   export let scale = 1.05;     // 悬浮时的缩放比例
   export let disabled = false;  // 是否禁用效果
 
-  let cardRef: HTMLElement;
+  let cardRef;
   let tiltX = 0, tiltY = 0;    // 当前倾斜角度
   let targetX = 0, targetY = 0; // 目标倾斜角度
-  let rafId: number;
+  let rafId;
   let isHovered = false;
 
   // 计算鼠标和卡片中心的偏移，得出目标倾斜
-  function handleMouseMove(e: MouseEvent) {
+  function handleMouseMove(e) {
     if (!cardRef || disabled) return;
     
     const rect = cardRef.getBoundingClientRect();

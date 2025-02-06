@@ -1,5 +1,5 @@
 <!-- AccountModal.svelte -->
-<script lang="ts">
+<script>
   import { createEventDispatcher, onMount } from 'svelte';
   import { auth } from '../stores/auth';
   import { userApi } from '../utils/api';
@@ -7,22 +7,17 @@
   import { invalidate } from '$app/navigation';
   import { browser } from '$app/environment';
   import { goto } from '$app/navigation';
-  import type { User } from '../stores/auth';
   import { toast } from '$lib/utils/toast';
   
   export let isOpen = false;
   
   const dispatch = createEventDispatcher();
-  let dialogRef: HTMLDialogElement;
+  let dialogRef;
   let isClosing = false;
-  let fileInput: HTMLInputElement;
+  let fileInput;
   let avatarTimestamp = Date.now();
   
-  type EditableField = 'username' | 'realName' | 'dateOfBirth' | 'bio';
-  type SectionType = 'profile' | 'articles' | 'comments' | 'security' | 'danger';
-  
-  // 编辑状态
-  let editingField: EditableField | null = null;
+  let editingField = null;
   let editForm = {
     username: $auth.user?.username || '',
     realName: $auth.user?.realName || '',
@@ -31,14 +26,11 @@
     avatarUrl: getAvatarUrl(getUserId($auth.user))
   };
   
-  // 临时编辑值
   let tempEditValue = '';
   
-  // 添加验证规则
   const USERNAME_REGEX = /^[a-zA-Z0-9_]{3,20}$/;
   const REALNAME_REGEX = /^[\u4e00-\u9fa5a-zA-Z0-9_\s]{2,20}$/;
   
-  // 验证状态
   let validationState = {
     username: true,
     realName: true,
@@ -46,8 +38,7 @@
     bio: true
   };
   
-  // 验证函数
-  function validateField(field: EditableField, value: string): boolean {
+  function validateField(field, value) {
     switch (field) {
       case 'username':
         return USERNAME_REGEX.test(value);
@@ -65,8 +56,7 @@
     }
   }
   
-  // 开始编辑字段
-  function startEditing(field: EditableField) {
+  function startEditing(field) {
     editingField = field;
     if (field === 'dateOfBirth') {
       tempEditValue = editForm.dateOfBirth || '';
@@ -74,22 +64,19 @@
       tempEditValue = editForm[field];
     }
     validationState[field] = validateField(field, tempEditValue);
-    // 下一个事件循环中聚焦输入框
     setTimeout(() => {
-      const input = document.querySelector(`[data-field="${field}"]`) as HTMLInputElement | HTMLTextAreaElement;
+      const input = document.querySelector(`[data-field="${field}"]`);
       if (input) {
         input.focus();
       }
     }, 0);
   }
   
-  // 取消编辑
   function cancelEditing() {
     editingField = null;
     tempEditValue = '';
   }
   
-  // 处理关闭
   function close() {
     isClosing = true;
     setTimeout(() => {
@@ -98,12 +85,10 @@
       }
       dispatch('close');
       isClosing = false;
-      // 重置为个人资料页面
       currentSection = 'profile';
     }, 200);
   }
   
-  // 头像 URL 依赖
   let avatarKey = '';
   
   onMount(() => {
@@ -112,20 +97,17 @@
     }
   });
 
-  // 获取头像 URL
-  function getAvatarUrl(userId: number | null | undefined): string {
+  function getAvatarUrl(userId) {
     if (!userId) return '/logo.png';
     const url = `${env.PUBLIC_API_URL}/api/users/${userId}/avatar?t=${avatarTimestamp}`;
     console.log('AccountModal 生成的头像URL:', url);
     return url;
   }
 
-  // 监听头像更新
   $: if (avatarKey) {
     // 强制组件重新渲染
   }
 
-  // 重置表单状态
   function resetForms() {
     const timestamp = Date.now();
     editForm = {
@@ -135,19 +117,8 @@
       bio: $auth.user?.bio || '',
       avatarUrl: getAvatarUrl(getUserId($auth.user))
     };
-    passwordForm = {
-      currentPassword: '',
-      newPassword: '',
-      confirmPassword: ''
-    };
-    deleteForm = {
-      password: '',
-      deleteArticles: true,
-      deleteComments: true
-    };
   }
 
-  // 监听 auth store 变化，更新表单状态
   $: if ($auth.user) {
     editForm = {
       username: $auth.user.username || '',
@@ -158,13 +129,11 @@
     };
   }
 
-  // 监听编辑值变化时验证
   $: if (editingField && tempEditValue !== undefined) {
     validationState[editingField] = validateField(editingField, tempEditValue);
   }
 
-  // 保存单个字段
-  async function saveField(field: EditableField) {
+  async function saveField(field) {
     if (!validationState[field]) return;
     
     try {
@@ -175,19 +144,18 @@
         [field]: tempEditValue
       });
       
-      // 更新 auth store 中的用户信息
       auth.updateUser({
+        ...($auth.user || {}),
         ...updatedUser,
         id: Number(updatedUser.id)
       });
       
-      // 更新本地表单状态，但保持头像 URL 不变
       editForm = {
         username: updatedUser.username || '',
         realName: updatedUser.realName || '',
         dateOfBirth: updatedUser.dateOfBirth || '',
         bio: updatedUser.bio || '',
-        avatarUrl: editForm.avatarUrl // 保持原有的头像 URL
+        avatarUrl: editForm.avatarUrl
       };
       
       editingField = null;
@@ -195,33 +163,29 @@
       setTimeout(() => {
         success = '';
       }, 2000);
-    } catch (err: any) {
+    } catch (err) {
       error = err.message;
     } finally {
       loading = false;
     }
   }
 
-  // 获取用户ID（确保是数字类型）
-  function getUserId(user: any): number | null {
+  function getUserId(user) {
     if (!user?.id) return null;
     const id = typeof user.id === 'string' ? parseInt(user.id) : user.id;
     return isNaN(id) ? null : id;
   }
 
-  // 处理头像上传
-  async function handleAvatarUpload(event: Event) {
-    const target = event.target as HTMLInputElement;
+  async function handleAvatarUpload(event) {
+    const target = event.target;
     const file = target.files?.[0];
     if (!file) return;
 
-    // 验证文件类型
     if (!file.type.startsWith('image/')) {
       error = '请上传图片文件';
       return;
     }
 
-    // 验证文件大小
     if (file.size > 2 * 1024 * 1024) {
       error = '图片大小不能超过 2MB';
       return;
@@ -237,26 +201,20 @@
       const updatedUser = await userApi.uploadAvatar(formData);
       console.log('头像上传成功:', updatedUser);
       
-      // 保持原有的用户ID
       const currentUserId = getUserId($auth.user);
       
-      // 更新时间戳
       avatarTimestamp = Date.now();
       
-      // 更新 auth store 中的用户信息
       auth.updateUser({
-        ...$auth.user,
+        ...($auth.user || {}),
         ...updatedUser,
-        id: currentUserId // 使用原有的用户ID
+        id: currentUserId
       });
       
-      // 强制更新头像
       await invalidate('app:avatar');
       
-      // 触发头像更新事件
       dispatch('avatarUpdate');
       
-      // 更新本地表单状态
       editForm = {
         username: $auth.user?.username || '',
         realName: $auth.user?.realName || '',
@@ -269,17 +227,15 @@
       setTimeout(() => {
         success = '';
       }, 2000);
-    } catch (err: any) {
+    } catch (err) {
       console.error('头像上传失败:', err);
       error = err.message;
     } finally {
       loading = false;
-      // 清空 input 值，允许重复上传相同文件
       target.value = '';
     }
   }
   
-  // 修改密码状态
   let isChangingPassword = false;
   let passwordForm = {
     currentPassword: '',
@@ -287,7 +243,6 @@
     confirmPassword: ''
   };
   
-  // 删除账户状态
   let isDeleting = false;
   let deleteForm = {
     password: '',
@@ -295,27 +250,15 @@
     deleteComments: true
   };
   
-  // 错误信息
   let error = '';
   let success = '';
   
-  // 加载状态
   let loading = false;
 
-  // 当前选中的菜单项
-  let currentSection: SectionType = 'profile';
+  let currentSection = 'profile';
   
-  // 评论列表状态
-  let comments: Array<{
-    id: number;
-    content: string;
-    createdAt: string;
-    articleId: number;
-    articleTitle: string;
-    visibility: string;
-  }> = [];
+  let comments = [];
   
-  // 加载用户文章
   async function loadUserArticles() {
     try {
       loading = true;
@@ -326,19 +269,17 @@
         return;
       }
       const result = await userApi.getUserArticles(userId);
-      // 更新用户数据中的文章列表
       auth.updateUser({
-        ...$auth.user!,
+        ...($auth.user || {}),
         articles: result.items
       });
-    } catch (err: any) {
+    } catch (err) {
       error = err.message;
     } finally {
       loading = false;
     }
   }
 
-  // 加载用户评论
   async function loadUserComments() {
     try {
       loading = true;
@@ -350,19 +291,17 @@
       }
       const result = await userApi.getUserComments(userId);
       comments = result.items;
-    } catch (err: any) {
+    } catch (err) {
       error = err.message;
     } finally {
       loading = false;
     }
   }
 
-  // 监听section变化，当切换到articles时加载文章
   $: if (currentSection === 'articles') {
     loadUserArticles();
   }
 
-  // 监听section变化，当切换到comments时加载评论
   $: if (currentSection === 'comments') {
     loadUserComments();
   }
@@ -378,7 +317,6 @@
     close();
   }
 
-  // 保存个人资料
   async function saveProfile() {
     try {
       loading = true;
@@ -389,14 +327,13 @@
       setTimeout(() => {
         success = '';
       }, 3000);
-    } catch (err: any) {
+    } catch (err) {
       error = err.message;
     } finally {
       loading = false;
     }
   }
 
-  // 修改密码
   async function changePassword() {
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
       error = '两次输入的密码不一致';
@@ -414,14 +351,13 @@
         newPassword: '',
         confirmPassword: ''
       };
-    } catch (err: any) {
+    } catch (err) {
       error = err.message;
     } finally {
       loading = false;
     }
   }
 
-  // 删除账户
   async function deleteAccount() {
     try {
       loading = true;
@@ -429,23 +365,20 @@
       await userApi.deleteAccount(deleteForm);
       auth.logout();
       close();
-    } catch (err: any) {
+    } catch (err) {
       error = err.message;
     } finally {
       loading = false;
     }
   }
 
-  // 删除文章确认状态
-  let deletingArticleId: number | null = null;
+  let deletingArticleId = null;
 
-  // 开始删除确认
-  function startDelete(articleId: number) {
+  function startDelete(articleId) {
     if (deletingArticleId === articleId) {
       deleteArticle(articleId);
     } else {
       deletingArticleId = articleId;
-      // 3秒后自动取消确认状态
       setTimeout(() => {
         if (deletingArticleId === articleId) {
           deletingArticleId = null;
@@ -454,23 +387,19 @@
     }
   }
 
-  // 删除文章
-  async function deleteArticle(articleId: number) {
+  async function deleteArticle(articleId) {
     try {
       loading = true;
       
-      // 先在UI上移除文章
       if ($auth.user?.articles) {
         auth.updateUser({
-          ...$auth.user,
+          ...($auth.user || {}),
           articles: $auth.user.articles.filter(article => article.id !== articleId)
         });
       }
       
-      // 发送删除请求
       await userApi.deleteArticle(articleId);
       
-      // 如果当前在文章页面，跳转到文章列表页面
       const currentPath = window.location.pathname;
       if (currentPath.startsWith('/articles/') && currentPath !== '/articles') {
         window.location.href = '/articles';
@@ -478,7 +407,6 @@
       
     } catch (error) {
       console.error('删除文章失败:', error);
-      // 如果删除失败，恢复文章列表
       await loadUserArticles();
     } finally {
       loading = false;
@@ -486,16 +414,13 @@
     }
   }
 
-  // 删除评论确认状态
-  let deletingCommentId: number | null = null;
+  let deletingCommentId = null;
 
-  // 开始删除评论确认
-  function startDeleteComment(commentId: number) {
+  function startDeleteComment(commentId) {
     if (deletingCommentId === commentId) {
       deleteComment(commentId);
     } else {
       deletingCommentId = commentId;
-      // 3秒后自动取消确认状态
       setTimeout(() => {
         if (deletingCommentId === commentId) {
           deletingCommentId = null;
@@ -504,18 +429,13 @@
     }
   }
 
-  // 删除评论
-  async function deleteComment(commentId: number) {
+  async function deleteComment(commentId) {
     try {
-      // 先在UI上移除评论
       comments = comments.filter(comment => comment.id !== commentId);
-      
-      // 发送删除请求
       await userApi.deleteComment(commentId);
-    } catch (error: any) {
+    } catch (error) {
       console.error('删除评论失败:', error);
       error = error.message || '删除评论失败';
-      // 如果删除失败，恢复被删除的评论
       comments = [...comments];
     } finally {
       loading = false;
@@ -523,7 +443,6 @@
     }
   }
 
-  // 监听isOpen变化，控制对话框显示状态
   $: if (isOpen) {
     isClosing = false;
     if (dialogRef) {
@@ -539,21 +458,18 @@
     }
   }
 
-  // 组件卸载时恢复滚动
   onMount(() => {
     return () => {
       document.body.style.overflow = '';
     };
   });
 
-  // 处理文章链接点击
-  function handleArticleClick(articleId: number) {
+  function handleArticleClick(articleId) {
     close();
     window.location.href = `/articles/${articleId}`;
   }
 
-  // 添加响应式状态
-  let isMobile: boolean;
+  let isMobile;
   let showContent = false;
   
   function handleResize() {
@@ -572,7 +488,6 @@
     };
   });
 
-  // 添加日期相关的状态和函数
   let dateForm = {
     year: '',
     month: '',
@@ -583,14 +498,14 @@
   const months = Array.from({ length: 12 }, (_, i) => i + 1);
   const days = Array.from({ length: 31 }, (_, i) => i + 1);
   
-  function formatDate(dateStr: string) {
+  function formatDate(dateStr) {
     if (!dateStr) return '';
     const date = new Date(dateStr);
     return `${date.getFullYear()} 年 ${date.getMonth() + 1} 月 ${date.getDate()} 日`;
   }
   
-  function handleDateInput(event: Event) {
-    const input = event.target as HTMLInputElement;
+  function handleDateInput(event) {
+    const input = event.target;
     let value = input.value.replace(/\D/g, '');
     if (value.length > 8) value = value.slice(0, 8);
     if (value.length >= 4) value = value.slice(0, 4) + '-' + value.slice(4);
@@ -600,28 +515,24 @@
     validationState.dateOfBirth = validateField('dateOfBirth', value);
   }
 
-  // 修改移动端点击处理
-  function handleSectionClick(section: SectionType) {
+  function handleSectionClick(section) {
     currentSection = section;
     if (isMobile) {
       showContent = true;
     }
   }
 
-  // 修改取消编辑函数，只在按 Escape 键时触发
-  function handleKeydown(event: KeyboardEvent) {
+  function handleKeydown(event) {
     if (event.key === 'Escape') {
       cancelEditing();
     }
   }
 
-  // 修改 toggleCommentVisibility 函数实现乐观更新
-  async function toggleCommentVisibility(commentId: number) {
+  async function toggleCommentVisibility(commentId) {
     try {
       const targetComment = comments.find(c => c.id === commentId);
       if (!targetComment) return;
 
-      // 乐观更新
       const newVisibility = targetComment.visibility === 'visible' ? 'hidden' : 'visible';
       comments = comments.map(comment => 
         comment.id === commentId 
@@ -629,7 +540,6 @@
           : comment
       );
       
-      // 发送请求
       const response = await fetch(`/api/comments/${commentId}/visibility`, {
         method: 'PATCH',
         headers: {
@@ -639,7 +549,6 @@
       });
 
       if (!response.ok) {
-        // 如果请求失败，回滚更改
         comments = comments.map(comment => 
           comment.id === commentId 
             ? { ...comment, visibility: targetComment.visibility }
@@ -648,14 +557,13 @@
         throw new Error('切换评论可见性失败');
       }
 
-      // 请求成功，使用服务器返回的状态更新（以防万一）
       const updatedComment = await response.json();
       comments = comments.map(comment => 
         comment.id === commentId 
           ? { ...comment, visibility: updatedComment.visibility }
           : comment
       );
-    } catch (err: any) {
+    } catch (err) {
       console.error('切换评论可见性失败:', err);
     }
   }
@@ -755,7 +663,6 @@
             </nav>
           </div>
 
-          <!-- 退出登录按钮 -->
           <div class="p-6">
             <button
               class="w-full px-4 py-2.5 text-zinc-600 hover:bg-zinc-50 dark:text-zinc-400 dark:hover:bg-zinc-800/50 rounded-lg transition-all flex items-center space-x-3 group"
@@ -771,9 +678,7 @@
           </div>
         </div>
 
-        <!-- 右侧内容区 -->
         <div class="flex-1 relative {!showContent && isMobile ? 'hidden' : ''} p-8">
-          <!-- 移动端顶部栏 -->
           {#if isMobile}
             <div class="fixed top-0 left-0 right-0 z-10 bg-white/80 dark:bg-zinc-800/80 backdrop-blur-sm border-b border-zinc-200 dark:border-zinc-700/50">
               <div class="h-14 px-4 flex items-center">
@@ -792,7 +697,6 @@
           {/if}
 
           <div class="h-full overflow-y-auto {isMobile ? 'mt-14' : ''} scrollbar-none">
-            <!-- 错误/成功提示 -->
             <div class="fixed top-4 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 pointer-events-none">
               {#if error}
                 <div class="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-200 text-sm backdrop-blur-sm animate-in fade-in slide-in-from-top duration-300">
@@ -808,16 +712,13 @@
             </div>
 
             {#if currentSection === 'profile'}
-              <!-- 个人资料部分 -->
               <div class="space-y-8">
                 {#if !isMobile}
                   <h3 class="text-lg font-semibold mb-8 dark:text-white">个人资料</h3>
                 {/if}
-                <!-- 头像部分 -->
                 <div class="flex items-start space-x-4">
                   <div class="shrink-0">
                     <div class="relative group">
-                      <!-- 大头像 -->
                       {#key avatarTimestamp}
                       <img
                         src={getAvatarUrl(getUserId($auth.user))}
@@ -861,9 +762,7 @@
                   </div>
                 </div>
 
-                <!-- 用户信息表单 -->
                 <div class="space-y-6">
-                  <!-- 用户名 -->
                   <div class="flex {isMobile ? 'flex-col space-y-2' : 'items-center space-x-4'}">
                     <div class="{isMobile ? 'w-full' : 'w-32 shrink-0'}">
                       <span class="block text-sm font-medium text-zinc-500 dark:text-zinc-400">用户名</span>
@@ -905,7 +804,6 @@
                     </div>
                   </div>
 
-                  <!-- 真实姓名 -->
                   <div class="flex {isMobile ? 'flex-col space-y-2' : 'items-center space-x-4'}">
                     <div class="{isMobile ? 'w-full' : 'w-32 shrink-0'}">
                       <span class="block text-sm font-medium text-zinc-500 dark:text-zinc-400">真实姓名</span>
@@ -951,7 +849,6 @@
                     </div>
                   </div>
 
-                  <!-- 出生日期 -->
                   <div class="flex {isMobile ? 'flex-col space-y-2' : 'items-center space-x-4'}">
                     <div class="{isMobile ? 'w-full' : 'w-32 shrink-0'}">
                       <span class="block text-sm font-medium text-zinc-500 dark:text-zinc-400">出生日期</span>
@@ -999,7 +896,6 @@
                     </div>
                   </div>
 
-                  <!-- 个人简介 -->
                   <div class="flex {isMobile ? 'flex-col space-y-2' : 'items-center space-x-4'}">
                     <div class="{isMobile ? 'w-full' : 'w-32 shrink-0'}">
                       <span class="block text-sm font-medium text-zinc-500 dark:text-zinc-400">个人简介</span>
@@ -1048,7 +944,6 @@
                 </div>
               </div>
             {:else if currentSection === 'articles'}
-              <!-- 我的文章部分 -->
               <div>
                 {#if !isMobile}
                   <h3 class="text-lg font-semibold mb-8 dark:text-white">我的文章</h3>
@@ -1163,7 +1058,6 @@
                 {/if}
               </div>
             {:else if currentSection === 'comments'}
-              <!-- 我的评论部分 -->
               <div>
                 {#if !isMobile}
                   <h3 class="text-lg font-semibold mb-8 dark:text-white">我的评论</h3>
@@ -1204,7 +1098,6 @@
                           </div>
                         </div>
                         <div class="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
-                          <!-- 可见性控制按钮 -->
                           {#if comment.visibility === 'hidden'}
                             <button
                               type="button"
@@ -1289,138 +1182,115 @@
                 {/if}
               </div>
             {:else if currentSection === 'security'}
-              <!-- 安全设置部分 -->
               <div>
                 {#if !isMobile}
                   <h3 class="text-lg font-semibold mb-8 dark:text-white">安全设置</h3>
                 {/if}
-                {#if isChangingPassword}
-                  <form on:submit|preventDefault={changePassword} class="space-y-4">
+                <div class="space-y-6">
+                  <div class="space-y-4">
                     <div>
-                      <label for="currentPassword" class="block text-sm font-medium text-zinc-700 dark:text-zinc-300">当前密码</label>
+                      <label for="currentPassword" class="block text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-1">当前密码</label>
                       <input
                         type="password"
                         id="currentPassword"
                         bind:value={passwordForm.currentPassword}
-                        class="mt-1 block w-full rounded-md border-zinc-300 bg-white/50 shadow-sm focus:border-zinc-500 focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800/50 dark:text-zinc-100"
-                        required
+                        class="block w-full h-[38px] rounded-md border-zinc-300 bg-white/50 shadow-sm focus:border-zinc-500 focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800/50 dark:text-zinc-100"
                       />
                     </div>
-                    
                     <div>
-                      <label for="newPassword" class="block text-sm font-medium text-zinc-700 dark:text-zinc-300">新密码</label>
+                      <label for="newPassword" class="block text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-1">新密码</label>
                       <input
                         type="password"
                         id="newPassword"
                         bind:value={passwordForm.newPassword}
-                        class="mt-1 block w-full rounded-md border-zinc-300 bg-white/50 shadow-sm focus:border-zinc-500 focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800/50 dark:text-zinc-100"
-                        required
+                        class="block w-full h-[38px] rounded-md border-zinc-300 bg-white/50 shadow-sm focus:border-zinc-500 focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800/50 dark:text-zinc-100"
                       />
                     </div>
-                    
                     <div>
-                      <label for="confirmPassword" class="block text-sm font-medium text-zinc-700 dark:text-zinc-300">确认新密码</label>
+                      <label for="confirmPassword" class="block text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-1">确认新密码</label>
                       <input
                         type="password"
                         id="confirmPassword"
                         bind:value={passwordForm.confirmPassword}
-                        class="mt-1 block w-full rounded-md border-zinc-300 bg-white/50 shadow-sm focus:border-zinc-500 focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800/50 dark:text-zinc-100"
-                        required
+                        class="block w-full h-[38px] rounded-md border-zinc-300 bg-white/50 shadow-sm focus:border-zinc-500 focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800/50 dark:text-zinc-100"
                       />
                     </div>
-                    
-                    <div class="flex justify-end space-x-3">
-                      <button
-                        type="button"
-                        class="px-4 py-2 text-sm text-zinc-600 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
-                        on:click={() => isChangingPassword = false}
-                        disabled={loading}
-                      >
-                        取消
-                      </button>
-                      <button
-                        type="submit"
-                        class="px-4 py-2 text-sm bg-zinc-900 text-white rounded-md hover:bg-zinc-800 dark:bg-zinc-800 dark:hover:bg-zinc-700 disabled:opacity-50"
-                        disabled={loading}
-                      >
-                        {loading ? '修改中...' : '修改密码'}
-                      </button>
-                    </div>
-                  </form>
-                {:else}
-                  <button
-                    class="w-full text-left px-4 py-3 rounded-lg bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-900/50 dark:hover:bg-zinc-900 dark:text-white transition-colors"
-                    on:click={() => isChangingPassword = true}
-                  >
-                    修改密码
-                  </button>
-                {/if}
+                    <button
+                      type="button"
+                      class="w-full px-4 py-2 text-sm bg-zinc-900 text-white rounded-md hover:bg-zinc-800 dark:bg-zinc-800 dark:hover:bg-zinc-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      on:click={changePassword}
+                      disabled={loading || !passwordForm.currentPassword || !passwordForm.newPassword || !passwordForm.confirmPassword}
+                    >
+                      {#if loading}
+                        <span class="flex items-center justify-center">
+                          <svg class="w-5 h-5 animate-spin mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 3v3m6.366-.366-2.12 2.12M21 12h-3m.366 6.366-2.12-2.12M12 21v-3m-6.366.366 2.12-2.12M3 12h3m-.366-6.366 2.12 2.12" />
+                          </svg>
+                          修改中...
+                        </span>
+                      {:else}
+                        修改密码
+                      {/if}
+                    </button>
+                  </div>
+                </div>
               </div>
             {:else if currentSection === 'danger'}
-              <!-- 危险区域 -->
               <div>
                 {#if !isMobile}
                   <h3 class="text-lg font-semibold mb-8 dark:text-white">危险区域</h3>
                 {/if}
-                {#if isDeleting}
-                  <form on:submit|preventDefault={deleteAccount} class="space-y-4">
+                <div class="space-y-6">
+                  <div class="space-y-4">
+                    <p class="text-sm text-zinc-500 dark:text-zinc-400">删除账号后，您的所有数据将被永久删除且无法恢复。请谨慎操作。</p>
                     <div>
-                      <label for="deletePassword" class="block text-sm font-medium text-zinc-700 dark:text-zinc-300">输入密码确认</label>
+                      <label for="deletePassword" class="block text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-1">输入密码以确认</label>
                       <input
                         type="password"
                         id="deletePassword"
                         bind:value={deleteForm.password}
-                        class="mt-1 block w-full rounded-md border-zinc-300 bg-white/50 shadow-sm focus:border-zinc-500 focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800/50 dark:text-zinc-100"
-                        required
+                        class="block w-full h-[38px] rounded-md border-zinc-300 bg-white/50 shadow-sm focus:border-zinc-500 focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800/50 dark:text-zinc-100"
                       />
                     </div>
-                    
-                    <div class="space-y-3">
-                      <label class="flex items-center">
+                    <div class="space-y-2">
+                      <div class="flex items-center">
                         <input
                           type="checkbox"
+                          id="deleteArticles"
                           bind:checked={deleteForm.deleteArticles}
-                          class="rounded border-zinc-300 text-lime-600 shadow-sm focus:border-lime-500 focus:ring-lime-500"
+                          class="h-4 w-4 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800/50"
                         />
-                        <span class="ml-2 text-sm text-zinc-600 dark:text-zinc-400">删除我的所有文章</span>
-                      </label>
-                      
-                      <label class="flex items-center">
+                        <label for="deleteArticles" class="ml-2 block text-sm text-zinc-500 dark:text-zinc-400">同时删除我的所有文章</label>
+                      </div>
+                      <div class="flex items-center">
                         <input
                           type="checkbox"
+                          id="deleteComments"
                           bind:checked={deleteForm.deleteComments}
-                          class="rounded border-zinc-300 text-lime-600 shadow-sm focus:border-lime-500 focus:ring-lime-500"
+                          class="h-4 w-4 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800/50"
                         />
-                        <span class="ml-2 text-sm text-zinc-600 dark:text-zinc-400">删除我的所有评论</span>
-                      </label>
+                        <label for="deleteComments" class="ml-2 block text-sm text-zinc-500 dark:text-zinc-400">同时删除我的所有评论</label>
+                      </div>
                     </div>
-                    
-                    <div class="flex justify-end space-x-3">
-                      <button
-                        type="button"
-                        class="px-4 py-2 text-sm text-zinc-600 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
-                        on:click={() => isDeleting = false}
-                        disabled={loading}
-                      >
-                        取消
-                      </button>
-                      <button
-                        type="submit"
-                        class="px-4 py-2 text-sm bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50"
-                        disabled={loading}
-                      >
-                        {loading ? '删除中...' : '确认删除账户'}
-                      </button>
-                    </div>
-                  </form>
-                {:else}
-                  <button
-                    class="w-full text-left px-4 py-3 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                    on:click={() => isDeleting = true}
-                  >
-                    删除账户
-                  </button>
-                {/if}
+                    <button
+                      type="button"
+                      class="w-full px-4 py-2 text-sm bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      on:click={deleteAccount}
+                      disabled={loading || !deleteForm.password}
+                    >
+                      {#if loading}
+                        <span class="flex items-center justify-center">
+                          <svg class="w-5 h-5 animate-spin mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 3v3m6.366-.366-2.12 2.12M21 12h-3m.366 6.366-2.12-2.12M12 21v-3m-6.366.366 2.12-2.12M3 12h3m-.366-6.366 2.12 2.12" />
+                          </svg>
+                          删除中...
+                        </span>
+                      {:else}
+                        删除账号
+                      {/if}
+                    </button>
+                  </div>
+                </div>
               </div>
             {/if}
           </div>
@@ -1471,7 +1341,6 @@
     }
   }
 
-  /* 添加移动端过渡动画 */
   @media (max-width: 767px) {
     .modal-open {
       animation: modal-slide-in 0.2s ease-out;
@@ -1504,7 +1373,6 @@
     }
   }
 
-  /* 优化滚动条样式 */
   ::-webkit-scrollbar {
     width: 6px;
   }
@@ -1522,7 +1390,6 @@
     background-color: rgba(255, 255, 255, 0.1);
   }
 
-  /* 隐藏滚动条但保持可滚动 */
   .scrollbar-none {
     scrollbar-width: none;
     -ms-overflow-style: none;
@@ -1531,4 +1398,4 @@
   .scrollbar-none::-webkit-scrollbar {
     display: none;
   }
-</style> 
+</style>

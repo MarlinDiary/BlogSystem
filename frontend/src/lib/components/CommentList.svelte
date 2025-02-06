@@ -113,7 +113,7 @@
   }
 </style>
 
-<script lang="ts">
+<script>
   import { onMount } from 'svelte';
   import { fade } from 'svelte/transition';
   import CommentInput from './CommentInput.svelte';
@@ -121,35 +121,22 @@
   import MarkdownRenderer from './MarkdownRenderer.svelte';
   import AuthModal from './AuthModal.svelte';
 
-  interface User {
-    id: string;
-    username: string;
-    realName: string;
-    dateOfBirth: string;
-    bio?: string;
-    createdAt: string;
-    avatarUrl?: string;
-  }
+  export let articleId;
+  export let user = null;
+  export let isAuthor = false;
+  export let isAdmin = false;
 
-  interface Comment {
-    id: number;
-    content: string;
-    createdAt: string;
-    parentId: number | null;
-    user: User;
-    children?: Comment[];
-    visibility?: 'visible' | 'hidden';
-  }
+  let comments = [];
+  let isLoading = true;
+  let avatarTimestamp = Date.now();
+  let replyingToId = null;
+  let tempReplyContent = '';
+  let editableRef;
+  let currentKeydownHandler = null;
+  let showAuthModal = false;
+  let authMode = 'login';
 
-  interface NewComment {
-    id: number;
-    content: string;
-    createdAt: string;
-    parentId: number | null;
-    user: User;
-  }
-
-  function formatRelativeTime(dateStr: string): string {
+  function formatRelativeTime(dateStr) {
     const date = new Date(dateStr);
     const now = new Date();
     const diff = now.getTime() - date.getTime();
@@ -176,22 +163,7 @@
     }
   }
 
-  export let articleId: number;
-  export let user: User | null = null;
-  export let isAuthor: boolean = false;
-  export let isAdmin: boolean = false;
-
-  let comments: Comment[] = [];
-  let isLoading = true;
-  let avatarTimestamp = Date.now();
-  let replyingToId: number | null = null;
-  let tempReplyContent = '';
-  let editableRef: HTMLDivElement;
-  let currentKeydownHandler: ((e: Event) => void) | null = null;
-  let showAuthModal = false;
-  let authMode: 'login' | 'register' = 'login';
-
-  function getAvatarUrl(userId: string | null | undefined): string {
+  function getAvatarUrl(userId) {
     if (!userId) return '/uploads/avatars/default.png';
     return `${env.PUBLIC_API_URL}/api/users/${userId}/avatar?t=${avatarTimestamp}`;
   }
@@ -202,7 +174,7 @@
       if (response.ok) {
         const rawComments = await response.json();
         // 递归排序所有层级的评论
-        const sortComments = (comments: Comment[]): Comment[] => {
+        const sortComments = (comments) => {
           return comments.map(comment => {
             if (comment.children?.length) {
               return {
@@ -211,7 +183,7 @@
               };
             }
             return comment;
-          }).sort((a: Comment, b: Comment) => 
+          }).sort((a, b) => 
             new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
           );
         };
@@ -225,13 +197,13 @@
     }
   }
 
-  function handleCommentAdded(event: CustomEvent<NewComment>) {
+  function handleCommentAdded(event) {
     const newComment = event.detail;
     if (newComment.parentId === null) {
       comments = [{ ...newComment, children: [] }, ...comments];
     } else {
       // 如果是回复评论，需要找到父评论并添加到其 children 中
-      const updateCommentsWithNewReply = (items: Comment[]): Comment[] => {
+      const updateCommentsWithNewReply = (items) => {
         return items.map(item => {
           if (item.id === newComment.parentId) {
             return {
@@ -252,8 +224,8 @@
     }
   }
 
-  function handleClickOutside(event: MouseEvent) {
-    const target = event.target as HTMLElement;
+  function handleClickOutside(event) {
+    const target = event.target;
     if (
       target.closest('.reply-button') || 
       target.closest('.temp-reply-input')
@@ -261,12 +233,12 @@
       return;
     }
 
-    const editable = document.querySelector('.temp-reply-content[contenteditable="true"]') as HTMLElement;
+    const editable = document.querySelector('.temp-reply-content[contenteditable="true"]') || null;
     if (editable) {
       const text = editable.textContent?.trim() || '';
       if (text) {
         // 如果有内容，则提交评论
-        handleTempReply(event, replyingToId!, text);
+        handleTempReply(event, replyingToId, text);
       } else {
         // 如果没有内容，则取消评论
         replyingToId = null;
@@ -278,7 +250,7 @@
     }
   }
 
-  function handleReplyClick(event: MouseEvent, commentId: number) {
+  function handleReplyClick(event, commentId) {
     event.stopPropagation();
     // 如果当前已经在回复这条评论，则取消回复
     if (replyingToId === commentId) {
@@ -297,12 +269,12 @@
     tempReplyContent = '';
     // 等待 DOM 更新后聚焦
     setTimeout(() => {
-      const editable = document.querySelector('.temp-reply-content[contenteditable="true"]') as HTMLElement;
+      const editable = document.querySelector('.temp-reply-content[contenteditable="true"]') || null;
       if (editable) {
         editable.focus();
         // 创建并保存事件处理器
-        currentKeydownHandler = (e: Event) => {
-          handleReplyKeydown(e as KeyboardEvent);
+        currentKeydownHandler = (e) => {
+          handleReplyKeydown(e);
         };
         // 添加回车键事件监听
         editable.addEventListener('keydown', currentKeydownHandler);
@@ -310,18 +282,18 @@
     }, 0);
   }
 
-  function handleReplyKeydown(event: KeyboardEvent) {
+  function handleReplyKeydown(event) {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
-      const editable = event.target as HTMLElement;
+      const editable = event.target;
       const text = editable.textContent?.trim() || '';
       if (text) {
-        handleTempReply(new MouseEvent('click'), replyingToId!, text);
+        handleTempReply(new MouseEvent('click'), replyingToId, text);
       }
     }
   }
 
-  async function handleTempReply(event: MouseEvent, commentId: number, content: string) {
+  async function handleTempReply(event, commentId, content) {
     event.stopPropagation();
     if (!content.trim()) return;
     
@@ -389,10 +361,10 @@
     tempReplyContent = '';
   }
 
-  async function handleVisibilityToggle(commentId: number) {
+  async function handleVisibilityToggle(commentId) {
     try {
       // 递归查找评论
-      const findComment = (items: Comment[]): Comment | undefined => {
+      const findComment = (items) => {
         for (const item of items) {
           if (item.id === commentId) {
             return item;
@@ -430,7 +402,7 @@
         console.log('服务器返回的更新结果:', updatedComment);
         
         // 更新评论树中的可见性状态
-        const updateCommentVisibility = (items: Comment[]): Comment[] => {
+        const updateCommentVisibility = (items) => {
           return items.map(item => {
             if (item.id === commentId) {
               return {
@@ -457,7 +429,7 @@
     }
   }
 
-  async function handleDelete(commentId: number) {
+  async function handleDelete(commentId) {
     try {
       const response = await fetch(`/api/comments/${commentId}`, {
         method: 'DELETE',
@@ -468,7 +440,7 @@
 
       if (response.ok) {
         // 从评论树中移除该评论
-        const removeComment = (items: Comment[]): Comment[] => {
+        const removeComment = (items) => {
           return items.filter(item => {
             if (item.id === commentId) {
               return false;

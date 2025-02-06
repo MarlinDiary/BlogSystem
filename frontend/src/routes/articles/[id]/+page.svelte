@@ -1,4 +1,4 @@
-<script lang="ts">
+<script>
   import { onMount, afterUpdate, onDestroy, tick } from 'svelte';
   import { page } from '$app/stores';
   import { browser } from '$app/environment';
@@ -6,90 +6,54 @@
   import CommentList from '$lib/components/CommentList.svelte';
   import { auth } from '$lib/stores/auth';
   import UserCard from '$lib/components/UserCard.svelte';
-  
-  interface Author {
-    id: number;
-    username: string;
-    avatarUrl: string;
-    realName: string;
-    bio: string;
-    dateOfBirth: string;
-  }
 
-  interface Article {
-    id: number;
-    title: string;
-    content: string;
-    htmlContent: string;
-    imageUrl: string;
-    status: string;
-    viewCount: number;
-    createdAt: string;
-    updatedAt: string;
-    author: Author;
-    commentCount: number;
-    tags: { id: number; name: string; }[];
-  }
-
-  interface TocItem {
-    id: string;
-    text: string;
-    level: number;
-    isActive: boolean;
-  }
-
-  let article: Article | null = null;
+  let article = null;
   let loading = false;
   let error = '';
-  let tocItems: TocItem[] = [];
+  let tocItems = [];
   let activeHeadingId = '';
-  let observer: IntersectionObserver | null = null;
+  let observer = null;
   let isScrolled = false;
   let showUserCard = false;
   let userCardPosition = { x: 0, y: 0 };
   let isMobile = false;
 
-  // 生成标题ID
-  function generateHeadingId(text: string): string {
+  function generateHeadingId(text) {
     return text
       .toLowerCase()
       .replace(/\s+/g, '-')
-      .replace(/[^\w\u4e00-\u9fa5-]/g, '') // 保留中文字符
+      .replace(/[^\w\u4e00-\u9fa5-]/g, '')
       .replace(/(-{2,})/g, '-');
   }
 
-  // 处理目录点击
-  function handleTocClick(e: MouseEvent, id: string) {
+  function handleTocClick(e, id) {
     e.preventDefault();
     const element = document.getElementById(id);
     if (!element) return;
-    
+
     element.scrollIntoView({
       behavior: 'smooth',
       block: 'start'
     });
-    
+
     window.history.pushState({}, '', `#${id}`);
   }
 
-  // 清理HTML标签
-  function stripHtml(html: string): string {
+  function stripHtml(html) {
     const tmp = document.createElement('div');
     tmp.innerHTML = html;
     return tmp.textContent || tmp.innerText || '';
   }
 
-  // 解析文章内容中的标题
-  function parseToc(content: string): TocItem[] {
+  function parseToc(content) {
     console.log('开始解析目录，HTML内容长度:', content.length);
     console.log('HTML内容中的标题标签:', content.match(/<h[1-6][^>]*>.*?<\/h[1-6]>/g));
-    
+
     const parser = new DOMParser();
     const doc = parser.parseFromString(content, 'text/html');
     const headings = doc.querySelectorAll('h1, h2');
     console.log('找到标题元素:', headings.length);
-    
-    // 检查每个标题元素的详细信息
+
     headings.forEach((heading, index) => {
       console.log(`标题 ${index + 1}:`, {
         tagName: heading.tagName,
@@ -98,10 +62,10 @@
         outerHTML: heading.outerHTML
       });
     });
-    
+
     const items = Array.from(headings).map(heading => {
       const text = stripHtml((heading.innerHTML || '').trim());
-      const id = heading.id || generateHeadingId(text); // 优先使用已有的ID
+      const id = heading.id || generateHeadingId(text);
       const item = {
         id,
         text,
@@ -111,17 +75,16 @@
       console.log('解析标题:', item);
       return item;
     });
-    
+
     console.log('目录解析完成:', items);
     return items;
   }
 
-  // 处理文章内容点击事件
-  function handleContentInteraction(e: MouseEvent | KeyboardEvent) {
-    if (e.type === 'keydown' && (e as KeyboardEvent).key !== 'Enter') {
+  function handleContentInteraction(e) {
+    if (e.type === 'keydown' && e.key !== 'Enter') {
       return;
     }
-    const target = e.target as HTMLElement;
+    const target = e.target;
     const heading = target.closest('h1, h2');
     if (heading && heading.id) {
       e.preventDefault();
@@ -132,9 +95,8 @@
     }
   }
 
-  // 处理标题点击事件
-  function handleHeadingClick(e: MouseEvent) {
-    const target = e.target as HTMLElement;
+  function handleHeadingClick(e) {
+    const target = e.target;
     const heading = target.closest('h1, h2');
     if (heading && heading.id) {
       e.preventDefault();
@@ -145,8 +107,7 @@
     }
   }
 
-  // 修改文章内容的HTML
-  function processArticleContent(content: string): string {
+  function processArticleContent(content) {
     return content.replace(
       /<(h[12])([^>]*)>(.*?)<\/\1>/g,
       (match, tag, attrs, text) => {
@@ -160,20 +121,18 @@
     );
   }
 
-  function scrollToHeading(id: string) {
+  function scrollToHeading(id) {
     const element = document.getElementById(id);
     if (element) {
       element.scrollIntoView({ behavior: 'smooth' });
     }
   }
 
-  // 初始化观察器
   function initializeObserver() {
     if (!article?.htmlContent) return;
-    
-    // 断开之前的观察器
+
     observer?.disconnect();
-    
+
     observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
@@ -191,13 +150,12 @@
         threshold: 0
       }
     );
-    
-    // 查询文章区域内带 id 的标题元素
+
     const headings = document.querySelectorAll('.article-content h1[id], .article-content h2[id]');
     headings.forEach(heading => observer?.observe(heading));
   }
 
-  async function fetchArticle(id: string) {
+  async function fetchArticle(id) {
     loading = true;
     error = '';
     try {
@@ -206,17 +164,16 @@
         throw new Error('获取文章详情失败');
       }
       article = await response.json();
-      console.log('获取文章数据:', { 
+      console.log('获取文章数据:', {
         title: article?.title,
         hasHtmlContent: !!article?.htmlContent,
         htmlContentLength: article?.htmlContent?.length
       });
-      
+
       if (article?.htmlContent) {
         tocItems = parseToc(article.htmlContent);
         await tick();
-        
-        // 检查文章内容区域中的标题元素
+
         const articleContent = document.querySelector('.article-content');
         if (articleContent) {
           console.log('文章内容区域中的标题元素:', {
@@ -228,7 +185,7 @@
             }))
           });
         }
-        
+
         console.log('目录项生成后的DOM:', {
           tocItems: tocItems.map(item => ({
             id: item.id,
@@ -245,15 +202,7 @@
     }
   }
 
-  // 组件销毁时清理观察器
-  onDestroy(() => {
-    observer?.disconnect();
-    window.removeEventListener('scroll', handleScroll);
-    window.removeEventListener('resize', handleResize);
-  });
-
-  // 格式化日期
-  function formatDate(dateString: string): string {
+  function formatDate(dateString) {
     return new Date(dateString).toLocaleDateString('zh-CN', {
       year: 'numeric',
       month: 'long',
@@ -265,12 +214,11 @@
     isScrolled = window.scrollY > 200;
   }
 
-  // 计算时间差
-  function getTimeAgo(dateString: string): string {
+  function getTimeAgo(dateString) {
     const now = new Date();
     const date = new Date(dateString);
     const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-    
+
     if (diffInSeconds < 60) {
       return '刚刚';
     } else if (diffInSeconds < 3600) {
@@ -295,7 +243,7 @@
     isMobile = browser && window.innerWidth < 768;
   }
 
-  function handleAuthorClick(event: MouseEvent) {
+  function handleAuthorClick(event) {
     event.stopPropagation();
     showUserCard = !showUserCard;
   }
@@ -304,8 +252,7 @@
     showUserCard = false;
   }
 
-  // 修改事件处理函数
-  function handleWindowEvents(event: Event) {
+  function handleWindowEvents(event) {
     if (event instanceof MouseEvent) {
       handleContentInteraction(event);
     } else if (event instanceof KeyboardEvent) {

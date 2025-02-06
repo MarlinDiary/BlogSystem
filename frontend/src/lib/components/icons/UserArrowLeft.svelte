@@ -1,9 +1,7 @@
 <!-- UserArrowLeft.svelte -->
-<script lang="ts">
-  import type { IconProps } from './types';
-  
-  export let width: IconProps['width'] = '1em';
-  export let height: IconProps['height'] = '1em';
+<script>
+  export let width = '1.25em';
+  export let height = '1.25em';
   export let className = '';
 </script>
 
@@ -22,4 +20,4 @@
     stroke-linecap="round"
     stroke-linejoin="round"
   />
-</svg> 
+</svg>

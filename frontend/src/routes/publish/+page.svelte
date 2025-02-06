@@ -1,4 +1,4 @@
-<script lang="ts">
+<script>
   import { onMount, onDestroy } from 'svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
@@ -23,12 +23,12 @@
   let content = '';
   let htmlContent = '';
   let imageUrl = '';
-  let tags: string[] = [];
+  let tags = [];
   let newTag = '';
   let loading = false;
   let error = '';
-  let editor: Editor;
-  let editorElement: HTMLElement;
+  let editor;
+  let editorElement;
   let imageUploading = false;
   let isGeneratingTags = false;
   let isDirty = false;
@@ -196,8 +196,8 @@
       const data = await response.json();
       const generatedTags = data.choices[0].message.content
         .split(',')
-        .map((tag: string) => tag.trim())
-        .filter((tag: string) => tag);
+        .map((tag) => tag.trim())
+        .filter((tag) => tag);
 
       tags = [...new Set([...tags, ...generatedTags])];
     } catch (err) {
@@ -208,8 +208,8 @@
     }
   }
   
-  async function uploadImage(event: Event) {
-    const target = event.target as HTMLInputElement;
+  async function uploadImage(event) {
+    const target = event.target;
     if (!target.files?.length) return;
     
     try {
@@ -306,7 +306,7 @@
     }
   }
   
-  function removeTag(tag: string) {
+  function removeTag(tag) {
     tags = tags.filter(t => t !== tag);
   }
 
@@ -915,4 +915,4 @@
       </div>
     </div>
   </div>
-</div> 
+</div>

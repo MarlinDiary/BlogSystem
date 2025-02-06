@@ -1,32 +1,8 @@
 import { writable } from 'svelte/store';
 import { authApi } from '../utils/api';
 
-export interface User {
-    id: string;
-    username: string;
-    realName: string;
-    dateOfBirth: string;
-    bio?: string;
-    createdAt: string;
-    avatarUrl?: string;
-    role?: string;
-    articles?: Array<{
-        id: number;
-        title: string;
-        createdAt: string;
-        viewCount: number;
-        commentCount: number;
-    }>;
-}
-
-interface AuthState {
-    isAuthenticated: boolean;
-    user: User | null;
-    token: string | null;
-}
-
 const createAuthStore = () => {
-    const { subscribe, set, update } = writable<AuthState>({
+    const { subscribe, set, update } = writable({
         isAuthenticated: false,
         user: null,
         token: null
@@ -34,7 +10,7 @@ const createAuthStore = () => {
 
     return {
         subscribe,
-        login: (token: string, user: User) => {
+        login: (token, user) => {
             localStorage.setItem('token', token);
             set({ isAuthenticated: true, token, user });
         },
@@ -48,7 +24,7 @@ const createAuthStore = () => {
                 set({ isAuthenticated: false, token: null, user: null });
             }
         },
-        updateUser: (user: User) => {
+        updateUser: (user) => {
             update(state => ({
                 ...state,
                 isAuthenticated: true,

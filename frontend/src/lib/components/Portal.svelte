@@ -1,10 +1,10 @@
-<script lang="ts">
+<script>
   import { onMount, onDestroy } from 'svelte';
   import { browser } from '$app/environment';
 
-  export let target: HTMLElement;
+  export let target;
 
-  let portal: HTMLElement;
+  let portal;
 
   onMount(() => {
     if (target && portal) {

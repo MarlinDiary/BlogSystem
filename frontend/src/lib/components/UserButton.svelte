@@ -1,5 +1,5 @@
 <!-- UserButton.svelte -->
-<script lang="ts">
+<script>
   import UserArrowLeft from './icons/UserArrowLeft.svelte';
   import '../styles/icon.css';
   import { auth } from '../stores/auth';
@@ -9,7 +9,7 @@
   
   let showAuthModal = false;
   let showAccountModal = false;
-  let authMode: 'login' | 'register' = 'login';
+  let authMode = 'login';  // 'login' or 'register'
   let avatarTimestamp = Date.now();
   
   function handleAuth() {
@@ -45,7 +45,7 @@
   }
 
   // 获取头像 URL
-  function getAvatarUrl(userId: number | null | undefined): string {
+  function getAvatarUrl(userId) {
     if (!userId) return '/logo.png';
     const url = `${env.PUBLIC_API_URL}/api/users/${userId}/avatar?t=${avatarTimestamp}`;
     console.log('UserButton 生成的头像URL:', url);
@@ -53,7 +53,7 @@
   }
 
   // 获取用户ID（确保是数字类型）
-  function getUserId(user: any): number | null {
+  function getUserId(user) {
     if (!user?.id) return null;
     const id = Number(user.id);
     return isNaN(id) ? null : id;
@@ -84,7 +84,7 @@
       class="group flex items-center h-10 rounded-full bg-white/90 px-3 py-2 shadow-lg shadow-zinc-800/5 ring-1 ring-zinc-900/5 backdrop-blur dark:bg-zinc-800/90 dark:ring-white/10 dark:hover:ring-white/20"
       on:click={handleAuth}
     >
-      <UserArrowLeft className="h-5 w-5 stroke-zinc-500 transition group-hover:stroke-zinc-700 dark:group-hover:stroke-zinc-200" />
+      <UserArrowLeft class="h-5 w-5 stroke-zinc-500 transition group-hover:stroke-zinc-700 dark:group-hover:stroke-zinc-200" />
     </button>
   {/if}
 </div>

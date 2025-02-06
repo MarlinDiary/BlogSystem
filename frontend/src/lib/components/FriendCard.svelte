@@ -1,11 +1,10 @@
-<script lang="ts">
+<script>
     import { focusingFriendId } from '$lib/stores/friend';
     import TiltCard from './TiltCard.svelte';
-    import type { User } from '$lib/types/user';
     import { onMount } from 'svelte';
     import ColorThief from 'colorthief';
   
-    export let user: User;
+    export let user;
   
     let dominantColor = '';
     let lightColor = '';
@@ -19,8 +18,8 @@
     let spotlightBackground = '';
   
     // 处理鼠标移动事件
-    function handleMouseMove(event: MouseEvent) {
-      const bounds = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    function handleMouseMove(event) {
+      const bounds = event.currentTarget.getBoundingClientRect();
       mouseX = event.clientX - bounds.left;
       mouseY = event.clientY - bounds.top;
       radius = Math.sqrt(bounds.width ** 2 + bounds.height ** 2) / 1.8;
@@ -28,7 +27,7 @@
     }
   
     // 处理鼠标进入事件
-    function handleMouseEnter(event: MouseEvent) {
+    function handleMouseEnter(event) {
       focusingFriendId.set(user.id.toString());
       handleMouseMove(event);
     }
@@ -38,7 +37,7 @@
       focusingFriendId.set(null);
     }
   
-    function formatJoinedDate(dateString: string): string {
+    function formatJoinedDate(dateString) {
       const date = new Date(dateString);
       return date.toLocaleString('zh-CN', {
         year: 'numeric',
@@ -47,7 +46,7 @@
     }
   
     // 格式化统计数据
-    function formatCount(count: number): string {
+    function formatCount(count) {
       if (count >= 1000) {
         return (count / 1000).toFixed(1) + 'k';
       }
@@ -91,117 +90,117 @@
     }
   
     onMount(extractColors);
-  </script>
+</script>
   
-  <TiltCard maxTilt={10} lerpSpeed={0.15} scale={1.05}>
-    <div
-      role="article"
-      aria-label="{user.realName}的个人卡片"
-      class="friend-card group relative not-prose flex flex-col justify-between rounded-2xl p-6
-        border transition-all duration-300 backdrop-blur-md
-        {$focusingFriendId && $focusingFriendId !== user.id.toString() ? 'md:opacity-80 md:blur-[1px]' : 'blur-none'}"
-      style="--card-color: {dominantColor};
-        --bg-base: white;
-        --bg-mix: 98%;
-        background-color: color-mix(in srgb, var(--bg-base) var(--bg-mix), var(--card-color));
-        border-color: color-mix(in srgb, var(--card-color) 10%, transparent)"
-      on:mouseenter={handleMouseEnter}
-      on:mouseleave={handleMouseLeave}
-      on:mousemove={handleMouseMove}
-    >
-      <!-- 光晕效果背景 -->
-      <div
-        class="pointer-events-none absolute inset-0 rounded-2xl opacity-0 transition-opacity duration-500 group-hover:opacity-100"
-        style="background: {spotlightBackground}"
-        aria-hidden="true"
-      ></div>
-  
-      <!-- 头像 + 名称 + 简介 -->
-      <header class="relative mb-6 flex flex-col items-center">
-        <img
-          src={user.avatarUrl}
-          alt={user.realName}
-          width="120"
-          height="120"
-          class="mx-auto h-24 w-24 rounded-full object-cover outline-none"
-          crossorigin="anonymous"
-        />
-        <span class="mt-4 block text-center text-lg font-bold tracking-tight"
-          style="color: var(--card-color)">
-          {user.realName}
-        </span>
-        <span class="mt-1 block text-center text-sm leading-4 tracking-widest uppercase font-medium"
-          style="color: color-mix(in srgb, var(--card-color) 70%, transparent)">
-          @{user.username}
-        </span>
-        {#if user.bio}
-          <p class="mt-3 text-center text-sm line-clamp-2 max-w-[85%]"
-            style="color: color-mix(in srgb, var(--card-color) 60%, transparent)">
-            {user.bio}
-          </p>
-        {/if}
-      </header>
-  
-      <!-- 统计信息 -->
-      <div class="relative mb-6 flex justify-center gap-12">
-        <div class="text-center">
-          <span class="block text-2xl font-bold"
-            style="color: var(--card-color)">
-            {formatCount(user.articleCount)}
-          </span>
-          <span class="mt-1 block text-xs tracking-wider uppercase"
-            style="color: color-mix(in srgb, var(--card-color) 50%, transparent)">
-            文章
-          </span>
-        </div>
-        <div class="text-center">
-          <span class="block text-2xl font-bold"
-            style="color: var(--card-color)">
-            {formatCount(user.commentCount)}
-          </span>
-          <span class="mt-1 block text-xs tracking-wider uppercase"
-            style="color: color-mix(in srgb, var(--card-color) 50%, transparent)">
-            评论
-          </span>
-        </div>
-      </div>
-  
-      <!-- 底部信息：加入时间 -->
-      <footer class="relative mt-auto flex w-full items-center justify-between">
-        <time
-          class="select-none rounded-lg border p-2 text-xs tracking-wider"
-          style="
-            color: color-mix(in srgb, var(--card-color) 50%, transparent);
-            border-color: color-mix(in srgb, var(--card-color) 30%, transparent);
-            background-color: color-mix(in srgb, var(--card-color) 5%, transparent)
-          "
-        >
-          {formatJoinedDate(user.createdAt)}
-        </time>
-      </footer>
-    </div>
-  </TiltCard>
-  
-  <style>
-    .friend-card {
-      border-width: 1px;
-    }
-    
-    .friend-card:hover {
-      border-width: 1.5px;
-      border-color: color-mix(in srgb, var(--card-color) 35%, transparent);
-      box-shadow: 0 0 0 1px color-mix(in srgb, var(--card-color) 15%, transparent);
-    }
-
-    div {
+<TiltCard maxTilt={10} lerpSpeed={0.15} scale={1.05}>
+  <div
+    role="article"
+    aria-label="{user.realName}的个人卡片"
+    class="friend-card group relative not-prose flex flex-col justify-between rounded-2xl p-6
+      border transition-all duration-300 backdrop-blur-md
+      {$focusingFriendId && $focusingFriendId !== user.id.toString() ? 'md:opacity-80 md:blur-[1px]' : 'blur-none'}"
+    style="--card-color: {dominantColor};
       --bg-base: white;
       --bg-mix: 98%;
-    }
+      background-color: color-mix(in srgb, var(--bg-base) var(--bg-mix), var(--card-color));
+      border-color: color-mix(in srgb, var(--card-color) 10%, transparent)"
+    on:mouseenter={handleMouseEnter}
+    on:mouseleave={handleMouseLeave}
+    on:mousemove={handleMouseMove}
+  >
+    <!-- 光晕效果背景 -->
+    <div
+      class="pointer-events-none absolute inset-0 rounded-2xl opacity-0 transition-opacity duration-500 group-hover:opacity-100"
+      style="background: {spotlightBackground}"
+      aria-hidden="true"
+    ></div>
 
-    @media (prefers-color-scheme: dark) {
-      div {
-        --bg-base: rgb(28, 25, 23);
-        --bg-mix: 97%;
-      }
+    <!-- 头像 + 名称 + 简介 -->
+    <header class="relative mb-6 flex flex-col items-center">
+      <img
+        src={user.avatarUrl}
+        alt={user.realName}
+        width="120"
+        height="120"
+        class="mx-auto h-24 w-24 rounded-full object-cover outline-none"
+        crossorigin="anonymous"
+      />
+      <span class="mt-4 block text-center text-lg font-bold tracking-tight"
+        style="color: var(--card-color)">
+        {user.realName}
+      </span>
+      <span class="mt-1 block text-center text-sm leading-4 tracking-widest uppercase font-medium"
+        style="color: color-mix(in srgb, var(--card-color) 70%, transparent)">
+        @{user.username}
+      </span>
+      {#if user.bio}
+        <p class="mt-3 text-center text-sm line-clamp-2 max-w-[85%]"
+          style="color: color-mix(in srgb, var(--card-color) 60%, transparent)">
+          {user.bio}
+        </p>
+      {/if}
+    </header>
+
+    <!-- 统计信息 -->
+    <div class="relative mb-6 flex justify-center gap-12">
+      <div class="text-center">
+        <span class="block text-2xl font-bold"
+          style="color: var(--card-color)">
+          {formatCount(user.articleCount)}
+        </span>
+        <span class="mt-1 block text-xs tracking-wider uppercase"
+          style="color: color-mix(in srgb, var(--card-color) 50%, transparent)">
+          文章
+        </span>
+      </div>
+      <div class="text-center">
+        <span class="block text-2xl font-bold"
+          style="color: var(--card-color)">
+          {formatCount(user.commentCount)}
+        </span>
+        <span class="mt-1 block text-xs tracking-wider uppercase"
+          style="color: color-mix(in srgb, var(--card-color) 50%, transparent)">
+          评论
+        </span>
+      </div>
+    </div>
+
+    <!-- 底部信息：加入时间 -->
+    <footer class="relative mt-auto flex w-full items-center justify-between">
+      <time
+        class="select-none rounded-lg border p-2 text-xs tracking-wider"
+        style="
+          color: color-mix(in srgb, var(--card-color) 50%, transparent);
+          border-color: color-mix(in srgb, var(--card-color) 30%, transparent);
+          background-color: color-mix(in srgb, var(--card-color) 5%, transparent)
+        "
+      >
+        {formatJoinedDate(user.createdAt)}
+      </time>
+    </footer>
+  </div>
+</TiltCard>
+  
+<style>
+  .friend-card {
+    border-width: 1px;
+  }
+  
+  .friend-card:hover {
+    border-width: 1.5px;
+    border-color: color-mix(in srgb, var(--card-color) 35%, transparent);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--card-color) 15%, transparent);
+  }
+
+  div {
+    --bg-base: white;
+    --bg-mix: 98%;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    div {
+      --bg-base: rgb(28, 25, 23);
+      --bg-mix: 97%;
     }
-  </style>  
+  }
+</style>  

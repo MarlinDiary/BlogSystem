@@ -1,15 +1,7 @@
-<script lang="ts">
-  export let article: {
-    id: number;
-    title: string;
-    content: string;
-    createdAt: string;
-    viewCount: number;
-    commentCount: number;
-    coverImage?: string;
-  };
+<script>
+  export let article;
 
-  function formatDate(dateStr: string): string {
+  function formatDate(dateStr) {
     return new Date(dateStr).toLocaleDateString('zh-CN', {
       year: 'numeric',
       month: 'long',

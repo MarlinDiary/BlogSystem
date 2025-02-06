@@ -1,14 +1,14 @@
-<script lang="ts">
+<script>
   import { createEventDispatcher } from 'svelte';
 
-  export let type: string;
+  export let type;
   export let count = 0;
   export let isActive = false;
 
   const dispatch = createEventDispatcher();
 
   // 格式化数字
-  function prettifyNumber(num: number): string {
+  function prettifyNumber(num) {
     if (num >= 1000000) {
       return (num / 1000000).toFixed(1) + 'M';
     } else if (num >= 1000) {

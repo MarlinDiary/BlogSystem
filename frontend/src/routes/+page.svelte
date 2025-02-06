@@ -1,9 +1,9 @@
-<script lang="ts">
+<script>
   import Carousel from '$lib/components/Carousel.svelte';
   import { onMount } from 'svelte';
   import { fade } from 'svelte/transition';
   
-  let latestArticles: any[] = [];
+  let latestArticles = [];
   let loading = true;
   let error = '';
   

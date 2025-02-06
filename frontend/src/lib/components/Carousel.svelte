@@ -1,23 +1,16 @@
-<script lang="ts">
+<script>
   import { onMount, onDestroy } from 'svelte';
   import { fade, fly } from 'svelte/transition';
   import { quintOut } from 'svelte/easing';
 
-  export let slides: {
-    id: number;
-    title: string;
-    description: string;
-    image: string;
-    publishDate?: string;
-  }[] = [];
-  
+  export let slides = [];
   export let fullscreen = false;
 
   let currentIndex = 0;
   let previousIndex = 0;
   let transitioning = false;
   let progress = 0;
-  let interval: NodeJS.Timeout;
+  let interval;
   const SLIDE_DURATION = 6000; // 6秒切换一次
   const PROGRESS_INTERVAL = 60; // 进度条更新间隔
 
@@ -63,7 +56,7 @@
     }, 1000);
   }
 
-  function goTo(index: number) {
+  function goTo(index) {
     if (transitioning || index === currentIndex) return;
     transitioning = true;
     previousIndex = currentIndex;
@@ -75,7 +68,7 @@
     }, 1000);
   }
 
-  function handleKeydown(event: KeyboardEvent) {
+  function handleKeydown(event) {
     if (event.key === 'ArrowLeft') {
       prev();
     } else if (event.key === 'ArrowRight') {

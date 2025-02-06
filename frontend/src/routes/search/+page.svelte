@@ -1,13 +1,8 @@
-<script lang="ts">
+<script>
   import { onMount } from 'svelte';
   
-  interface SearchResult {
-    title: string;
-    excerpt: string;
-  }
-  
   let searchQuery = '';
-  let searchResults: SearchResult[] = [];
+  let searchResults = [];
   
   function handleSearch() {
     // TODO: 实现搜索逻辑

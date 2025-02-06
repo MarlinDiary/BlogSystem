@@ -1,5 +1,5 @@
 <!-- SearchModal.svelte -->
-<script lang="ts">
+<script>
   import { createEventDispatcher, onDestroy } from 'svelte';
   import { fade, scale } from 'svelte/transition';
   import { quartOut, quartIn } from 'svelte/easing';
@@ -13,12 +13,12 @@
   export let isOpen = false;
   
   const dispatch = createEventDispatcher();
-  let searchInputRef: HTMLInputElement;
-  let portalContainer: HTMLElement;
+  let searchInputRef;
+  let portalContainer;
   let searchQuery = '';
-  let searchResults: any[] = [];
+  let searchResults = [];
   let isLoading = false;
-  let error: string | null = null;
+  let error = null;
   
   $: if (browser && !portalContainer) {
     portalContainer = document.body;
@@ -34,7 +34,7 @@
   }
 
   // 防抖搜索函数
-  const debouncedSearch = debounce(async (query: string) => {
+  const debouncedSearch = debounce(async (query) => {
     if (!query.trim()) {
       searchResults = [];
       return;
