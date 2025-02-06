@@ -15,4 +15,4 @@ PORT = "3000"
 
 [[volume]]
 source = "uploads"
-path = "/app/uploads" 
+path = "/data/uploads" 
