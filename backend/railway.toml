@@ -1,6 +1,6 @@
 [build]
 builder = "nixpacks"
-buildCommand = "npm install --no-cache --production --prefer-offline"
+buildCommand = "echo 'Skip additional install'"
 
 [deploy]
 startCommand = "npm start"
