@@ -4,6 +4,7 @@ import { env } from '$env/dynamic/public';
 import { getToken } from './auth';
 
 const API_URL = env.PUBLIC_API_URL;
+console.log('当前使用的 API_URL:', API_URL);
 
 export async function api(endpoint, options = {}) {
     const { method = 'GET', body, headers = {}, useStoredToken = true, isFormData = false, params } = options;
@@ -13,10 +14,12 @@ export async function api(endpoint, options = {}) {
         const storedToken = localStorage.getItem('token');
         if (storedToken) {
             headers['Authorization'] = `Bearer ${storedToken}`;
+            console.log('使用 localStorage token');
         } else {
             const authState = get(auth);
             if (authState.token) {
                 headers['Authorization'] = `Bearer ${authState.token}`;
+                console.log('使用 auth store token');
             }
         }
     }
@@ -43,10 +46,10 @@ export async function api(endpoint, options = {}) {
             }
         }
 
-        console.log(`[API Request] ${method} ${url}`, {
-            headers,
-            body: isFormData ? '[FormData]' : (body ? JSON.stringify(body) : undefined)
-        });
+        console.log('发送请求到:', url);
+        console.log('请求方法:', method);
+        console.log('请求头:', headers);
+        if (body) console.log('请求体:', body);
 
         const response = await fetch(url, {
             method,

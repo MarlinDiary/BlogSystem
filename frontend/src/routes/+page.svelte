@@ -2,22 +2,42 @@
   import Carousel from '$lib/components/Carousel.svelte';
   import { onMount } from 'svelte';
   import { fade } from 'svelte/transition';
+  import { env } from '$env/dynamic/public';
   
   let latestArticles = [];
   let loading = true;
   let error = '';
   
+  const API_URL = env.PUBLIC_API_URL;
+  
   async function fetchArticles() {
     try {
-      const response = await fetch('/api/articles?sort=createdAt&order=desc&pageSize=5&status=published');
+      const url = `${API_URL}/api/articles?sort=createdAt&order=desc&pageSize=5&status=published`;
+      console.log('首页 - API_URL:', API_URL);
+      console.log('首页 - 开始请求文章，URL:', url);
+      
+      const response = await fetch(url, {
+        mode: 'cors',
+        credentials: 'omit'
+      });
+      console.log('首页 - 响应状态:', response.status, response.statusText);
       
       if (response.ok) {
         const data = await response.json();
+        console.log('首页 - 获取到的数据:', data);
         latestArticles = data.items;
       } else {
-        error = '加载文章失败';
+        console.error('首页 - 请求失败:', response.status, response.statusText);
+        error = `加载文章失败: ${response.status} ${response.statusText}`;
+        try {
+          const errorData = await response.json();
+          console.error('首页 - 错误详情:', errorData);
+        } catch (e) {
+          console.error('首页 - 无法解析错误响应');
+        }
       }
     } catch (err) {
+      console.error('首页 - 请求异常:', err);
       error = '加载文章失败，请稍后重试';
     } finally {
       loading = false;
@@ -25,6 +45,7 @@
   }
   
   onMount(() => {
+    console.log('首页 - 组件挂载，开始加载数据');
     fetchArticles();
     // 禁用滚动
     document.body.style.overflow = 'hidden';
