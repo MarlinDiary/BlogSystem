@@ -1,7 +1,5 @@
 import express from 'express';
-import { db } from '../db/index.js';
-import { users, articles, articleReactions, comments } from '../db/schema.js';
-import { eq, desc, and, sql } from 'drizzle-orm';
+import { query, get, run, transaction } from '../db/index.js';
 import { authMiddleware } from '../middleware/auth.js';
 import bcrypt from 'bcryptjs';
 import path from 'path';
@@ -16,32 +14,30 @@ router.get('/', async (req, res, next) => {
     const { page = 1, pageSize = 10 } = req.query;
     const offset = (Number(page) - 1) * Number(pageSize);
 
-    const [usersList, total] = await Promise.all([
-      db.select({
-        id: users.id,
-        username: users.username,
-        realName: users.realName,
-        bio: users.bio,
-        avatarUrl: users.avatarUrl,
-        role: users.role,
-        createdAt: users.createdAt,
-        articleCount: sql`count(distinct ${articles.id})`,
-        commentCount: sql`count(distinct ${comments.id})`
-      })
-        .from(users)
-        .leftJoin(articles, eq(articles.authorId, users.id))
-        .leftJoin(comments, eq(comments.userId, users.id))
-        .groupBy(users.id)
-        .orderBy(desc(users.createdAt))
-        .limit(Number(pageSize))
-        .offset(offset),
-      db.select({ count: sql`count(*)` })
-        .from(users)
-    ]);
+    // 获取用户列表
+    const usersList = await query(`
+      SELECT 
+        u.id, u.username, u.real_name as realName,
+        u.bio, u.avatar_url as avatarUrl, u.role,
+        u.created_at as createdAt,
+        COUNT(DISTINCT a.id) as articleCount,
+        COUNT(DISTINCT c.id) as commentCount
+      FROM users u
+      LEFT JOIN articles a ON a.author_id = u.id
+      LEFT JOIN comments c ON c.user_id = u.id
+      GROUP BY u.id
+      ORDER BY u.created_at DESC
+      LIMIT ? OFFSET ?
+    `, [Number(pageSize), offset]);
+
+    // 获取总数
+    const [total] = await query(
+      'SELECT COUNT(*) as count FROM users'
+    );
 
     res.json({
       items: usersList,
-      total: total[0].count,
+      total: Number(total.count),
       page: Number(page),
       pageSize: Number(pageSize)
     });
@@ -53,20 +49,15 @@ router.get('/', async (req, res, next) => {
 // 获取当前用户信息
 router.get('/me', authMiddleware, async (req, res, next) => {
   try {
-    const user = await db
-      .select({
-        id: users.id,
-        username: users.username,
-        realName: users.realName,
-        dateOfBirth: users.dateOfBirth,
-        bio: users.bio,
-        avatarUrl: users.avatarUrl,
-        role: users.role,
-        createdAt: users.createdAt
-      })
-      .from(users)
-      .where(eq(users.id, req.userId))
-      .get();
+    const user = await get(`
+      SELECT 
+        id, username, real_name as realName,
+        date_of_birth as dateOfBirth, bio,
+        avatar_url as avatarUrl, role,
+        created_at as createdAt
+      FROM users
+      WHERE id = ?
+    `, [req.userId]);
 
     if (!user) {
       return res.status(404).json({ message: '用户未找到' });
@@ -84,34 +75,54 @@ router.put('/me', authMiddleware, async (req, res, next) => {
     const { username, realName, dateOfBirth, bio } = req.body;
 
     if (username) {
-      const existingUser = await db
-        .select()
-        .from(users)
-        .where(
-          and(
-            eq(users.username, username),
-            sql`${users.id} != ${req.userId}`
-          )
-        )
-        .get();
+      const existingUser = await get(
+        'SELECT id FROM users WHERE username = ? AND id != ?',
+        [username, req.userId]
+      );
 
       if (existingUser) {
         return res.status(400).json({ message: '用户名已被使用' });
       }
     }
 
-    const updatedUser = await db
-      .update(users)
-      .set({
-        ...(username && { username }),
-        realName,
-        dateOfBirth,
-        bio
-      })
-      .where(eq(users.id, req.userId))
-      .returning();
+    const updateFields = [];
+    const params = [];
+    
+    if (username) {
+      updateFields.push('username = ?');
+      params.push(username);
+    }
+    if (realName !== undefined) {
+      updateFields.push('real_name = ?');
+      params.push(realName);
+    }
+    if (dateOfBirth !== undefined) {
+      updateFields.push('date_of_birth = ?');
+      params.push(dateOfBirth);
+    }
+    if (bio !== undefined) {
+      updateFields.push('bio = ?');
+      params.push(bio);
+    }
 
-    res.json(updatedUser[0]);
+    params.push(req.userId);
+
+    await run(
+      `UPDATE users SET ${updateFields.join(', ')} WHERE id = ?`,
+      params
+    );
+
+    const updatedUser = await get(`
+      SELECT 
+        id, username, real_name as realName,
+        date_of_birth as dateOfBirth, bio,
+        avatar_url as avatarUrl, role,
+        created_at as createdAt
+      FROM users
+      WHERE id = ?
+    `, [req.userId]);
+
+    res.json(updatedUser);
   } catch (error) {
     next(error);
   }
@@ -127,63 +138,63 @@ router.delete('/me', authMiddleware, async (req, res, next) => {
       return res.status(400).json({ message: '请提供密码以确认删除' });
     }
     
-    const user = await db
-      .select()
-      .from(users)
-      .where(eq(users.id, userId))
-      .get();
+    const user = await get(
+      'SELECT * FROM users WHERE id = ?',
+      [userId]
+    );
     
     if (!user || !await bcrypt.compare(password, user.password)) {
       return res.status(401).json({ message: '密码错误' });
     }
 
-    await db.transaction(async (tx) => {
+    await transaction(async (tx) => {
       // 删除用户的所有点赞
-      await tx
-        .delete(articleReactions)
-        .where(eq(articleReactions.userId, userId));
+      await tx.run(
+        'DELETE FROM article_reactions WHERE user_id = ?',
+        [userId]
+      );
       
       if (deleteComments) {
         // 删除用户的所有评论
-        await tx
-          .delete(comments)
-          .where(eq(comments.userId, userId));
+        await tx.run(
+          'DELETE FROM comments WHERE user_id = ?',
+          [userId]
+        );
       } else {
         // 将评论标记为已删除用户
-        await tx
-          .update(comments)
-          .set({ userId: sql`NULL` })
-          .where(eq(comments.userId, userId));
+        await tx.run(
+          'UPDATE comments SET user_id = NULL WHERE user_id = ?',
+          [userId]
+        );
       }
       
       if (deleteArticles) {
         // 删除用户的所有文章
-        await tx
-          .delete(articles)
-          .where(eq(articles.authorId, userId));
+        await tx.run(
+          'DELETE FROM articles WHERE author_id = ?',
+          [userId]
+        );
       } else {
         // 将文章标记为已删除用户
-        await tx
-          .update(articles)
-          .set({ 
-            authorId: sql`NULL`,
-            status: 'pending'
-          })
-          .where(eq(articles.authorId, userId));
+        await tx.run(
+          'UPDATE articles SET author_id = NULL, status = ? WHERE author_id = ?',
+          ['pending', userId]
+        );
       }
 
       // 删除用户头像文件
-      if (user.avatarUrl && !user.avatarUrl.includes('default.png')) {
-        const avatarPath = path.join(process.cwd(), user.avatarUrl);
+      if (user.avatar_url && !user.avatar_url.includes('default.png')) {
+        const avatarPath = path.join(process.cwd(), user.avatar_url);
         if (fs.existsSync(avatarPath)) {
           fs.unlinkSync(avatarPath);
         }
       }
       
       // 最后删除用户账号
-      await tx
-        .delete(users)
-        .where(eq(users.id, userId));
+      await tx.run(
+        'DELETE FROM users WHERE id = ?',
+        [userId]
+      );
     });
 
     res.json({ message: '账号删除成功' });
@@ -199,11 +210,10 @@ router.post('/me/avatar', authMiddleware, upload.single('avatar'), async (req, r
       return res.status(400).json({ message: '请上传头像图片' });
     }
 
-    const user = await db
-      .select()
-      .from(users)
-      .where(eq(users.id, req.userId))
-      .get();
+    const user = await get(
+      'SELECT * FROM users WHERE id = ?',
+      [req.userId]
+    );
 
     if (!user) {
       // 删除上传的文件
@@ -212,8 +222,8 @@ router.post('/me/avatar', authMiddleware, upload.single('avatar'), async (req, r
     }
 
     // 如果用户已有头像，删除旧文件
-    if (user.avatarUrl && !user.avatarUrl.includes('default.png')) {
-      const oldAvatarPath = path.join(process.cwd(), user.avatarUrl);
+    if (user.avatar_url && !user.avatar_url.includes('default.png')) {
+      const oldAvatarPath = path.join(process.cwd(), user.avatar_url);
       if (fs.existsSync(oldAvatarPath)) {
         fs.unlinkSync(oldAvatarPath);
       }
@@ -221,21 +231,22 @@ router.post('/me/avatar', authMiddleware, upload.single('avatar'), async (req, r
 
     const avatarUrl = `/uploads/avatars/${req.file.filename}`;
 
-    const updatedUser = await db
-      .update(users)
-      .set({ avatarUrl })
-      .where(eq(users.id, req.userId))
-      .returning();
+    await run(
+      'UPDATE users SET avatar_url = ? WHERE id = ?',
+      [avatarUrl, req.userId]
+    );
 
-    res.json({
-      id: updatedUser[0].id,
-      username: updatedUser[0].username,
-      realName: updatedUser[0].realName,
-      dateOfBirth: updatedUser[0].dateOfBirth,
-      bio: updatedUser[0].bio,
-      avatarUrl: updatedUser[0].avatarUrl,
-      createdAt: updatedUser[0].createdAt
-    });
+    const updatedUser = await get(`
+      SELECT 
+        id, username, real_name as realName,
+        date_of_birth as dateOfBirth, bio,
+        avatar_url as avatarUrl,
+        created_at as createdAt
+      FROM users
+      WHERE id = ?
+    `, [req.userId]);
+
+    res.json(updatedUser);
   } catch (error) {
     // 发生错误时删除上传的文件
     if (req.file) {
@@ -251,32 +262,35 @@ router.put('/me/password', authMiddleware, async (req, res, next) => {
     const { currentPassword, newPassword } = req.body;
 
     if (!currentPassword || !newPassword) {
-      return res.status(400).json({ message: '请提供原密码和新密码' });
+      return res.status(400).json({ message: '当前密码和新密码都是必填项' });
     }
 
-    // 验证密码强度
+    // 验证新密码强度（至少8位，包含字母和数字）
     if (!/^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$/.test(newPassword)) {
       return res.status(400).json({ 
         message: '新密码必须至少8位，且包含字母和数字' 
       });
     }
 
-    const user = await db
-      .select()
-      .from(users)
-      .where(eq(users.id, req.userId))
-      .get();
+    const user = await get(
+      'SELECT * FROM users WHERE id = ?',
+      [req.userId]
+    );
 
-    if (!user || !await bcrypt.compare(currentPassword, user.password)) {
-      return res.status(401).json({ message: '原密码错误' });
+    if (!user) {
+      return res.status(404).json({ message: '用户不存在' });
+    }
+
+    const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
+    if (!isPasswordValid) {
+      return res.status(401).json({ message: '当前密码错误' });
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
-
-    await db
-      .update(users)
-      .set({ password: hashedPassword })
-      .where(eq(users.id, req.userId));
+    await run(
+      'UPDATE users SET password = ? WHERE id = ?',
+      [hashedPassword, req.userId]
+    );
 
     res.json({ message: '密码修改成功' });
   } catch (error) {
@@ -284,74 +298,24 @@ router.put('/me/password', authMiddleware, async (req, res, next) => {
   }
 });
 
-// 获取我的文章列表
-router.get('/me/articles', authMiddleware, async (req, res, next) => {
-  try {
-    const { page = 1, pageSize = 10 } = req.query;
-    const offset = (Number(page) - 1) * Number(pageSize);
-
-    const [articlesList, total] = await Promise.all([
-      db.select({
-        id: articles.id,
-        title: articles.title,
-        content: articles.content,
-        imageUrl: articles.imageUrl,
-        status: articles.status,
-        viewCount: articles.viewCount,
-        createdAt: articles.createdAt,
-        updatedAt: articles.updatedAt,
-        commentCount: sql`count(distinct ${comments.id})`,
-        reactionCount: sql`count(distinct ${articleReactions.id})`
-      })
-        .from(articles)
-        .leftJoin(comments, eq(comments.articleId, articles.id))
-        .leftJoin(articleReactions, eq(articleReactions.articleId, articles.id))
-        .where(eq(articles.authorId, req.userId))
-        .groupBy(articles.id)
-        .orderBy(desc(articles.createdAt))
-        .limit(Number(pageSize))
-        .offset(offset),
-      db.select({ count: sql`count(*)` })
-        .from(articles)
-        .where(eq(articles.authorId, req.userId))
-    ]);
-
-    res.json({
-      items: articlesList,
-      total: total[0].count,
-      page: Number(page),
-      pageSize: Number(pageSize)
-    });
-  } catch (error) {
-    next(error);
-  }
-});
-
-// 获取用户信息
+// 获取用户详情
 router.get('/:id', async (req, res, next) => {
   try {
     const userId = parseInt(req.params.id);
-    if (isNaN(userId)) {
-      return res.status(400).json({ message: '无效的用户ID' });
-    }
 
-    const user = await db
-      .select({
-        id: users.id,
-        username: users.username,
-        realName: users.realName,
-        bio: users.bio,
-        avatarUrl: users.avatarUrl,
-        createdAt: users.createdAt,
-        articleCount: sql`count(distinct ${articles.id})`,
-        commentCount: sql`count(distinct ${comments.id})`
-      })
-      .from(users)
-      .leftJoin(articles, eq(articles.authorId, users.id))
-      .leftJoin(comments, eq(comments.userId, users.id))
-      .where(eq(users.id, userId))
-      .groupBy(users.id)
-      .get();
+    const user = await get(`
+      SELECT 
+        u.id, u.username, u.real_name as realName,
+        u.bio, u.avatar_url as avatarUrl,
+        u.created_at as createdAt,
+        COUNT(DISTINCT a.id) as articleCount,
+        COUNT(DISTINCT c.id) as commentCount
+      FROM users u
+      LEFT JOIN articles a ON a.author_id = u.id
+      LEFT JOIN comments c ON c.user_id = u.id
+      WHERE u.id = ?
+      GROUP BY u.id
+    `, [userId]);
 
     if (!user) {
       return res.status(404).json({ message: '用户不存在' });
@@ -370,81 +334,55 @@ router.get('/:id/articles', async (req, res, next) => {
     const { page = 1, pageSize = 10 } = req.query;
     const offset = (Number(page) - 1) * Number(pageSize);
 
-    if (isNaN(userId)) {
-      return res.status(400).json({ message: '无效的用户ID' });
-    }
+    const articles = await query(`
+      SELECT 
+        a.id, a.title, a.content,
+        a.image_url as imageUrl, a.status,
+        a.view_count as viewCount,
+        a.created_at as createdAt,
+        a.updated_at as updatedAt,
+        u.id as author_id,
+        u.username as author_username,
+        u.avatar_url as author_avatarUrl,
+        COUNT(DISTINCT c.id) as commentCount,
+        COUNT(DISTINCT ar.id) as reactionCount
+      FROM articles a
+      LEFT JOIN users u ON u.id = a.author_id
+      LEFT JOIN comments c ON c.article_id = a.id
+      LEFT JOIN article_reactions ar ON ar.article_id = a.id
+      WHERE a.author_id = ?
+      GROUP BY a.id
+      ORDER BY a.created_at DESC
+      LIMIT ? OFFSET ?
+    `, [userId, Number(pageSize), offset]);
 
-    const [articlesList, total] = await Promise.all([
-      db.select({
-        id: articles.id,
-        title: articles.title,
-        content: articles.content,
-        imageUrl: articles.imageUrl,
-        status: articles.status,
-        viewCount: articles.viewCount,
-        createdAt: articles.createdAt,
-        updatedAt: articles.updatedAt,
-        commentCount: sql`count(distinct ${comments.id})`,
-        reactionCount: sql`count(distinct ${articleReactions.id})`
-      })
-        .from(articles)
-        .leftJoin(comments, eq(comments.articleId, articles.id))
-        .leftJoin(articleReactions, eq(articleReactions.articleId, articles.id))
-        .where(eq(articles.authorId, userId))
-        .groupBy(articles.id)
-        .orderBy(desc(articles.createdAt))
-        .limit(Number(pageSize))
-        .offset(offset),
-      db.select({ count: sql`count(*)` })
-        .from(articles)
-        .where(eq(articles.authorId, userId))
-    ]);
+    const [total] = await query(
+      'SELECT COUNT(*) as count FROM articles WHERE author_id = ?',
+      [userId]
+    );
 
-    res.json({
-      items: articlesList,
-      total: total[0].count,
-      page: Number(page),
-      pageSize: Number(pageSize)
-    });
-  } catch (error) {
-    next(error);
-  }
-});
-
-// 获取用户评论列表
-router.get('/:id/comments', async (req, res, next) => {
-  try {
-    const userId = parseInt(req.params.id);
-    const { page = 1, pageSize = 10 } = req.query;
-    const offset = (Number(page) - 1) * Number(pageSize);
-
-    if (isNaN(userId)) {
-      return res.status(400).json({ message: '无效的用户ID' });
-    }
-
-    const [commentsList, total] = await Promise.all([
-      db.select({
-        id: comments.id,
-        content: comments.content,
-        createdAt: comments.createdAt,
-        visibility: comments.visibility,
-        articleId: articles.id,
-        articleTitle: articles.title
-      })
-        .from(comments)
-        .leftJoin(articles, eq(articles.id, comments.articleId))
-        .where(eq(comments.userId, userId))
-        .orderBy(desc(comments.createdAt))
-        .limit(Number(pageSize))
-        .offset(offset),
-      db.select({ count: sql`count(*)` })
-        .from(comments)
-        .where(eq(comments.userId, userId))
-    ]);
+    // 格式化文章数据
+    const formattedArticles = articles.map(article => ({
+      id: article.id,
+      title: article.title,
+      content: article.content,
+      imageUrl: article.imageUrl,
+      status: article.status,
+      viewCount: article.viewCount,
+      createdAt: article.createdAt,
+      updatedAt: article.updatedAt,
+      author: {
+        id: article.author_id,
+        username: article.author_username,
+        avatarUrl: article.author_avatarUrl
+      },
+      commentCount: Number(article.commentCount),
+      reactionCount: Number(article.reactionCount)
+    }));
 
     res.json({
-      items: commentsList,
-      total: total[0].count,
+      items: formattedArticles,
+      total: Number(total.count),
       page: Number(page),
       pageSize: Number(pageSize)
     });
@@ -461,13 +399,12 @@ router.get('/:id/avatar', async (req, res, next) => {
       return res.status(404).json({ message: '无效的用户ID' });
     }
 
-    const user = await db
-      .select({
-        avatarUrl: users.avatarUrl
-      })
-      .from(users)
-      .where(eq(users.id, userId))
-      .get();
+    const user = await get(`
+      SELECT 
+        avatar_url as avatarUrl
+      FROM users
+      WHERE id = ?
+    `, [userId]);
 
     if (!user) {
       return res.status(404).json({ message: '用户不存在' });
@@ -490,6 +427,54 @@ router.get('/:id/avatar', async (req, res, next) => {
   }
 });
 
+// 获取用户评论列表
+router.get('/:id/comments', async (req, res, next) => {
+  try {
+    const userId = parseInt(req.params.id);
+    const { page = 1, pageSize = 10 } = req.query;
+    const offset = (Number(page) - 1) * Number(pageSize);
+
+    if (isNaN(userId)) {
+      return res.status(400).json({ message: '无效的用户ID' });
+    }
+
+    const comments = await query(`
+      SELECT 
+        c.id, c.content, c.created_at as createdAt,
+        c.visibility, a.id as articleId, a.title as articleTitle
+      FROM comments c
+      LEFT JOIN articles a ON a.id = c.article_id
+      WHERE c.user_id = ?
+      ORDER BY c.created_at DESC
+      LIMIT ? OFFSET ?
+    `, [userId, Number(pageSize), offset]);
+
+    const [total] = await query(
+      'SELECT COUNT(*) as count FROM comments WHERE user_id = ?',
+      [userId]
+    );
+
+    // 格式化评论数据
+    const formattedComments = comments.map(comment => ({
+      id: comment.id,
+      content: comment.content,
+      createdAt: comment.createdAt,
+      visibility: comment.visibility,
+      articleId: comment.articleId,
+      articleTitle: comment.articleTitle
+    }));
+
+    res.json({
+      items: formattedComments,
+      total: Number(total.count),
+      page: Number(page),
+      pageSize: Number(pageSize)
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // 检查用户状态中间件
 export const checkUserStatus = async (req, res, next) => {
   try {
@@ -497,11 +482,13 @@ export const checkUserStatus = async (req, res, next) => {
       return next();
     }
 
-    const user = await db
-      .select()
-      .from(users)
-      .where(eq(users.id, req.userId))
-      .get();
+    const user = await get(`
+      SELECT 
+        id, status, ban_expire_at as banExpireAt,
+        ban_reason as banReason
+      FROM users
+      WHERE id = ?
+    `, [req.userId]);
 
     if (!user) {
       return res.status(401).json({ message: '用户不存在' });
@@ -517,14 +504,10 @@ export const checkUserStatus = async (req, res, next) => {
         });
       } else {
         // 如果封禁已过期，自动解除封禁
-        await db
-          .update(users)
-          .set({
-            status: 'active',
-            banReason: null,
-            banExpireAt: null
-          })
-          .where(eq(users.id, req.userId));
+        await run(
+          'UPDATE users SET status = ?, ban_reason = NULL, ban_expire_at = NULL WHERE id = ?',
+          ['active', req.userId]
+        );
       }
     }
 

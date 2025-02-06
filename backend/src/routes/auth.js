@@ -1,9 +1,7 @@
 import express from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { db } from '../db/index.js';
-import { users } from '../db/schema.js';
-import { eq } from 'drizzle-orm';
+import { query, get, run } from '../db/index.js';
 import { authMiddleware } from '../middleware/auth.js';
 
 /**
@@ -47,11 +45,10 @@ router.post('/register', async (req, res, next) => {
     }
 
     // 检查用户是否已存在
-    const existingUser = await db
-      .select()
-      .from(users)
-      .where(eq(users.username, username))
-      .get();
+    const existingUser = await get(
+      'SELECT * FROM users WHERE username = ?',
+      [username]
+    );
     
     if (existingUser) {
       return res.status(409).json({ message: '用户名已存在' });
@@ -59,22 +56,20 @@ router.post('/register', async (req, res, next) => {
     
     const hashedPassword = await bcrypt.hash(password, 10);
     
-    const newUser = await db
-      .insert(users)
-      .values({
-        username,
-        password: hashedPassword,
-        realName,
-        dateOfBirth: sql`${birthDate.toISOString()}`,
-        bio: bio || null,
-        status: 'active',
-        createdAt: sql`${new Date().toISOString()}`
-      })
-      .returning();
+    const result = await run(
+      `INSERT INTO users (username, password, real_name, date_of_birth, bio, status, created_at)
+       VALUES (?, ?, ?, ?, ?, 'active', CURRENT_TIMESTAMP)`,
+      [username, hashedPassword, realName, birthDate.toISOString(), bio || null]
+    );
+
+    const newUser = await get(
+      'SELECT * FROM users WHERE id = ?',
+      [result.lastID]
+    );
 
     // 生成 JWT token
     const token = jwt.sign(
-      { userId: newUser[0].id },
+      { userId: newUser.id },
       process.env.JWT_SECRET || 'your-secret-key',
       { expiresIn: '24h' }
     );
@@ -83,12 +78,12 @@ router.post('/register', async (req, res, next) => {
       message: '用户创建成功',
       token,
       user: {
-        id: newUser[0].id,
-        username: newUser[0].username,
-        realName: newUser[0].realName,
-        dateOfBirth: newUser[0].dateOfBirth,
-        bio: newUser[0].bio,
-        createdAt: newUser[0].createdAt
+        id: newUser.id,
+        username: newUser.username,
+        realName: newUser.real_name,
+        dateOfBirth: newUser.date_of_birth,
+        bio: newUser.bio,
+        createdAt: newUser.created_at
       }
     });
   } catch (error) {
@@ -101,7 +96,10 @@ router.post('/login', async (req, res, next) => {
   try {
     const { username, password } = req.body;
     
-    const user = await db.select().from(users).where(eq(users.username, username)).get();
+    const user = await get(
+      'SELECT * FROM users WHERE username = ?',
+      [username]
+    );
     
     if (!user || !await bcrypt.compare(password, user.password)) {
       return res.status(401).json({ message: '用户名或密码错误' });
@@ -118,10 +116,10 @@ router.post('/login', async (req, res, next) => {
       user: {
         id: user.id,
         username: user.username,
-        realName: user.realName,
-        dateOfBirth: user.dateOfBirth,
+        realName: user.real_name,
+        dateOfBirth: user.date_of_birth,
         bio: user.bio,
-        createdAt: user.createdAt
+        createdAt: user.created_at
       }
     });
   } catch (error) {
@@ -139,11 +137,10 @@ router.post('/logout', authMiddleware, (req, res) => {
 router.get('/check-username/:username', async (req, res, next) => {
   try {
     const { username } = req.params;
-    const existingUser = await db
-      .select()
-      .from(users)
-      .where(eq(users.username, username))
-      .get();
+    const existingUser = await get(
+      'SELECT id FROM users WHERE username = ?',
+      [username]
+    );
     
     res.json({ available: !existingUser });
   } catch (error) {
@@ -154,26 +151,28 @@ router.get('/check-username/:username', async (req, res, next) => {
 // 验证 token
 router.get('/validate', authMiddleware, async (req, res, next) => {
   try {
-    const user = await db
-      .select({
-        id: users.id,
-        username: users.username,
-        realName: users.realName,
-        dateOfBirth: users.dateOfBirth,
-        bio: users.bio,
-        avatarUrl: users.avatarUrl,
-        role: users.role,
-        createdAt: users.createdAt
-      })
-      .from(users)
-      .where(eq(users.id, req.userId))
-      .get();
+    const user = await get(
+      `SELECT id, username, real_name, date_of_birth, bio, avatar_url, role, created_at
+       FROM users WHERE id = ?`,
+      [req.userId]
+    );
 
     if (!user) {
       return res.status(401).json({ message: '用户不存在' });
     }
 
-    res.json({ user });
+    res.json({
+      user: {
+        id: user.id,
+        username: user.username,
+        realName: user.real_name,
+        dateOfBirth: user.date_of_birth,
+        bio: user.bio,
+        avatarUrl: user.avatar_url,
+        role: user.role,
+        createdAt: user.created_at
+      }
+    });
   } catch (error) {
     next(error);
   }
@@ -182,26 +181,28 @@ router.get('/validate', authMiddleware, async (req, res, next) => {
 // 获取当前用户信息
 router.get('/me', authMiddleware, async (req, res, next) => {
   try {
-    const user = await db
-      .select({
-        id: users.id,
-        username: users.username,
-        realName: users.realName,
-        dateOfBirth: users.dateOfBirth,
-        bio: users.bio,
-        avatarUrl: users.avatarUrl,
-        role: users.role,
-        createdAt: users.createdAt
-      })
-      .from(users)
-      .where(eq(users.id, req.userId))
-      .get();
+    const user = await get(
+      `SELECT id, username, real_name, date_of_birth, bio, avatar_url, role, created_at
+       FROM users WHERE id = ?`,
+      [req.userId]
+    );
 
     if (!user) {
       return res.status(404).json({ message: '用户不存在' });
     }
 
-    res.json({ user });
+    res.json({
+      user: {
+        id: user.id,
+        username: user.username,
+        realName: user.real_name,
+        dateOfBirth: user.date_of_birth,
+        bio: user.bio,
+        avatarUrl: user.avatar_url,
+        role: user.role,
+        createdAt: user.created_at
+      }
+    });
   } catch (error) {
     next(error);
   }
@@ -210,11 +211,11 @@ router.get('/me', authMiddleware, async (req, res, next) => {
 // 刷新 token
 router.post('/refresh-token', authMiddleware, async (req, res, next) => {
   try {
-    const user = await db
-      .select()
-      .from(users)
-      .where(eq(users.id, req.userId))
-      .get();
+    const user = await get(
+      `SELECT id, username, real_name, date_of_birth, bio, avatar_url, role, created_at
+       FROM users WHERE id = ?`,
+      [req.userId]
+    );
 
     if (!user) {
       return res.status(404).json({ message: '用户不存在' });
@@ -231,12 +232,12 @@ router.post('/refresh-token', authMiddleware, async (req, res, next) => {
       user: {
         id: user.id,
         username: user.username,
-        realName: user.realName,
-        dateOfBirth: user.dateOfBirth,
+        realName: user.real_name,
+        dateOfBirth: user.date_of_birth,
         bio: user.bio,
-        avatarUrl: user.avatarUrl,
+        avatarUrl: user.avatar_url,
         role: user.role,
-        createdAt: user.createdAt
+        createdAt: user.created_at
       }
     });
   } catch (error) {
@@ -249,10 +250,6 @@ router.post('/change-password', authMiddleware, async (req, res, next) => {
   try {
     const { currentPassword, newPassword } = req.body;
 
-    if (!currentPassword || !newPassword) {
-      return res.status(400).json({ message: '当前密码和新密码都是必填项' });
-    }
-
     // 验证新密码强度
     if (!/^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$/.test(newPassword)) {
       return res.status(400).json({ 
@@ -260,28 +257,25 @@ router.post('/change-password', authMiddleware, async (req, res, next) => {
       });
     }
 
-    const user = await db
-      .select()
-      .from(users)
-      .where(eq(users.id, req.userId))
-      .get();
+    const user = await get(
+      'SELECT * FROM users WHERE id = ?',
+      [req.userId]
+    );
 
     if (!user) {
       return res.status(404).json({ message: '用户不存在' });
     }
 
-    // 验证当前密码
-    const isValidPassword = await bcrypt.compare(currentPassword, user.password);
-    if (!isValidPassword) {
+    const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
+    if (!isPasswordValid) {
       return res.status(401).json({ message: '当前密码错误' });
     }
 
-    // 更新密码
     const hashedPassword = await bcrypt.hash(newPassword, 10);
-    await db
-      .update(users)
-      .set({ password: hashedPassword })
-      .where(eq(users.id, req.userId));
+    await run(
+      'UPDATE users SET password = ? WHERE id = ?',
+      [hashedPassword, req.userId]
+    );
 
     res.json({ message: '密码修改成功' });
   } catch (error) {

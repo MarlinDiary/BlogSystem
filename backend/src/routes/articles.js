@@ -1,8 +1,6 @@
 import express from 'express';
-import { db } from '../db/index.js';
-import { articles, users, comments, articleTags, tags, articleReactions } from '../db/schema.js';
+import { query, get, run, transaction } from '../db/index.js';
 import { authMiddleware } from '../middleware/auth.js';
-import { eq, and, desc, sql, like, asc, inArray } from 'drizzle-orm';
 import { marked } from 'marked';
 import sanitizeHtml from 'sanitize-html';
 import { upload, uploadArticleImage, uploadArticleCover } from '../middleware/upload.js';
@@ -10,6 +8,14 @@ import fs from 'fs';
 import path from 'path';
 
 const router = express.Router();
+const SERVER_URL = process.env.SERVER_URL || 'http://localhost:3000';
+
+// 处理图片URL的函数
+function getFullImageUrl(imageUrl) {
+  if (!imageUrl) return null;
+  if (imageUrl.startsWith('http')) return imageUrl;
+  return `${SERVER_URL}${imageUrl}`;
+}
 
 // 获取文章列表
 router.get('/', async (req, res, next) => {
@@ -17,95 +23,115 @@ router.get('/', async (req, res, next) => {
     const { page = 1, pageSize = 10, search, sort = 'createdAt', order = 'desc', status = 'all' } = req.query;
     const offset = (Number(page) - 1) * Number(pageSize);
 
-    // 构建排序条件
-    const orderBy = [desc(articles.createdAt)]; // 默认排序
-    if (sort === 'createdAt') {
-      orderBy[0] = order === 'desc' ? desc(articles.createdAt) : asc(articles.createdAt);
-    } else if (sort === 'viewCount') {
-      orderBy[0] = order === 'desc' ? desc(articles.viewCount) : asc(articles.viewCount);
+    // 构建基础查询
+    let sql = `
+      SELECT 
+        a.id, a.title, a.content, a.image_url as imageUrl, 
+        a.status, a.view_count as viewCount, 
+        a.created_at as createdAt, a.updated_at as updatedAt,
+        u.id as author_id, u.username as author_username, 
+        u.avatar_url as author_avatarUrl
+      FROM articles a
+      LEFT JOIN users u ON u.id = a.author_id
+      WHERE 1=1
+    `;
+    const params = [];
+
+    // 添加状态过滤
+    if (status !== 'all') {
+      sql += ' AND a.status = ?';
+      params.push(status);
     }
 
-    // 构建查询条件
-    const conditions = [];
-    if (status !== 'all') {
-      conditions.push(eq(articles.status, status));
-    }
+    // 添加搜索条件
     if (search) {
-      conditions.push(
-        sql`(${articles.title} LIKE ${'%' + search + '%'} OR ${articles.content} LIKE ${'%' + search + '%'})`
-      );
+      sql += ' AND (a.title LIKE ? OR a.content LIKE ?)';
+      params.push(`%${search}%`, `%${search}%`);
     }
+
+    // 添加排序
+    if (sort === 'createdAt') {
+      sql += ` ORDER BY a.created_at ${order === 'desc' ? 'DESC' : 'ASC'}`;
+    } else if (sort === 'viewCount') {
+      sql += ` ORDER BY a.view_count ${order === 'desc' ? 'DESC' : 'ASC'}`;
+    }
+
+    // 添加分页
+    sql += ' LIMIT ? OFFSET ?';
+    params.push(Number(pageSize), offset);
 
     // 获取文章列表
-    const articlesList = await db
-      .select({
-        id: articles.id,
-        title: articles.title,
-        content: articles.content,
-        imageUrl: articles.imageUrl,
-        status: articles.status,
-        viewCount: articles.viewCount,
-        createdAt: articles.createdAt,
-        updatedAt: articles.updatedAt,
-        author: {
-          id: users.id,
-          username: users.username,
-          avatarUrl: users.avatarUrl,
-        }
-      })
-      .from(articles)
-      .leftJoin(users, eq(users.id, articles.authorId))
-      .where(and(...conditions))
-      .orderBy(...orderBy)
-      .limit(Number(pageSize))
-      .offset(offset);
+    const articlesList = await query(sql, params);
 
     // 获取总数
-    const [total] = await db
-      .select({ count: sql`count(*)` })
-      .from(articles)
-      .where(and(...conditions));
-
-    // 获取每篇文章的评论数和反应数
-    const articleIds = articlesList.map(article => article.id);
+    const countSql = `
+      SELECT COUNT(*) as count 
+      FROM articles a 
+      WHERE 1=1 
+      ${status !== 'all' ? 'AND a.status = ?' : ''}
+      ${search ? 'AND (a.title LIKE ? OR a.content LIKE ?)' : ''}
+    `;
+    const countParams = [];
+    if (status !== 'all') countParams.push(status);
+    if (search) countParams.push(`%${search}%`, `%${search}%`);
     
-    // 获取评论数
-    const commentCounts = await db
-      .select({
-        articleId: comments.articleId,
-        count: sql`count(*)`
-      })
-      .from(comments)
-      .where(inArray(comments.articleId, articleIds))
-      .groupBy(comments.articleId);
+    const [total] = await query(countSql, countParams);
 
-    // 获取反应数
-    const reactionCounts = await db
-      .select({
-        articleId: articleReactions.articleId,
-        count: sql`count(*)`
-      })
-      .from(articleReactions)
-      .where(inArray(articleReactions.articleId, articleIds))
-      .groupBy(articleReactions.articleId);
+    // 如果有文章，获取评论数和反应数
+    if (articlesList.length > 0) {
+      const articleIds = articlesList.map(article => article.id);
+      
+      // 获取评论数
+      const commentCounts = await query(
+        `SELECT article_id, COUNT(*) as count 
+         FROM comments 
+         WHERE article_id IN (${articleIds.map(() => '?').join(',')})
+         GROUP BY article_id`,
+        articleIds
+      );
 
-    // 将评论数和反应数添加到文章列表中
-    const articlesWithCounts = articlesList.map(article => {
-      const commentCount = commentCounts.find(c => c.articleId === article.id)?.count || 0;
-      const reactionCount = reactionCounts.find(r => r.articleId === article.id)?.count || 0;
-      return {
+      // 获取反应数
+      const reactionCounts = await query(
+        `SELECT article_id, COUNT(*) as count 
+         FROM article_reactions 
+         WHERE article_id IN (${articleIds.map(() => '?').join(',')})
+         GROUP BY article_id`,
+        articleIds
+      );
+
+      // 将评论数和反应数添加到文章列表中
+      const articlesWithCounts = articlesList.map(article => ({
         ...article,
-        commentCount: Number(commentCount),
-        reactionCount: Number(reactionCount)
-      };
-    });
+        author: {
+          id: article.author_id,
+          username: article.author_username,
+          avatarUrl: article.author_avatarUrl
+        },
+        commentCount: Number(commentCounts.find(c => c.article_id === article.id)?.count || 0),
+        reactionCount: Number(reactionCounts.find(r => r.article_id === article.id)?.count || 0)
+      }));
 
-    res.json({
-      items: articlesWithCounts,
-      total: Number(total.count),
-      page: Number(page),
-      pageSize: Number(pageSize)
-    });
+      // 清理临时字段
+      articlesWithCounts.forEach(article => {
+        delete article.author_id;
+        delete article.author_username;
+        delete article.author_avatarUrl;
+      });
+
+      res.json({
+        items: articlesWithCounts,
+        total: Number(total.count),
+        page: Number(page),
+        pageSize: Number(pageSize)
+      });
+    } else {
+      res.json({
+        items: [],
+        total: 0,
+        page: Number(page),
+        pageSize: Number(pageSize)
+      });
+    }
   } catch (error) {
     console.error('获取文章列表失败:', error);
     next(error);
@@ -139,27 +165,29 @@ router.post('/', authMiddleware, async (req, res, next) => {
     const processedImageUrl = imageUrl.replace(/^http:\/\/localhost:3000/, '');
 
     // 开启事务
-    const result = await db.transaction(async (tx) => {
+    const result = await transaction(async (tx) => {
       try {
         console.log('开始创建文章事务');
+        
         // 1. 创建文章
-        const [newArticle] = await tx
-          .insert(articles)
-          .values({
-            title: title.trim(),
-            content: content.trim(),
-            htmlContent: htmlContent || '',
-            imageUrl: processedImageUrl,
+        const result = await tx.run(
+          `INSERT INTO articles (
+            title, content, html_content, image_url, status, 
+            author_id, published_at, created_at, updated_at, view_count
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0)`,
+          [
+            title.trim(),
+            content.trim(),
+            htmlContent || '',
+            processedImageUrl,
             status,
-            authorId: req.userId,
-            publishedAt: status === 'published' ? new Date().toISOString() : null,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            viewCount: 0
-          })
-          .returning();
+            req.userId,
+            status === 'published' ? new Date().toISOString() : null
+          ]
+        );
 
-        console.log('文章创建成功:', newArticle);
+        const articleId = result.lastID;
+        console.log('文章创建成功:', { id: articleId });
 
         // 2. 处理标签
         const uniqueTags = [...new Set(tagNames.map(tag => tag.trim()).filter(Boolean))];
@@ -167,41 +195,26 @@ router.post('/', authMiddleware, async (req, res, next) => {
 
         for (const tagName of uniqueTags) {
           // 2.1 查找或创建标签
-          const existingTags = await tx
-            .select()
-            .from(tags)
-            .where(eq(tags.name, tagName))
-            .execute();
+          let tag = await tx.get('SELECT * FROM tags WHERE name = ?', [tagName]);
 
-          let tagId;
-          if (existingTags.length > 0) {
-            console.log('找到已存在的标签:', existingTags[0]);
-            tagId = existingTags[0].id;
-          } else {
+          if (!tag) {
             console.log('创建新标签:', tagName);
-            const [newTag] = await tx
-              .insert(tags)
-              .values({ 
-                name: tagName,
-                createdAt: new Date().toISOString()
-              })
-              .returning();
-            tagId = newTag.id;
+            const result = await tx.run(
+              'INSERT INTO tags (name, created_at) VALUES (?, CURRENT_TIMESTAMP)',
+              [tagName]
+            );
+            tag = { id: result.lastID };
           }
 
           // 2.2 创建文章-标签关联
-          console.log('创建文章-标签关联:', { articleId: newArticle.id, tagId });
-          await tx
-            .insert(articleTags)
-            .values({
-              articleId: newArticle.id,
-              tagId: tagId,
-              createdAt: new Date().toISOString()
-            })
-            .execute();
+          console.log('创建文章-标签关联:', { articleId, tagId: tag.id });
+          await tx.run(
+            'INSERT INTO article_tags (article_id, tag_id, created_at) VALUES (?, ?, CURRENT_TIMESTAMP)',
+            [articleId, tag.id]
+          );
         }
 
-        return newArticle;
+        return { id: articleId };
       } catch (error) {
         console.error('事务执行失败:', error);
         throw error;
@@ -211,51 +224,107 @@ router.post('/', authMiddleware, async (req, res, next) => {
     console.log('事务执行完成，获取完整文章信息');
 
     // 获取完整的文章信息（包括作者信息）
-    const articleResult = await db
-      .select({
-        id: articles.id,
-        title: articles.title,
-        content: articles.content,
-        htmlContent: articles.htmlContent,
-        imageUrl: articles.imageUrl,
-        status: articles.status,
-        viewCount: articles.viewCount,
-        createdAt: articles.createdAt,
-        updatedAt: articles.updatedAt,
-        author: {
-          id: users.id,
-          username: users.username,
-          avatarUrl: users.avatarUrl,
-          realName: users.realName,
-          bio: users.bio,
-          dateOfBirth: users.dateOfBirth,
-        }
-      })
-      .from(articles)
-      .leftJoin(users, eq(users.id, articles.authorId))
-      .where(eq(articles.id, result.id))
-      .execute();
+    const article = await query(
+      `
+        SELECT 
+          a.id, a.title, a.content, a.html_content as htmlContent,
+          a.image_url as imageUrl, a.status, a.view_count as viewCount,
+          a.created_at as createdAt, a.updated_at as updatedAt,
+          u.id as author_id, u.username as author_username,
+          u.avatar_url as author_avatarUrl, u.real_name as author_realName,
+          u.bio as author_bio, u.date_of_birth as author_dateOfBirth
+        FROM articles a
+        LEFT JOIN users u ON u.id = a.author_id
+        WHERE a.id = ?
+      `,
+      [result.id]
+    );
 
-    const article = articleResult[0];
-    if (!article) {
+    if (!article || article.length === 0) {
       throw new Error('文章创建成功但获取详情失败');
     }
 
+    // 格式化返回数据
+    const articleData = article[0];
+    
+    // 获取评论数
+    const [commentCount] = await query(
+      `
+        SELECT COUNT(*) as count 
+        FROM comments 
+        WHERE article_id = ?
+      `,
+      [articleData.id]
+    );
+
+    console.log('评论数:', commentCount);
+
+    // 获取反应数
+    const [reactionCount] = await query(
+      `
+        SELECT COUNT(*) as count 
+        FROM article_reactions 
+        WHERE article_id = ?
+      `,
+      [articleData.id]
+    );
+
+    console.log('反应数:', reactionCount);
+
+    // 获取文章标签
+    const tagResults = await query(
+      `
+        SELECT 
+          t.id, t.name, t.created_at
+        FROM article_tags at
+        LEFT JOIN tags t ON t.id = at.tag_id
+        WHERE at.article_id = ?
+        ORDER BY t.created_at DESC
+      `,
+      [articleData.id]
+    );
+
+    console.log('文章标签:', tagResults);
+
+    // 增加浏览量
+    await query(
+      `
+        UPDATE articles
+        SET view_count = view_count + 1
+        WHERE id = ?
+      `,
+      [articleData.id]
+    );
+
     // 在返回给前端时，添加服务器地址前缀
     const responseArticle = {
-      ...article,
-      imageUrl: `http://localhost:3000${article.imageUrl}`
+      id: articleData.id,
+      title: articleData.title,
+      content: articleData.content,
+      htmlContent: articleData.htmlContent,
+      imageUrl: getFullImageUrl(articleData.imageUrl),
+      status: articleData.status,
+      viewCount: articleData.viewCount,
+      createdAt: articleData.createdAt,
+      updatedAt: articleData.updatedAt,
+      author: {
+        id: articleData.author_id,
+        username: articleData.author_username,
+        avatarUrl: getFullImageUrl(articleData.author_avatarUrl),
+        realName: articleData.author_realName,
+        bio: articleData.author_bio,
+        dateOfBirth: articleData.author_dateOfBirth
+      },
+      commentCount: Number(commentCount.count),
+      reactionCount: Number(reactionCount.count),
+      tags: tagResults
     };
 
     console.log('返回创建成功的文章:', responseArticle);
     res.status(201).json(responseArticle);
   } catch (error) {
     console.error('创建文章失败:', error);
-    console.error('错误堆栈:', error.stack);
-    res.status(500).json({ 
-      message: error.message || '创建文章失败',
-      error: process.env.NODE_ENV === 'development' ? error.stack : undefined
-    });
+    next(error);
   }
 });
 
@@ -268,84 +337,99 @@ router.get('/:id', async (req, res, next) => {
     console.log('获取文章详情:', { articleId });
 
     // 获取文章基本信息
-    const articleResult = await db
-      .select({
-        id: articles.id,
-        title: articles.title,
-        content: articles.content,
-        htmlContent: articles.htmlContent,
-        imageUrl: articles.imageUrl,
-        status: articles.status,
-        viewCount: articles.viewCount,
-        createdAt: articles.createdAt,
-        updatedAt: articles.updatedAt,
-        author: {
-          id: users.id,
-          username: users.username,
-          avatarUrl: users.avatarUrl,
-          realName: users.realName,
-          bio: users.bio,
-          dateOfBirth: users.dateOfBirth,
-        }
-      })
-      .from(articles)
-      .leftJoin(users, eq(users.id, articles.authorId))
-      .where(eq(articles.id, articleId))
-      .execute();
+    const article = await query(
+      `
+        SELECT 
+          a.id, a.title, a.content, a.html_content as htmlContent,
+          a.image_url as imageUrl, a.status, a.view_count as viewCount,
+          a.created_at as createdAt, a.updated_at as updatedAt,
+          u.id as author_id, u.username as author_username,
+          u.avatar_url as author_avatarUrl, u.real_name as author_realName,
+          u.bio as author_bio, u.date_of_birth as author_dateOfBirth
+        FROM articles a
+        LEFT JOIN users u ON u.id = a.author_id
+        WHERE a.id = ?
+      `,
+      [articleId]
+    );
 
-    console.log('文章查询结果:', articleResult);
+    console.log('文章查询结果:', article);
 
-    if (!articleResult || articleResult.length === 0) {
+    if (!article || article.length === 0) {
       console.log('文章不存在:', articleId);
       return res.status(404).json({ message: '文章不存在' });
     }
 
-    const article = articleResult[0];
+    const articleData = article[0];
     
     // 获取评论数
-    const [commentCount] = await db
-      .select({
-        count: sql`count(*)`
-      })
-      .from(comments)
-      .where(eq(comments.articleId, articleId));
+    const [commentCount] = await query(
+      `
+        SELECT COUNT(*) as count 
+        FROM comments 
+        WHERE article_id = ?
+      `,
+      [articleId]
+    );
 
     console.log('评论数:', commentCount);
 
     // 获取反应数
-    const [reactionCount] = await db
-      .select({
-        count: sql`count(*)`
-      })
-      .from(articleReactions)
-      .where(eq(articleReactions.articleId, articleId));
+    const [reactionCount] = await query(
+      `
+        SELECT COUNT(*) as count 
+        FROM article_reactions 
+        WHERE article_id = ?
+      `,
+      [articleId]
+    );
 
     console.log('反应数:', reactionCount);
 
     // 获取文章标签
-    const tagResults = await db
-      .select({
-        id: tags.id,
-        name: tags.name,
-        createdAt: tags.createdAt
-      })
-      .from(articleTags)
-      .leftJoin(tags, eq(tags.id, articleTags.tagId))
-      .where(eq(articleTags.articleId, articleId))
-      .orderBy(desc(tags.createdAt));
+    const tagResults = await query(
+      `
+        SELECT 
+          t.id, t.name, t.created_at
+        FROM article_tags at
+        LEFT JOIN tags t ON t.id = at.tag_id
+        WHERE at.article_id = ?
+        ORDER BY t.created_at DESC
+      `,
+      [articleId]
+    );
 
     console.log('文章标签:', tagResults);
 
     // 增加浏览量
-    await db
-      .update(articles)
-      .set({ viewCount: sql`${articles.viewCount} + 1` })
-      .where(eq(articles.id, articleId));
+    await query(
+      `
+        UPDATE articles
+        SET view_count = view_count + 1
+        WHERE id = ?
+      `,
+      [articleId]
+    );
 
     // 在返回给前端时，添加服务器地址前缀
     const responseArticle = {
-      ...article,
-      imageUrl: article.imageUrl ? `http://localhost:3000${article.imageUrl}` : null,
+      id: articleData.id,
+      title: articleData.title,
+      content: articleData.content,
+      htmlContent: articleData.htmlContent,
+      imageUrl: getFullImageUrl(articleData.imageUrl),
+      status: articleData.status,
+      viewCount: articleData.viewCount,
+      createdAt: articleData.createdAt,
+      updatedAt: articleData.updatedAt,
+      author: {
+        id: articleData.author_id,
+        username: articleData.author_username,
+        avatarUrl: getFullImageUrl(articleData.author_avatarUrl),
+        realName: articleData.author_realName,
+        bio: articleData.author_bio,
+        dateOfBirth: articleData.author_dateOfBirth
+      },
       commentCount: Number(commentCount.count),
       reactionCount: Number(reactionCount.count),
       tags: tagResults
@@ -370,32 +454,39 @@ router.put('/:id', authMiddleware, uploadArticleCover, async (req, res, next) =>
     const { id } = req.params;
     const { title, content, htmlContent, imageUrl, status } = req.body;
 
-    const article = await db
-      .select()
-      .from(articles)
-      .where(eq(articles.id, Number(id)))
-      .get();
+    const article = await query(
+      `
+        SELECT *
+        FROM articles
+        WHERE id = ?
+      `,
+      [Number(id)]
+    );
 
-    if (!article) {
+    if (!article || article.length === 0) {
       return res.status(404).json({ message: '文章不存在' });
     }
 
-    if (article.authorId !== req.userId) {
+    if (article[0].author_id !== req.userId) {
       return res.status(403).json({ message: '无权修改此文章' });
     }
 
-    const updatedArticle = await db
-      .update(articles)
-      .set({
-        title: title || article.title,
-        content: content || article.content,
-        htmlContent: htmlContent || article.htmlContent,
-        imageUrl: imageUrl || article.imageUrl,
-        status: status || article.status,
-        updatedAt: new Date().toISOString()
-      })
-      .where(eq(articles.id, Number(id)))
-      .returning();
+    const updatedArticle = await query(
+      `
+        UPDATE articles
+        SET title = ?, content = ?, html_content = ?, image_url = ?, status = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+        RETURNING *
+      `,
+      [
+        title || article[0].title,
+        content || article[0].content,
+        htmlContent || article[0].html_content,
+        imageUrl || article[0].image_url,
+        status || article[0].status,
+        Number(id)
+      ]
+    );
 
     res.json(updatedArticle[0]);
   } catch (error) {
@@ -408,21 +499,30 @@ router.delete('/:id', authMiddleware, async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const article = await db
-      .select()
-      .from(articles)
-      .where(eq(articles.id, Number(id)))
-      .get();
+    const article = await query(
+      `
+        SELECT *
+        FROM articles
+        WHERE id = ?
+      `,
+      [Number(id)]
+    );
 
-    if (!article) {
+    if (!article || article.length === 0) {
       return res.status(404).json({ message: '文章不存在' });
     }
 
-    if (article.authorId !== req.userId) {
+    if (article[0].author_id !== req.userId) {
       return res.status(403).json({ message: '无权删除此文章' });
     }
 
-    await db.delete(articles).where(eq(articles.id, Number(id)));
+    await query(
+      `
+        DELETE FROM articles
+        WHERE id = ?
+      `,
+      [Number(id)]
+    );
 
     res.json({ message: '文章删除成功' });
   } catch (error) {
@@ -440,27 +540,30 @@ router.post('/:id/cover', authMiddleware, upload.single('cover'), async (req, re
       return res.status(400).json({ message: '请上传封面图片' });
     }
 
-    const article = await db
-      .select()
-      .from(articles)
-      .where(eq(articles.id, Number(id)))
-      .get();
+    const article = await query(
+      `
+        SELECT *
+        FROM articles
+        WHERE id = ?
+      `,
+      [Number(id)]
+    );
 
-    if (!article) {
+    if (!article || article.length === 0) {
       // 删除上传的文件
       fs.unlinkSync(file.path);
       return res.status(404).json({ message: '文章不存在' });
     }
 
-    if (article.authorId !== req.userId) {
+    if (article[0].author_id !== req.userId) {
       // 删除上传的文件
       fs.unlinkSync(file.path);
       return res.status(403).json({ message: '无权修改此文章' });
     }
 
     // 如果文章已有封面，删除旧文件
-    if (article.imageUrl) {
-      const oldImagePath = path.join(process.cwd(), article.imageUrl);
+    if (article[0].image_url) {
+      const oldImagePath = path.join(process.cwd(), article[0].image_url);
       if (fs.existsSync(oldImagePath)) {
         fs.unlinkSync(oldImagePath);
       }
@@ -468,11 +571,15 @@ router.post('/:id/cover', authMiddleware, upload.single('cover'), async (req, re
 
     const imageUrl = `/uploads/covers/${file.filename}`;
 
-    const updatedArticle = await db
-      .update(articles)
-      .set({ imageUrl })
-      .where(eq(articles.id, Number(id)))
-      .returning();
+    const updatedArticle = await query(
+      `
+        UPDATE articles
+        SET image_url = ?
+        WHERE id = ?
+        RETURNING *
+      `,
+      [imageUrl, Number(id)]
+    );
 
     res.json({
       message: '封面上传成功',
@@ -581,12 +688,14 @@ router.post('/preview', async (req, res) => {
 // 增加文章浏览量
 router.post('/:id/view', async (req, res, next) => {
   try {
-    await db
-      .update(articles)
-      .set({
-        viewCount: sql`${articles.viewCount} + 1`
-      })
-      .where(eq(articles.id, parseInt(req.params.id)));
+    await query(
+      `
+        UPDATE articles
+        SET view_count = view_count + 1
+        WHERE id = ?
+      `,
+      [parseInt(req.params.id)]
+    );
     
     res.json({ message: '浏览量已更新' });
   } catch (error) {
@@ -607,38 +716,45 @@ router.patch('/:id/status', authMiddleware, async (req, res, next) => {
       return res.status(400).json({ message: '无效的状态值' });
     }
 
-    const article = await db
-      .select()
-      .from(articles)
-      .where(eq(articles.id, articleId))
-      .get();
+    const article = await query(
+      `
+        SELECT *
+        FROM articles
+        WHERE id = ?
+      `,
+      [articleId]
+    );
 
-    if (!article) {
+    if (!article || article.length === 0) {
       return res.status(404).json({ message: '文章不存在' });
     }
 
     // 检查权限
-    const currentUser = await db
-      .select()
-      .from(users)
-      .where(eq(users.id, userId))
-      .get();
+    const currentUser = await query(
+      `
+        SELECT *
+        FROM users
+        WHERE id = ?
+      `,
+      [userId]
+    );
 
-    const isAdmin = currentUser?.role === 'admin';
-    const isAuthor = article.authorId === userId;
+    const isAdmin = currentUser[0]?.role === 'admin';
+    const isAuthor = article[0].author_id === userId;
 
     if (!isAdmin && !isAuthor) {
       return res.status(403).json({ message: '无权限修改此文章状态' });
     }
 
-    const updatedArticle = await db
-      .update(articles)
-      .set({ 
-        status,
-        updatedAt: new Date().toISOString()
-      })
-      .where(eq(articles.id, articleId))
-      .returning();
+    const updatedArticle = await query(
+      `
+        UPDATE articles
+        SET status = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+        RETURNING *
+      `,
+      [status, articleId]
+    );
 
     res.json(updatedArticle[0]);
   } catch (error) {
@@ -650,17 +766,16 @@ router.patch('/:id/status', authMiddleware, async (req, res, next) => {
 router.get('/:id/reaction', async (req, res, next) => {
   try {
     const articleId = parseInt(req.params.id);
-    const userId = req.userId; // 如果用户未登录，这里会是 undefined
+    const userId = req.user?.id; // 从 auth 中间件添加的 user 对象获取
 
     // 获取所有反应计数
-    const reactionCounts = await db
-      .select({
-        type: articleReactions.type,
-        count: sql`count(*)`
-      })
-      .from(articleReactions)
-      .where(eq(articleReactions.articleId, articleId))
-      .groupBy(articleReactions.type);
+    const reactionCounts = await query(
+      `SELECT type, COUNT(*) as count
+       FROM article_reactions
+       WHERE article_id = ?
+       GROUP BY type`,
+      [articleId]
+    );
 
     // 构建反应计数对象
     const counts = {
@@ -677,16 +792,12 @@ router.get('/:id/reaction', async (req, res, next) => {
     // 如果用户已登录，获取用户的反应状态
     let userReaction = null;
     if (userId) {
-      const reaction = await db
-        .select()
-        .from(articleReactions)
-        .where(
-          and(
-            eq(articleReactions.articleId, articleId),
-            eq(articleReactions.userId, userId)
-          )
-        )
-        .get();
+      const reaction = await get(
+        `SELECT type
+         FROM article_reactions
+         WHERE article_id = ? AND user_id = ?`,
+        [articleId, userId]
+      );
       
       if (reaction) {
         userReaction = reaction.type;
@@ -703,47 +814,68 @@ router.get('/:id/reaction', async (req, res, next) => {
   }
 });
 
-// 获取文章反应状态
+// 获取文章反应列表
 router.get('/:id/reactions', async (req, res, next) => {
   try {
     const { type, page = 1, pageSize = 10 } = req.query;
     const articleId = parseInt(req.params.id);
     const offset = (Number(page) - 1) * Number(pageSize);
 
-    const conditions = [eq(articleReactions.articleId, articleId)];
+    // 构建基础查询
+    let sql = `
+      SELECT 
+        u.id as user_id, u.username, u.avatar_url,
+        ar.type, ar.created_at
+      FROM article_reactions ar
+      LEFT JOIN users u ON u.id = ar.user_id
+      WHERE ar.article_id = ?
+    `;
+    const params = [articleId];
+
+    // 添加类型过滤
     if (type && ['like', 'love', 'haha', 'angry'].includes(type)) {
-      conditions.push(eq(articleReactions.type, type));
+      sql += ' AND ar.type = ?';
+      params.push(type);
     }
 
-    // 获取反应列表和总数
-    const [reactionsList, total] = await Promise.all([
-      db.select({
-        user: {
-          id: users.id,
-          username: users.username,
-          avatarUrl: users.avatarUrl,
-        },
-        type: articleReactions.type,
-        createdAt: articleReactions.createdAt,
-      })
-        .from(articleReactions)
-        .leftJoin(users, eq(users.id, articleReactions.userId))
-        .where(and(...conditions))
-        .orderBy(desc(articleReactions.createdAt))
-        .limit(Number(pageSize))
-        .offset(offset),
-      db.select({ count: sql`count(*)` })
-        .from(articleReactions)
-        .where(and(...conditions))
-    ]);
+    // 添加排序和分页
+    sql += ' ORDER BY ar.created_at DESC LIMIT ? OFFSET ?';
+    params.push(Number(pageSize), offset);
+
+    // 获取反应列表
+    const reactionsList = await query(sql, params);
+
+    // 获取总数
+    const countSql = `
+      SELECT COUNT(*) as count 
+      FROM article_reactions 
+      WHERE article_id = ?
+      ${type ? 'AND type = ?' : ''}
+    `;
+    const countParams = [articleId];
+    if (type) countParams.push(type);
+    
+    const [total] = await query(countSql, countParams);
+
+    // 格式化返回数据
+    const formattedReactions = reactionsList.map(reaction => ({
+      user: {
+        id: reaction.user_id,
+        username: reaction.username,
+        avatarUrl: reaction.avatar_url
+      },
+      type: reaction.type,
+      createdAt: reaction.created_at
+    }));
 
     res.json({
-      items: reactionsList,
-      total: total[0].count,
+      items: formattedReactions,
+      total: Number(total[0].count),
       page: Number(page),
       pageSize: Number(pageSize)
     });
   } catch (error) {
+    console.error('获取文章反应列表失败:', error);
     next(error);
   }
 });
@@ -753,16 +885,17 @@ router.get('/:id/tags', async (req, res, next) => {
   try {
     const articleId = parseInt(req.params.id);
 
-    const tags = await db
-      .select({
-        id: tags.id,
-        name: tags.name,
-        createdAt: tags.createdAt
-      })
-      .from(articleTags)
-      .leftJoin(tags, eq(tags.id, articleTags.tagId))
-      .where(eq(articleTags.articleId, articleId))
-      .orderBy(desc(tags.createdAt));
+    const tags = await query(
+      `
+        SELECT 
+          t.id, t.name, t.created_at
+        FROM article_tags at
+        LEFT JOIN tags t ON t.id = at.tag_id
+        WHERE at.article_id = ?
+        ORDER BY t.created_at DESC
+      `,
+      [articleId]
+    );
 
     res.json(tags);
   } catch (error) {
@@ -774,75 +907,83 @@ router.get('/:id/tags', async (req, res, next) => {
 router.put('/:id/tags', authMiddleware, async (req, res, next) => {
   try {
     const articleId = parseInt(req.params.id);
-    const { tags } = req.body;
+    const { tags: tagNames } = req.body;
 
-    if (!Array.isArray(tags)) {
+    if (!Array.isArray(tagNames)) {
       return res.status(400).json({ message: '标签必须是数组' });
     }
 
     // 检查文章所有权
-    const article = await db
-      .select()
-      .from(articles)
-      .where(
-        and(
-          eq(articles.id, articleId),
-          eq(articles.authorId, req.userId)
-        )
-      )
-      .get();
+    const article = await query(
+      `
+        SELECT *
+        FROM articles
+        WHERE id = ? AND author_id = ?
+      `,
+      [articleId, req.userId]
+    );
 
-    if (!article) {
+    if (!article || article.length === 0) {
       return res.status(404).json({ message: '文章不存在或无权限' });
     }
 
     // 开启事务处理标签更新
-    await db.transaction(async (tx) => {
+    await transaction(async (tx) => {
       // 1. 删除原有标签
-      await tx
-        .delete(articleTags)
-        .where(eq(articleTags.articleId, articleId));
+      await tx(
+        `
+          DELETE FROM article_tags
+          WHERE article_id = ?
+        `,
+        [articleId]
+      );
 
       // 2. 添加新标签
-      for (const tagName of tags) {
+      for (const tagName of tagNames) {
         // 查找或创建标签
-        let [tag] = await tx
-          .select()
-          .from(tags)
-          .where(eq(tags.name, tagName));
+        let [tag] = await tx(
+          `
+            SELECT *
+            FROM tags
+            WHERE name = ?
+          `,
+          [tagName]
+        );
 
         if (!tag) {
-          [tag] = await tx
-            .insert(tags)
-            .values({
-              name: tagName,
-              createdAt: new Date().toISOString()
-            })
-            .returning();
+          [tag] = await tx(
+            `
+              INSERT INTO tags (name, created_at)
+              VALUES (?, CURRENT_TIMESTAMP)
+              RETURNING *
+            `,
+            [tagName]
+          );
         }
 
         // 创建文章-标签关联
-        await tx
-          .insert(articleTags)
-          .values({
-            articleId,
-            tagId: tag.id,
-            createdAt: new Date().toISOString()
-          });
+        await tx(
+          `
+            INSERT INTO article_tags (article_id, tag_id, created_at)
+            VALUES (?, ?, CURRENT_TIMESTAMP)
+          `,
+          [articleId, tag.id]
+        );
       }
     });
 
     // 获取更新后的标签列表
-    const updatedTags = await db
-      .select({
-        id: tags.id,
-        name: tags.name,
-        createdAt: tags.createdAt
-      })
-      .from(articleTags)
-      .leftJoin(tags, eq(tags.id, articleTags.tagId))
-      .where(eq(articleTags.articleId, articleId))
-      .orderBy(desc(tags.createdAt));
+    const updatedTags = await query(
+      `
+        SELECT 
+          t.id, t.name, t.created_at
+        FROM article_tags at
+        LEFT JOIN tags t ON t.id = at.tag_id
+        WHERE at.article_id = ?
+        ORDER BY t.created_at DESC
+      `,
+      [articleId]
+    );
 
     res.json(updatedTags);
   } catch (error) {
@@ -857,32 +998,46 @@ router.get('/:id/comments', async (req, res, next) => {
     const articleId = parseInt(req.params.id);
     const offset = (Number(page) - 1) * Number(pageSize);
 
-    // 并发查询评论列表和总数
-    const [commentsList, total] = await Promise.all([
-      db.select({
-        id: comments.id,
-        content: comments.content,
-        createdAt: comments.createdAt,
-        user: {
-          id: users.id,
-          username: users.username,
-          avatarUrl: users.avatarUrl,
-        }
-      })
-        .from(comments)
-        .leftJoin(users, eq(users.id, comments.userId))
-        .where(eq(comments.articleId, articleId))
-        .orderBy(desc(comments.createdAt))
-        .limit(Number(pageSize))
-        .offset(offset),
-      db.select({ count: sql`count(*)` })
-        .from(comments)
-        .where(eq(comments.articleId, articleId))
-    ]);
+    // 获取评论列表
+    const commentsList = await query(
+      `
+        SELECT 
+          c.id, c.content, c.created_at,
+          u.id as user_id, u.username, u.avatar_url
+        FROM comments c
+        LEFT JOIN users u ON u.id = c.user_id
+        WHERE c.article_id = ?
+        ORDER BY c.created_at DESC
+        LIMIT ? OFFSET ?
+      `,
+      [articleId, Number(pageSize), offset]
+    );
+
+    // 获取总数
+    const [total] = await query(
+      `
+        SELECT COUNT(*) as count
+        FROM comments
+        WHERE article_id = ?
+      `,
+      [articleId]
+    );
+
+    // 格式化返回数据
+    const formattedComments = commentsList.map(comment => ({
+      id: comment.id,
+      content: comment.content,
+      createdAt: comment.created_at,
+      user: {
+        id: comment.user_id,
+        username: comment.username,
+        avatarUrl: comment.avatar_url
+      }
+    }));
 
     res.json({
-      items: commentsList,
-      total: total[0].count,
+      items: formattedComments,
+      total: Number(total[0].count),
       page: Number(page),
       pageSize: Number(pageSize)
     });
@@ -903,45 +1058,43 @@ router.post('/:id/comments', authMiddleware, async (req, res, next) => {
     }
 
     // 检查文章是否存在
-    const article = await db
-      .select()
-      .from(articles)
-      .where(eq(articles.id, articleId))
-      .get();
+    const article = await query(
+      `
+        SELECT *
+        FROM articles
+        WHERE id = ?
+      `,
+      [articleId]
+    );
 
-    if (!article) {
+    if (!article || article.length === 0) {
       return res.status(404).json({ message: '文章不存在' });
     }
 
     // 创建评论
-    const [newComment] = await db
-      .insert(comments)
-      .values({
-        content,
-        articleId,
-        userId,
-        createdAt: new Date().toISOString()
-      })
-      .returning();
+    const result = await query(
+      `
+        INSERT INTO comments (content, article_id, user_id, created_at)
+        VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+        RETURNING *
+      `,
+      [content, articleId, userId]
+    );
 
     // 获取评论详情（包括用户信息）
-    const commentWithUser = await db
-      .select({
-        id: comments.id,
-        content: comments.content,
-        createdAt: comments.createdAt,
-        user: {
-          id: users.id,
-          username: users.username,
-          avatarUrl: users.avatarUrl,
-        }
-      })
-      .from(comments)
-      .leftJoin(users, eq(users.id, comments.userId))
-      .where(eq(comments.id, newComment.id))
-      .get();
+    const comment = await query(
+      `
+        SELECT 
+          c.id, c.content, c.created_at,
+          u.id as user_id, u.username, u.avatar_url
+        FROM comments c
+        LEFT JOIN users u ON u.id = c.user_id
+        WHERE c.id = ?
+      `,
+      [result.id]
+    );
 
-    res.status(201).json(commentWithUser);
+    res.status(201).json(comment[0]);
   } catch (error) {
     next(error);
   }
@@ -955,36 +1108,41 @@ router.delete('/:articleId/comments/:commentId', authMiddleware, async (req, res
     const userId = req.userId;
 
     // 检查评论是否存在
-    const comment = await db
-      .select()
-      .from(comments)
-      .where(
-        and(
-          eq(comments.id, commentId),
-          eq(comments.articleId, articleId)
-        )
-      )
-      .get();
+    const comment = await query(
+      `
+        SELECT *
+        FROM comments
+        WHERE id = ? AND article_id = ?
+      `,
+      [commentId, articleId]
+    );
 
-    if (!comment) {
+    if (!comment || comment.length === 0) {
       return res.status(404).json({ message: '评论不存在' });
     }
 
     // 检查权限（评论作者或文章作者可以删除评论）
-    const article = await db
-      .select()
-      .from(articles)
-      .where(eq(articles.id, articleId))
-      .get();
+    const article = await query(
+      `
+        SELECT *
+        FROM articles
+        WHERE id = ?
+      `,
+      [articleId]
+    );
 
-    if (comment.userId !== userId && article.authorId !== userId) {
+    if (comment[0].user_id !== userId && article[0].author_id !== userId) {
       return res.status(403).json({ message: '无权限删除此评论' });
     }
 
     // 删除评论
-    await db
-      .delete(comments)
-      .where(eq(comments.id, commentId));
+    await query(
+      `
+        DELETE FROM comments
+        WHERE id = ?
+      `,
+      [commentId]
+    );
 
     res.json({ message: '评论已删除' });
   } catch (error) {
@@ -998,31 +1156,33 @@ router.delete('/:id/cover', authMiddleware, async (req, res, next) => {
     const articleId = parseInt(req.params.id);
     const userId = req.userId;
 
-    const article = await db
-      .select()
-      .from(articles)
-      .where(
-        and(
-          eq(articles.id, articleId),
-          eq(articles.authorId, userId)
-        )
-      )
-      .get();
+    const article = await query(
+      `
+        SELECT *
+        FROM articles
+        WHERE id = ? AND author_id = ?
+      `,
+      [articleId, userId]
+    );
 
-    if (!article) {
+    if (!article || article.length === 0) {
       return res.status(404).json({ message: '文章不存在或无权限' });
     }
 
-    if (article.imageUrl) {
-      const imagePath = path.join(process.cwd(), article.imageUrl);
+    if (article[0].image_url) {
+      const imagePath = path.join(process.cwd(), article[0].image_url);
       fs.unlink(imagePath, (err) => {
         if (err) console.error('删除封面图失败:', err);
       });
 
-      await db
-        .update(articles)
-        .set({ imageUrl: null })
-        .where(eq(articles.id, articleId));
+      await query(
+        `
+          UPDATE articles
+          SET image_url = NULL
+          WHERE id = ?
+        `,
+        [articleId]
+      );
     }
 
     res.json({ message: '封面已删除' });
@@ -1034,167 +1194,89 @@ router.delete('/:id/cover', authMiddleware, async (req, res, next) => {
 // 添加或更新文章反应
 router.post('/:id/reaction', authMiddleware, async (req, res, next) => {
   try {
-    const articleId = parseInt(req.params.id);
-    const userId = req.userId;
-
-    console.log('收到反应请求:', {
-      articleId,
-      userId,
-      body: req.body,
-      rawBody: JSON.stringify(req.body),
-      headers: {
-        'content-type': req.headers['content-type'],
-        'content-length': req.headers['content-length'],
-        'authorization': req.headers['authorization'] ? '存在' : '不存在'
-      }
-    });
-
-    // 验证请求体
-    if (!req.body || typeof req.body !== 'object') {
-      console.error('无效的请求体:', req.body);
-      return res.status(400).json({ message: '无效的请求体' });
-    }
-
     const { type } = req.body;
-    console.log('解析的反应类型:', type);
+    const articleId = parseInt(req.params.id);
+    const userId = req.user.id;
 
-    if (!type || typeof type !== 'string') {
-      console.error('缺少反应类型或类型无效');
-      return res.status(400).json({ message: '缺少反应类型或类型无效' });
-    }
+    console.log('处理文章反应:', { articleId, userId, type });
 
     // 验证反应类型
-    const validTypes = ['like', 'love', 'haha', 'angry'];
-    if (!validTypes.includes(type)) {
-      console.error('无效的反应类型:', type);
+    if (!['like', 'love', 'haha', 'angry'].includes(type)) {
       return res.status(400).json({ message: '无效的反应类型' });
     }
 
     // 检查文章是否存在
-    const article = await db
-      .select()
-      .from(articles)
-      .where(eq(articles.id, articleId))
-      .get();
+    const article = await get(
+      'SELECT * FROM articles WHERE id = ?',
+      [articleId]
+    );
 
     if (!article) {
-      console.error('文章不存在:', articleId);
       return res.status(404).json({ message: '文章不存在' });
     }
 
-    try {
-      // 检查用户是否已经对这篇文章有反应
-      const existingReaction = await db
-        .select()
-        .from(articleReactions)
-        .where(
-          and(
-            eq(articleReactions.articleId, articleId),
-            eq(articleReactions.userId, userId)
-          )
-        )
-        .get();
+    // 检查是否已经有反应
+    const existingReaction = await get(
+      'SELECT * FROM article_reactions WHERE article_id = ? AND user_id = ?',
+      [articleId, userId]
+    );
 
-      console.log('现有反应:', existingReaction);
-
-      let action = '';
-      if (existingReaction) {
-        // 如果已有反应，先删除现有反应
-        console.log('删除现有反应');
-        await db
-          .delete(articleReactions)
-          .where(eq(articleReactions.id, existingReaction.id));
-
-        // 如果新的反应类型与旧的不同，则创建新反应
-        if (existingReaction.type !== type) {
-          console.log('创建新的反应:', type);
-          action = 'create';
-          await db
-            .insert(articleReactions)
-            .values({
-              articleId,
-              userId,
-              type,
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString()
-            });
-        } else {
-          action = 'delete';
-        }
+    let action;
+    if (existingReaction) {
+      if (existingReaction.type === type) {
+        // 如果是相同的反应类型，则删除反应
+        await run(
+          'DELETE FROM article_reactions WHERE id = ?',
+          [existingReaction.id]
+        );
+        action = 'removed';
       } else {
-        // 如果没有现有反应，则创建新反应
-        console.log('创建新的反应');
-        action = 'create';
-        await db
-          .insert(articleReactions)
-          .values({
-            articleId,
-            userId,
-            type,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          });
+        // 如果是不同的反应类型，则更新反应
+        await run(
+          'UPDATE article_reactions SET type = ? WHERE id = ?',
+          [type, existingReaction.id]
+        );
+        action = 'updated';
       }
-
-      // 获取更新后的反应统计
-      const reactionCounts = await db
-        .select({
-          type: articleReactions.type,
-          count: sql`count(*)`
-        })
-        .from(articleReactions)
-        .where(eq(articleReactions.articleId, articleId))
-        .groupBy(articleReactions.type);
-
-      console.log('反应统计:', reactionCounts);
-
-      // 构建反应计数对象
-      const counts = {
-        like: 0,
-        love: 0,
-        haha: 0,
-        angry: 0
-      };
-      
-      reactionCounts.forEach(count => {
-        counts[count.type] = Number(count.count);
-      });
-
-      // 获取用户当前的反应状态
-      const userReaction = action === 'delete' ? null : await db
-        .select()
-        .from(articleReactions)
-        .where(
-          and(
-            eq(articleReactions.articleId, articleId),
-            eq(articleReactions.userId, userId)
-          )
-        )
-        .get();
-
-      const response = {
-        userReaction: action === 'delete' ? null : userReaction?.type || null,
-        reactionCounts: counts
-      };
-
-      console.log('返回更新后的反应状态:', {
-        action,
-        response,
-        reactionCounts
-      });
-      
-      return res.json(response);
-    } catch (dbError) {
-      console.error('数据库操作失败:', dbError);
-      throw dbError;
+    } else {
+      // 添加新反应
+      await run(
+        'INSERT INTO article_reactions (article_id, user_id, type) VALUES (?, ?, ?)',
+        [articleId, userId, type]
+      );
+      action = 'added';
     }
+
+    // 获取更新后的反应计数
+    const reactionCounts = await query(
+      `SELECT type, COUNT(*) as count
+       FROM article_reactions
+       WHERE article_id = ?
+       GROUP BY type`,
+      [articleId]
+    );
+
+    // 构建反应计数对象
+    const counts = {
+      like: 0,
+      love: 0,
+      haha: 0,
+      angry: 0
+    };
+    
+    reactionCounts.forEach(count => {
+      counts[count.type] = Number(count.count);
+    });
+
+    // 返回完整的响应
+    res.json({
+      action,
+      type: action !== 'removed' ? type : undefined,
+      reactionCounts: counts
+    });
   } catch (error) {
     console.error('处理文章反应失败:', error);
-    console.error('错误堆栈:', error.stack);
-    return res.status(500).json({ 
-      message: '处理文章反应失败',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
+    next(error);
   }
 });
 

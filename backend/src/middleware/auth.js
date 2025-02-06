@@ -1,7 +1,5 @@
 import jwt from 'jsonwebtoken';
-import { db } from '../db/index.js';
-import { users } from '../db/schema.js';
-import { eq } from 'drizzle-orm';
+import { get } from '../db/index.js';
 
 export const authMiddleware = async (req, res, next) => {
   try {
@@ -11,17 +9,16 @@ export const authMiddleware = async (req, res, next) => {
       return res.status(401).json({ message: '未提供认证令牌' });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
     
     if (!decoded.userId) {
       return res.status(401).json({ message: '无效的认证令牌' });
     }
 
-    const user = await db
-      .select()
-      .from(users)
-      .where(eq(users.id, decoded.userId))
-      .get();
+    const user = await get(
+      'SELECT id, username, role FROM users WHERE id = ?',
+      [decoded.userId]
+    );
 
     if (!user) {
       return res.status(401).json({ message: '用户不存在' });

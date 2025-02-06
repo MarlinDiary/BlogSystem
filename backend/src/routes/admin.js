@@ -1,7 +1,5 @@
 import express from 'express';
-import { db } from '../db/index.js';
-import { and, eq, sql } from 'drizzle-orm';
-import { users, articles as articlesTable, comments as commentsTable, articleReactions } from '../db/schema.js';
+import { query, get, run, transaction } from '../db/index.js';
 import { authMiddleware, isAdmin } from '../middleware/auth.js';
 import path from 'path';
 import fs from 'fs';
@@ -15,22 +13,19 @@ router.use(isAdmin);
 // 获取所有用户列表
 router.get('/users', async (req, res) => {
   try {
-    const usersWithStats = await db
-      .select({
-        id: users.id,
-        username: users.username,
-        realName: users.realName,
-        dateOfBirth: users.dateOfBirth,
-        bio: users.bio,
-        avatarUrl: users.avatarUrl,
-        createdAt: users.createdAt,
-        articleCount: sql`count(distinct ${articlesTable.id})`,
-        commentCount: sql`count(distinct ${commentsTable.id})`
-      })
-      .from(users)
-      .leftJoin(articlesTable, eq(articlesTable.authorId, users.id))
-      .leftJoin(commentsTable, eq(commentsTable.userId, users.id))
-      .groupBy(users.id);
+    const usersWithStats = await query(`
+      SELECT 
+        u.id, u.username, u.real_name as realName,
+        u.date_of_birth as dateOfBirth, u.bio,
+        u.avatar_url as avatarUrl,
+        u.created_at as createdAt,
+        COUNT(DISTINCT a.id) as articleCount,
+        COUNT(DISTINCT c.id) as commentCount
+      FROM users u
+      LEFT JOIN articles a ON a.author_id = u.id
+      LEFT JOIN comments c ON c.user_id = u.id
+      GROUP BY u.id
+    `);
 
     const formattedUsers = usersWithStats.map(user => ({
       ...user,
@@ -50,24 +45,20 @@ router.get('/users/:id', async (req, res) => {
     const userId = parseInt(req.params.id);
     if (isNaN(userId)) return res.status(400).json({ error: '无效的用户ID' });
 
-    const user = await db
-      .select({
-        id: users.id,
-        username: users.username,
-        realName: users.realName,
-        dateOfBirth: users.dateOfBirth,
-        bio: users.bio,
-        avatarUrl: users.avatarUrl,
-        createdAt: users.createdAt,
-        articleCount: sql`count(distinct ${articlesTable.id})`,
-        commentCount: sql`count(distinct ${commentsTable.id})`
-      })
-      .from(users)
-      .leftJoin(articlesTable, eq(articlesTable.authorId, users.id))
-      .leftJoin(commentsTable, eq(commentsTable.userId, users.id))
-      .where(eq(users.id, userId))
-      .groupBy(users.id)
-      .get();
+    const user = await get(`
+      SELECT 
+        u.id, u.username, u.real_name as realName,
+        u.date_of_birth as dateOfBirth, u.bio,
+        u.avatar_url as avatarUrl,
+        u.created_at as createdAt,
+        COUNT(DISTINCT a.id) as articleCount,
+        COUNT(DISTINCT c.id) as commentCount
+      FROM users u
+      LEFT JOIN articles a ON a.author_id = u.id
+      LEFT JOIN comments c ON c.user_id = u.id
+      WHERE u.id = ?
+      GROUP BY u.id
+    `, [userId]);
 
     if (!user) return res.status(404).json({ error: '用户不存在' });
     res.json(user);
@@ -82,10 +73,10 @@ router.delete('/users/:id', async (req, res) => {
   if (isNaN(userId)) return res.status(400).json({ error: '无效的用户ID' });
 
   try {
-    await db.transaction(async (tx) => {
-      await tx.delete(commentsTable).where(eq(commentsTable.userId, userId));
-      await tx.delete(articlesTable).where(eq(articlesTable.authorId, userId));
-      await tx.delete(users).where(eq(users.id, userId));
+    await transaction(async (tx) => {
+      await tx.run('DELETE FROM comments WHERE user_id = ?', [userId]);
+      await tx.run('DELETE FROM articles WHERE author_id = ?', [userId]);
+      await tx.run('DELETE FROM users WHERE id = ?', [userId]);
     });
     res.json({ message: '用户删除成功' });
   } catch (error) {
@@ -97,59 +88,58 @@ router.delete('/users/:id', async (req, res) => {
 router.get('/stats', async (req, res) => {
   try {
     // 用户统计
-    const [userStats] = await db
-      .select({
-        totalUsers: sql`count(*)`,
-        activeUsers: sql`count(case when status = 'active' then 1 end)`,
-        bannedUsers: sql`count(case when status = 'banned' then 1 end)`
-      })
-      .from(users);
+    const [userStats] = await query(`
+      SELECT 
+        COUNT(*) as totalUsers,
+        COUNT(CASE WHEN status = 'active' THEN 1 END) as activeUsers,
+        COUNT(CASE WHEN status = 'banned' THEN 1 END) as bannedUsers
+      FROM users
+    `);
 
     // 文章统计
-    const [articleStats] = await db
-      .select({
-        totalArticles: sql`count(*)`,
-        publishedArticles: sql`count(case when status = 'published' then 1 end)`,
-        pendingArticles: sql`count(case when status = 'pending' then 1 end)`,
-        totalViews: sql`sum(view_count)`
-      })
-      .from(articlesTable);
+    const [articleStats] = await query(`
+      SELECT 
+        COUNT(*) as totalArticles,
+        COUNT(CASE WHEN status = 'published' THEN 1 END) as publishedArticles,
+        COUNT(CASE WHEN status = 'pending' THEN 1 END) as pendingArticles,
+        SUM(view_count) as totalViews
+      FROM articles
+    `);
 
     // 评论统计
-    const [commentStats] = await db
-      .select({
-        totalComments: sql`count(*)`,
-        visibleComments: sql`count(case when visibility = 'visible' then 1 end)`,
-        hiddenComments: sql`count(case when visibility = 'hidden' then 1 end)`
-      })
-      .from(commentsTable);
+    const [commentStats] = await query(`
+      SELECT 
+        COUNT(*) as totalComments,
+        COUNT(CASE WHEN visibility = 'visible' THEN 1 END) as visibleComments,
+        COUNT(CASE WHEN visibility = 'hidden' THEN 1 END) as hiddenComments
+      FROM comments
+    `);
 
     // 反应统计
-    const [reactionStats] = await db
-      .select({
-        totalReactions: sql`count(*)`
-      })
-      .from(articleReactions);
+    const [reactionStats] = await query(`
+      SELECT COUNT(*) as totalReactions
+      FROM article_reactions
+    `);
 
     res.json({
       users: {
-        total: userStats.totalUsers,
-        active: userStats.activeUsers,
-        banned: userStats.bannedUsers
+        total: Number(userStats.totalUsers),
+        active: Number(userStats.activeUsers),
+        banned: Number(userStats.bannedUsers)
       },
       articles: {
-        total: articleStats.totalArticles,
-        published: articleStats.publishedArticles,
-        pending: articleStats.pendingArticles,
-        totalViews: articleStats.totalViews || 0
+        total: Number(articleStats.totalArticles),
+        published: Number(articleStats.publishedArticles),
+        pending: Number(articleStats.pendingArticles),
+        totalViews: Number(articleStats.totalViews || 0)
       },
       comments: {
-        total: commentStats.totalComments,
-        visible: commentStats.visibleComments,
-        hidden: commentStats.hiddenComments
+        total: Number(commentStats.totalComments),
+        visible: Number(commentStats.visibleComments),
+        hidden: Number(commentStats.hiddenComments)
       },
       reactions: {
-        total: reactionStats.totalReactions
+        total: Number(reactionStats.totalReactions)
       }
     });
   } catch (error) {
@@ -169,14 +159,13 @@ router.post('/users/:id/ban', async (req, res) => {
 
     const banExpireAt = new Date(Date.now() + duration * 60 * 60 * 1000).toISOString();
 
-    await db
-      .update(users)
-      .set({ 
-        status: 'banned',
-        banReason: reason,
-        banExpireAt
-      })
-      .where(eq(users.id, userId));
+    await run(`
+      UPDATE users 
+      SET status = 'banned',
+          ban_reason = ?,
+          ban_expire_at = ?
+      WHERE id = ?
+    `, [reason, banExpireAt, userId]);
 
     res.json({ message: '用户已被封禁' });
   } catch (error) {
@@ -189,14 +178,13 @@ router.post('/users/:id/unban', async (req, res) => {
   try {
     const userId = parseInt(req.params.id);
 
-    await db
-      .update(users)
-      .set({ 
-        status: 'active',
-        banReason: null,
-        banExpireAt: null
-      })
-      .where(eq(users.id, userId));
+    await run(`
+      UPDATE users 
+      SET status = 'active',
+          ban_reason = NULL,
+          ban_expire_at = NULL
+      WHERE id = ?
+    `, [userId]);
 
     res.json({ message: '用户已解封' });
   } catch (error) {
@@ -210,37 +198,52 @@ router.get('/articles', async (req, res) => {
     const { status = 'all', page = 1, pageSize = 10 } = req.query;
     const offset = (Number(page) - 1) * Number(pageSize);
 
-    const conditions = [];
+    let query = `
+      SELECT 
+        a.id, a.title, a.content, a.status,
+        a.view_count as viewCount,
+        a.created_at as createdAt,
+        u.id as author_id,
+        u.username as author_username
+      FROM articles a
+      LEFT JOIN users u ON u.id = a.author_id
+    `;
+
+    const countQuery = 'SELECT COUNT(*) as count FROM articles';
+    const params = [];
+    const countParams = [];
+
     if (status !== 'all') {
-      conditions.push(eq(articlesTable.status, status));
+      query += ' WHERE a.status = ?';
+      countQuery += ' WHERE status = ?';
+      params.push(status);
+      countParams.push(status);
     }
 
-    const [articlesList, total] = await Promise.all([
-      db.select({
-        id: articlesTable.id,
-        title: articlesTable.title,
-        content: articlesTable.content,
-        status: articlesTable.status,
-        viewCount: articlesTable.viewCount,
-        createdAt: articlesTable.createdAt,
-        author: {
-          id: users.id,
-          username: users.username
-        }
-      })
-        .from(articlesTable)
-        .leftJoin(users, eq(users.id, articlesTable.authorId))
-        .where(and(...conditions))
-        .limit(Number(pageSize))
-        .offset(offset),
-      db.select({ count: sql`count(*)` })
-        .from(articlesTable)
-        .where(and(...conditions))
+    query += ` LIMIT ? OFFSET ?`;
+    params.push(Number(pageSize), offset);
+
+    const [articlesList, [total]] = await Promise.all([
+      query(query, params),
+      query(countQuery, countParams)
     ]);
 
+    const formattedArticles = articlesList.map(article => ({
+      id: article.id,
+      title: article.title,
+      content: article.content,
+      status: article.status,
+      viewCount: article.viewCount,
+      createdAt: article.createdAt,
+      author: {
+        id: article.author_id,
+        username: article.author_username
+      }
+    }));
+
     res.json({
-      items: articlesList,
-      total: total[0].count,
+      items: formattedArticles,
+      total: Number(total.count),
       page: Number(page),
       pageSize: Number(pageSize)
     });
@@ -263,15 +266,20 @@ router.patch('/articles/:id/review', async (req, res) => {
       return res.status(400).json({ message: '拒绝时必须提供原因' });
     }
 
-    await db
-      .update(articlesTable)
-      .set({ 
-        status,
-        reviewReason: reason || null,
-        reviewedAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      })
-      .where(eq(articlesTable.id, articleId));
+    await run(`
+      UPDATE articles 
+      SET status = ?,
+          review_reason = ?,
+          reviewed_at = ?,
+          updated_at = ?
+      WHERE id = ?
+    `, [
+      status,
+      reason || null,
+      new Date().toISOString(),
+      new Date().toISOString(),
+      articleId
+    ]);
 
     res.json({ message: '文章审核完成' });
   } catch (error) {
@@ -285,40 +293,56 @@ router.get('/comments', async (req, res) => {
     const { visibility = 'all', page = 1, pageSize = 10 } = req.query;
     const offset = (Number(page) - 1) * Number(pageSize);
 
-    const conditions = [];
+    let query = `
+      SELECT 
+        c.id, c.content, c.visibility,
+        c.created_at as createdAt,
+        u.id as user_id,
+        u.username as user_username,
+        a.id as article_id,
+        a.title as article_title
+      FROM comments c
+      LEFT JOIN users u ON u.id = c.user_id
+      LEFT JOIN articles a ON a.id = c.article_id
+    `;
+
+    const countQuery = 'SELECT COUNT(*) as count FROM comments';
+    const params = [];
+    const countParams = [];
+
     if (visibility !== 'all') {
-      conditions.push(eq(commentsTable.visibility, visibility));
+      query += ' WHERE c.visibility = ?';
+      countQuery += ' WHERE visibility = ?';
+      params.push(visibility);
+      countParams.push(visibility);
     }
 
-    const [commentsList, total] = await Promise.all([
-      db.select({
-        id: commentsTable.id,
-        content: commentsTable.content,
-        visibility: commentsTable.visibility,
-        createdAt: commentsTable.createdAt,
-        user: {
-          id: users.id,
-          username: users.username
-        },
-        article: {
-          id: articlesTable.id,
-          title: articlesTable.title
-        }
-      })
-        .from(commentsTable)
-        .leftJoin(users, eq(users.id, commentsTable.userId))
-        .leftJoin(articlesTable, eq(articlesTable.id, commentsTable.articleId))
-        .where(and(...conditions))
-        .limit(Number(pageSize))
-        .offset(offset),
-      db.select({ count: sql`count(*)` })
-        .from(commentsTable)
-        .where(and(...conditions))
+    query += ` LIMIT ? OFFSET ?`;
+    params.push(Number(pageSize), offset);
+
+    const [commentsList, [total]] = await Promise.all([
+      query(query, params),
+      query(countQuery, countParams)
     ]);
 
+    const formattedComments = commentsList.map(comment => ({
+      id: comment.id,
+      content: comment.content,
+      visibility: comment.visibility,
+      createdAt: comment.createdAt,
+      user: {
+        id: comment.user_id,
+        username: comment.user_username
+      },
+      article: {
+        id: comment.article_id,
+        title: comment.article_title
+      }
+    }));
+
     res.json({
-      items: commentsList,
-      total: total[0].count,
+      items: formattedComments,
+      total: Number(total.count),
       page: Number(page),
       pageSize: Number(pageSize)
     });
@@ -337,10 +361,11 @@ router.patch('/comments/:id/visibility', async (req, res) => {
       return res.status(400).json({ message: '无效的可见性值' });
     }
 
-    await db
-      .update(commentsTable)
-      .set({ visibility })
-      .where(eq(commentsTable.id, commentId));
+    await run(`
+      UPDATE comments 
+      SET visibility = ?
+      WHERE id = ?
+    `, [visibility, commentId]);
 
     res.json({ message: '评论可见性已更新' });
   } catch (error) {
@@ -357,9 +382,11 @@ router.post('/comments/batch-delete', async (req, res) => {
       return res.status(400).json({ message: '请提供要删除的评论ID列表' });
     }
 
-    await db
-      .delete(commentsTable)
-      .where(sql`id = any(${commentIds})`);
+    const placeholders = commentIds.map(() => '?').join(',');
+    await run(
+      `DELETE FROM comments WHERE id IN (${placeholders})`,
+      commentIds
+    );
 
     res.json({ message: '评论已批量删除' });
   } catch (error) {
@@ -376,30 +403,32 @@ router.post('/articles/batch-delete', async (req, res) => {
       return res.status(400).json({ message: '请提供要删除的文章ID列表' });
     }
 
-    await db.transaction(async (tx) => {
+    const placeholders = articleIds.map(() => '?').join(',');
+
+    await transaction(async (tx) => {
       // 删除文章的所有点赞
-      await tx
-        .delete(articleReactions)
-        .where(sql`article_id = any(${articleIds})`);
+      await tx.run(
+        `DELETE FROM article_reactions WHERE article_id IN (${placeholders})`,
+        articleIds
+      );
       
       // 删除文章的所有评论
-      await tx
-        .delete(commentsTable)
-        .where(sql`article_id = any(${articleIds})`);
+      await tx.run(
+        `DELETE FROM comments WHERE article_id IN (${placeholders})`,
+        articleIds
+      );
       
       // 获取要删除的文章列表（用于删除封面图）
-      const articlesToDelete = await tx
-        .select({
-          id: articlesTable.id,
-          imageUrl: articlesTable.imageUrl
-        })
-        .from(articlesTable)
-        .where(sql`id = any(${articleIds})`);
+      const articlesToDelete = await tx.query(
+        `SELECT id, image_url as imageUrl FROM articles WHERE id IN (${placeholders})`,
+        articleIds
+      );
       
       // 删除文章
-      await tx
-        .delete(articlesTable)
-        .where(sql`id = any(${articleIds})`);
+      await tx.run(
+        `DELETE FROM articles WHERE id IN (${placeholders})`,
+        articleIds
+      );
 
       // 删除封面图文件
       for (const article of articlesToDelete) {
@@ -423,20 +452,19 @@ router.post('/users/:id/promote', async (req, res) => {
   try {
     const userId = parseInt(req.params.id);
     
-    const user = await db
-      .select()
-      .from(users)
-      .where(eq(users.id, userId))
-      .get();
+    const user = await get(
+      'SELECT * FROM users WHERE id = ?',
+      [userId]
+    );
       
     if (!user) {
       return res.status(404).json({ message: '用户不存在' });
     }
 
-    await db
-      .update(users)
-      .set({ role: 'admin' })
-      .where(eq(users.id, userId));
+    await run(
+      'UPDATE users SET role = ? WHERE id = ?',
+      ['admin', userId]
+    );
 
     res.json({ message: '已成功设置为管理员' });
   } catch (error) {
@@ -450,19 +478,19 @@ router.post('/users/:id/demote', async (req, res) => {
     const userId = parseInt(req.params.id);
     
     // 检查是否为最后一个管理员
-    const adminCount = await db
-      .select({ count: sql`count(*)` })
-      .from(users)
-      .where(eq(users.role, 'admin'));
+    const [adminCount] = await query(
+      'SELECT COUNT(*) as count FROM users WHERE role = ?',
+      ['admin']
+    );
       
-    if (adminCount[0].count <= 1) {
+    if (adminCount.count <= 1) {
       return res.status(400).json({ message: '系统必须保留至少一个管理员' });
     }
 
-    await db
-      .update(users)
-      .set({ role: 'user' })
-      .where(eq(users.id, userId));
+    await run(
+      'UPDATE users SET role = ? WHERE id = ?',
+      ['user', userId]
+    );
 
     res.json({ message: '已成功撤销管理员权限' });
   } catch (error) {
@@ -480,20 +508,19 @@ router.put('/users/:id/role', async (req, res) => {
       return res.status(400).json({ message: '无效的角色类型' });
     }
 
-    const user = await db
-      .select()
-      .from(users)
-      .where(eq(users.id, userId))
-      .get();
+    const user = await get(
+      'SELECT * FROM users WHERE id = ?',
+      [userId]
+    );
 
     if (!user) {
       return res.status(404).json({ message: '用户不存在' });
     }
 
-    await db
-      .update(users)
-      .set({ role })
-      .where(eq(users.id, userId));
+    await run(
+      'UPDATE users SET role = ? WHERE id = ?',
+      [role, userId]
+    );
 
     res.json({ message: `已${role === 'admin' ? '设置' : '撤销'}管理员权限` });
   } catch (error) {
