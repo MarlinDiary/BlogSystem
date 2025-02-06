@@ -6,9 +6,13 @@
   import CommentList from '$lib/components/CommentList.svelte';
   import { auth } from '$lib/stores/auth';
   import UserCard from '$lib/components/UserCard.svelte';
+  import { env } from '$env/dynamic/public';
+  import { getImageUrl } from '$lib/utils/api';
 
+  const API_URL = env.PUBLIC_API_URL;
+  
   let article = null;
-  let loading = false;
+  let loading = true;
   let error = '';
   let tocItems = [];
   let activeHeadingId = '';
@@ -159,15 +163,31 @@
     loading = true;
     error = '';
     try {
-      const response = await fetch(`/api/articles/${id}`);
+      const response = await fetch(`${API_URL}/api/articles/${id}`, {
+        mode: 'cors',
+        credentials: 'omit'
+      });
       if (!response.ok) {
         throw new Error('获取文章详情失败');
       }
-      article = await response.json();
+      const data = await response.json();
+      
+      // 处理图片 URL
+      article = {
+        ...data,
+        imageUrl: getImageUrl(data.imageUrl),
+        author: {
+          ...data.author,
+          avatarUrl: getImageUrl(data.author.avatarUrl)
+        }
+      };
+
       console.log('获取文章数据:', {
         title: article?.title,
         hasHtmlContent: !!article?.htmlContent,
-        htmlContentLength: article?.htmlContent?.length
+        htmlContentLength: article?.htmlContent?.length,
+        imageUrl: article?.imageUrl,
+        authorAvatar: article?.author?.avatarUrl
       });
 
       if (article?.htmlContent) {

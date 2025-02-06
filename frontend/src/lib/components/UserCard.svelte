@@ -4,6 +4,7 @@
   import { goto } from '$app/navigation';
   import { fade, scale } from 'svelte/transition';
   import { cubicOut } from 'svelte/easing';
+  import { getImageUrl } from '$lib/utils/api';
 
   export let userId;
   export let username = '';
@@ -109,7 +110,7 @@
           <!-- 头像 -->
           <div class="flex justify-center">
             <img
-              src={avatarUrl || '/logo.png'}
+              src={getImageUrl(avatarUrl) || '/logo.png'}
               alt={username}
               class="w-24 h-24 rounded-full object-cover ring-2 ring-white/50 dark:ring-zinc-700/50"
             />

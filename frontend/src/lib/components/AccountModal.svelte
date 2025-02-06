@@ -8,6 +8,7 @@
   import { browser } from '$app/environment';
   import { goto } from '$app/navigation';
   import { toast } from '$lib/utils/toast';
+  import { getImageUrl } from '$lib/utils/api';
   
   export let isOpen = false;
   
@@ -23,7 +24,7 @@
     realName: $auth.user?.realName || '',
     dateOfBirth: $auth.user?.dateOfBirth || '',
     bio: $auth.user?.bio || '',
-    avatarUrl: getAvatarUrl(getUserId($auth.user))
+    avatarUrl: getImageUrl($auth.user?.avatarUrl)
   };
   
   let tempEditValue = '';
@@ -592,13 +593,19 @@
             <div class="flex items-center space-x-3">
               <!-- 小头像和在线状态 -->
               <div class="relative">
-                {#key avatarTimestamp}
-                <img
-                  src={getAvatarUrl(getUserId($auth.user))}
-                  alt={$auth.user?.username || '用户头像'}
-                  class="h-12 w-12 rounded-full object-cover ring-2 ring-white/50 dark:ring-zinc-700/50"
-                />
-                {/key}
+                {#if $auth.user?.avatarUrl}
+                  <img
+                    src={getImageUrl($auth.user.avatarUrl)}
+                    alt={$auth.user?.username || '用户头像'}
+                    class="h-12 w-12 rounded-full object-cover ring-2 ring-white/50 dark:ring-zinc-700/50"
+                  />
+                {:else}
+                  <div class="h-12 w-12 rounded-full bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center">
+                    <span class="text-zinc-500 dark:text-zinc-400 text-lg font-medium uppercase">
+                      {$auth.user?.username?.[0] || '?'}
+                    </span>
+                  </div>
+                {/if}
                 <!-- 在线状态指示器 -->
                 <div class="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-green-400 ring-2 ring-white dark:ring-zinc-800"></div>
               </div>
@@ -719,13 +726,19 @@
                 <div class="flex items-start space-x-4">
                   <div class="shrink-0">
                     <div class="relative group">
-                      {#key avatarTimestamp}
-                      <img
-                        src={getAvatarUrl(getUserId($auth.user))}
-                        alt="用户头像"
-                        class="h-20 w-20 rounded-full object-cover ring-2 ring-white/50 dark:ring-zinc-700/50 transition-opacity group-hover:opacity-75"
-                      />
-                      {/key}
+                      {#if $auth.user?.avatarUrl}
+                        <img
+                          src={getImageUrl($auth.user.avatarUrl)}
+                          alt="用户头像"
+                          class="h-20 w-20 rounded-full object-cover ring-2 ring-white/50 dark:ring-zinc-700/50 transition-opacity group-hover:opacity-75"
+                        />
+                      {:else}
+                        <div class="h-20 w-20 rounded-full bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center">
+                          <span class="text-zinc-500 dark:text-zinc-400 text-lg font-medium uppercase">
+                            {$auth.user?.username?.[0] || '?'}
+                          </span>
+                        </div>
+                      {/if}
                       <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
                           type="button"

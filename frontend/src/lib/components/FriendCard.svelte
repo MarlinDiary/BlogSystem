@@ -3,6 +3,7 @@
     import TiltCard from './TiltCard.svelte';
     import { onMount } from 'svelte';
     import ColorThief from 'colorthief';
+    import { getImageUrl } from '$lib/utils/api';
   
     export let user;
   
@@ -58,10 +59,11 @@
       try {
         const img = new Image();
         img.crossOrigin = 'Anonymous';
+        const avatarUrl = getImageUrl(user.avatarUrl);
         await new Promise((resolve, reject) => {
           img.onload = resolve;
           img.onerror = reject;
-          img.src = user.avatarUrl;
+          img.src = avatarUrl;
         });
         
         const color = colorThief.getColor(img);
@@ -118,7 +120,7 @@
     <!-- 头像 + 名称 + 简介 -->
     <header class="relative mb-6 flex flex-col items-center">
       <img
-        src={user.avatarUrl}
+        src={getImageUrl(user.avatarUrl)}
         alt={user.realName}
         width="120"
         height="120"
