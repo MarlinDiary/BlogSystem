@@ -47,7 +47,7 @@ app.use(express.json());
 // 静态文件服务
 const getStaticRoot = () => {
   return process.env.NODE_ENV === 'production'
-    ? '/data/uploads'
+    ? '/uploads'
     : 'uploads';
 };
 
