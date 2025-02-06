@@ -516,16 +516,43 @@ router.delete('/:id', authMiddleware, async (req, res, next) => {
       return res.status(403).json({ message: '无权删除此文章' });
     }
 
-    await query(
-      `
-        DELETE FROM articles
-        WHERE id = ?
-      `,
-      [Number(id)]
-    );
+    await transaction(async (tx) => {
+      // 删除文章的所有点赞
+      await tx.run(
+        'DELETE FROM article_reactions WHERE article_id = ?',
+        [Number(id)]
+      );
+      
+      // 删除文章的所有评论
+      await tx.run(
+        'DELETE FROM comments WHERE article_id = ?',
+        [Number(id)]
+      );
+      
+      // 删除文章的所有标签关联
+      await tx.run(
+        'DELETE FROM article_tags WHERE article_id = ?',
+        [Number(id)]
+      );
+
+      // 如果文章有封面图，删除封面图文件
+      if (article[0].image_url) {
+        const imagePath = path.join(process.cwd(), article[0].image_url);
+        fs.unlink(imagePath, (err) => {
+          if (err) console.error(`删除文章 ${id} 的封面图失败:`, err);
+        });
+      }
+      
+      // 最后删除文章
+      await tx.run(
+        'DELETE FROM articles WHERE id = ?',
+        [Number(id)]
+      );
+    });
 
     res.json({ message: '文章删除成功' });
   } catch (error) {
+    console.error('删除文章失败:', error);
     next(error);
   }
 });

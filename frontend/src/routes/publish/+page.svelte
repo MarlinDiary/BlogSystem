@@ -11,10 +11,10 @@
   import Underline from '@tiptap/extension-underline';
   import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
   import { common, createLowlight } from 'lowlight';
+  import { env } from '$env/dynamic/public';
   
   const lowlight = createLowlight(common);
-  const API_BASE = 'http://localhost:3000/api';
-  const SERVER_BASE = 'http://localhost:3000';
+  const API_URL = env.PUBLIC_API_URL;
   
   // 从环境变量或其他安全位置获取API Key
   const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY;
@@ -113,7 +113,8 @@
           const formData = new FormData();
           formData.append('image', file);
 
-          const response = await fetch(`${API_BASE}/articles/images`, {
+          console.log('上传内容图片 - API_URL:', API_URL);
+          const response = await fetch(`${API_URL}/api/articles/images`, {
             method: 'POST',
             body: formData,
             credentials: 'include',
@@ -128,7 +129,8 @@
           }
 
           const data = await response.json();
-          const imageUrl = SERVER_BASE + data.url;
+          const imageUrl = data.url; // 直接使用返回的完整 URL
+          console.log('上传内容图片成功 - 图片URL:', imageUrl);
           
           // 先加载图片，确保图片可用
           await new Promise((resolve, reject) => {
@@ -216,7 +218,8 @@
       const formData = new FormData();
       formData.append('cover', target.files[0]);
       
-      const response = await fetch(`${API_BASE}/articles/cover`, {
+      console.log('上传封面 - API_URL:', API_URL);
+      const response = await fetch(`${API_URL}/api/articles/cover`, {
         method: 'POST',
         body: formData,
         credentials: 'include',
@@ -231,7 +234,8 @@
       }
       
       const data = await response.json();
-      imageUrl = SERVER_BASE + data.url;
+      imageUrl = data.url; // 直接使用返回的完整 URL
+      console.log('上传封面成功 - 图片URL:', imageUrl);
     } catch (err) {
       console.error('上传图片失败:', err);
       error = err instanceof Error ? err.message : '上传失败';
@@ -263,7 +267,8 @@
       loading = true;
       error = '';
       
-      const response = await fetch(`${API_BASE}/articles`, {
+      console.log('发布文章 - API_URL:', API_URL);
+      const response = await fetch(`${API_URL}/api/articles`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
