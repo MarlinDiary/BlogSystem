@@ -4,7 +4,7 @@ buildCommand = "echo 'Skip additional install'"
 
 [deploy]
 startCommand = "npm start"
-healthcheckPath = "/health"
+healthcheckPath = "/api/articles"
 healthcheckTimeout = 300
 restartPolicyType = "on_failure"
 numReplicas = 1
@@ -14,5 +14,5 @@ NODE_ENV = "production"
 PORT = "3000"
 
 [[volume]]
-source = "data"
-path = "/data" 
+source = "uploads"
+path = "/data/uploads" 

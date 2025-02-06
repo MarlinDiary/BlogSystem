@@ -9,6 +9,11 @@ const getUploadRoot = () => {
     : 'uploads';
 };
 
+// 获取URL路径前缀
+const getUrlPrefix = () => {
+  return '/uploads';
+};
+
 // 确保上传目录存在
 const createUploadDirs = () => {
   const uploadRoot = getUploadRoot();
@@ -99,4 +104,6 @@ export const upload = multer({
     fileSize: 5 * 1024 * 1024 // 5MB
   },
   fileFilter
-}); 
+});
+
+export { getUploadRoot, getUrlPrefix }; 

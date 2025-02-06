@@ -4,7 +4,7 @@ import { authMiddleware } from '../middleware/auth.js';
 import bcrypt from 'bcryptjs';
 import path from 'path';
 import fs from 'fs';
-import { upload } from '../middleware/upload.js';
+import { upload, getUrlPrefix } from '../middleware/upload.js';
 
 const router = express.Router();
 
@@ -229,7 +229,7 @@ router.post('/me/avatar', authMiddleware, upload.single('avatar'), async (req, r
       }
     }
 
-    const avatarUrl = `/uploads/avatars/${req.file.filename}`;
+    const avatarUrl = `${getUrlPrefix()}/avatars/${req.file.filename}`;
 
     await run(
       'UPDATE users SET avatar_url = ? WHERE id = ?',

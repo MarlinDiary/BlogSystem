@@ -3,7 +3,7 @@ import { query, get, run, transaction } from '../db/index.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { marked } from 'marked';
 import sanitizeHtml from 'sanitize-html';
-import { upload, uploadArticleImage, uploadArticleCover } from '../middleware/upload.js';
+import { upload, uploadArticleImage, uploadArticleCover, getUrlPrefix } from '../middleware/upload.js';
 import fs from 'fs';
 import path from 'path';
 
@@ -606,7 +606,7 @@ router.post('/cover', authMiddleware, uploadArticleCover, async (req, res) => {
     }
     
     // 返回图片URL
-    const imageUrl = `/uploads/covers/${req.file.filename}`;
+    const imageUrl = `${getUrlPrefix()}/covers/${req.file.filename}`;
     res.json({ 
       success: 1,
       url: imageUrl,
@@ -641,7 +641,7 @@ router.post('/images', authMiddleware, uploadArticleImage, async (req, res) => {
     }
     
     // 返回图片URL
-    const imageUrl = `/uploads/articles/${req.file.filename}`;
+    const imageUrl = `${getUrlPrefix()}/articles/${req.file.filename}`;
     res.json({ 
       success: 1,
       url: imageUrl,
