@@ -53,7 +53,7 @@ export async function api(endpoint, options = {}) {
             headers,
             body: isFormData ? body : (body ? JSON.stringify(body) : undefined),
             mode: 'cors',
-            credentials: 'include'
+            credentials: 'omit'
         });
 
         if (response.status === 404) {
