@@ -622,7 +622,7 @@
               on:click={handleAuthorClick}
             >
               <img
-                src={article.author.avatarUrl || '/frontend/static/logo.png'}
+                src={article.author.avatarUrl || `${env.PUBLIC_API_URL}/uploads/avatars/default.png`}
                 alt={article.author.username}
                 class="w-10 h-10 object-cover"
               />

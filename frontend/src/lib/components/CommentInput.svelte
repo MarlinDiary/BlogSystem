@@ -49,7 +49,7 @@
     
     isSubmitting = true;
     try {
-      const response = await fetch('/api/comments', {
+      const response = await fetch(`${env.PUBLIC_API_URL}/api/comments`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -64,22 +64,15 @@
 
       if (response.ok) {
         const newComment = await response.json();
-        dispatch('commentAdded', {
-          ...newComment,
-          user: {
-            ...user,
-            avatarUrl: getAvatarUrl(user?.id)
-          },
-          createdAt: new Date().toISOString()
-        });
+        dispatch('commentAdded', newComment);
         content = '';
         isPreview = false;
       } else {
         const error = await response.json();
-        alert(error.message || '评论发送失败');
+        console.error('评论发送失败:', error);
       }
     } catch (error) {
-      alert('评论发送失败');
+      console.error('评论发送失败:', error);
     } finally {
       isSubmitting = false;
     }

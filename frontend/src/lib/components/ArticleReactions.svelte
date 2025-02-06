@@ -2,6 +2,7 @@
   import { createEventDispatcher, onMount } from 'svelte';
   import ReactionIcon from './ReactionIcon.svelte';
   import { auth } from '$lib/stores/auth';
+  import { env } from '$env/dynamic/public';
 
   export let articleId;
   export let reactions = {
@@ -12,6 +13,7 @@
   };
   export let isScrolled = false;
 
+  const API_URL = env.PUBLIC_API_URL;
   const reactionTypes = ['like', 'love', 'haha', 'angry'];
 
   let userReaction = null;
@@ -19,7 +21,8 @@
   // 获取反应状态
   async function fetchReactionStatus() {
     try {
-      const response = await fetch(`/api/articles/${articleId}/reaction`, {
+      console.log('获取反应状态 - API_URL:', API_URL);
+      const response = await fetch(`${API_URL}/api/articles/${articleId}/reaction`, {
         headers: $auth.token ? {
           'Authorization': `Bearer ${$auth.token}`
         } : {}
@@ -44,7 +47,7 @@
     }
 
     try {
-      const response = await fetch(`/api/articles/${articleId}/reaction`, {
+      const response = await fetch(`${API_URL}/api/articles/${articleId}/reaction`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
