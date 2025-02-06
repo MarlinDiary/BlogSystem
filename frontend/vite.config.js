@@ -9,12 +9,7 @@ export default defineConfig({
 		}
 	},
 	ssr: {
-		noExternal: ['marked']
-	},
-	build: {
-		rollupOptions: {
-			external: ['marked']
-		}
+		noExternal: ['marked', 'dompurify']
 	},
 	server: {
 		proxy: {
