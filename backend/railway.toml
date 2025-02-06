@@ -1,10 +1,10 @@
 [build]
 builder = "nixpacks"
-buildCommand = "echo 'Skip additional install'"
+buildCommand = "npm install"
 
 [deploy]
 startCommand = "npm start"
-healthcheckPath = "/api/articles"
+healthcheckPath = "/api/health"
 healthcheckTimeout = 300
 restartPolicyType = "on_failure"
 numReplicas = 1
@@ -12,7 +12,13 @@ numReplicas = 1
 [env]
 NODE_ENV = "production"
 PORT = "3000"
+SERVER_URL = "https://blog-production-154c.up.railway.app"
+CORS_ORIGIN = "https://blog-production-154c.up.railway.app"
+
+[[volume]]
+source = "data"
+path = "/data"
 
 [[volume]]
 source = "uploads"
-path = "/uploads" 
+path = "/data/uploads" 
