@@ -4,7 +4,7 @@ import { authMiddleware } from '../middleware/auth.js';
 import bcrypt from 'bcryptjs';
 import path from 'path';
 import fs from 'fs';
-import { upload, getUrlPrefix } from '../middleware/upload.js';
+import { upload, getUrlPrefix, getUploadRoot } from '../middleware/upload.js';
 
 const router = express.Router();
 
@@ -410,9 +410,11 @@ router.get('/:id/avatar', async (req, res, next) => {
       return res.status(404).json({ message: '用户不存在' });
     }
 
+    const uploadRoot = getUploadRoot();
+    const defaultAvatarPath = path.join(uploadRoot, 'avatars', 'default.png');
     const avatarPath = user.avatarUrl 
-      ? path.join(process.cwd(), user.avatarUrl)
-      : path.join(process.cwd(), '/uploads/avatars/default.png');
+      ? path.join(uploadRoot, user.avatarUrl.replace('/uploads/', ''))
+      : defaultAvatarPath;
 
     if (!fs.existsSync(avatarPath)) {
       return res.status(404).json({ message: '头像文件不存在' });
@@ -421,7 +423,7 @@ router.get('/:id/avatar', async (req, res, next) => {
     const ext = path.extname(avatarPath).toLowerCase();
     const contentType = ext === '.png' ? 'image/png' : 'image/jpeg';
     res.setHeader('Content-Type', contentType);
-    res.sendFile(avatarPath);
+    res.sendFile(path.resolve(avatarPath));
   } catch (error) {
     next(error);
   }
