@@ -24,7 +24,8 @@ const corsOrigins = process.env.NODE_ENV === 'production'
   ? [
       'https://blog-blush-nine-72.vercel.app',
       'https://blog-blush-nine-72.vercel.app/',
-      'https://blog-blush-nine-72.vercel.app:3000'
+      'https://blog-production-154c.up.railway.app',
+      'https://blog-production-154c.up.railway.app/'
     ]
   : ['http://localhost:5173', 'http://localhost:4173'];
 
@@ -51,6 +52,11 @@ const getStaticRoot = () => {
 };
 
 app.use('/uploads', express.static(getStaticRoot()));
+
+// 健康检查端点
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok' });
+});
 
 // 路由
 app.use('/api/auth', authRouter);

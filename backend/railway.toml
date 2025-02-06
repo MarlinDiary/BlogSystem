@@ -4,7 +4,7 @@ buildCommand = "echo 'Skip additional install'"
 
 [deploy]
 startCommand = "npm start"
-healthcheckPath = "/api/articles"
+healthcheckPath = "/health"
 healthcheckTimeout = 300
 restartPolicyType = "on_failure"
 numReplicas = 1
