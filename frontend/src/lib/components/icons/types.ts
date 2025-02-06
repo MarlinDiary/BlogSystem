@@ -1,5 +1,6 @@
-export interface IconProps extends Partial<{
-  width: string | number;
-  height: string | number;
-  className: string;
-}> {} 
+export interface IconProps {
+  width?: string | number;
+  height?: string | number;
+  className?: string;
+  children?: any;
+} 

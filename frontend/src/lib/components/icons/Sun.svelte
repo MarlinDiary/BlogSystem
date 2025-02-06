@@ -1,25 +1,22 @@
 <!-- Sun.svelte -->
 <script lang="ts">
+  import Icon from './Icon.svelte';
   import type { IconProps } from './types';
-  
-  export let width: IconProps['width'] = '1em';
-  export let height: IconProps['height'] = '1em';
-  export let className = '';
+
+  export let className: IconProps['className'] = undefined;
+  export let width: IconProps['width'] = undefined;
+  export let height: IconProps['height'] = undefined;
 </script>
 
-<svg
-  {width}
-  {height}
-  viewBox="0 0 24 24"
-  fill="none"
-  xmlns="http://www.w3.org/2000/svg"
-  class={className}
->
-  <path
-    d="M12 23V22M4.22183 19.7782L4.92893 19.0711M1 12H2M4.22183 4.22183L4.92893 4.92893M12 2V1M19.0711 4.92893L19.7782 4.22183M22 12H23M19.0711 19.0711L19.7782 19.7782M18 12C18 15.3137 15.3137 18 12 18C8.68629 18 6 15.3137 6 12C6 8.68629 8.68629 6 12 6C15.3137 6 18 8.68629 18 12Z"
-    stroke="currentColor"
-    stroke-width="2"
+<Icon {className} {width} {height}>
+  <svg 
+    viewBox="0 0 24 24" 
+    aria-hidden="true"
+    stroke-width="1.5"
     stroke-linecap="round"
     stroke-linejoin="round"
-  />
-</svg> 
+  >
+    <path d="M8 12.25A4.25 4.25 0 0 1 12.25 8v0a4.25 4.25 0 0 1 4.25 4.25v0a4.25 4.25 0 0 1-4.25 4.25v0A4.25 4.25 0 0 1 8 12.25v0Z" />
+    <path d="M12.25 3v1.5M21.5 12.25H20M18.791 18.791l-1.06-1.06M18.791 5.709l-1.06 1.06M12.25 20v1.5M4.5 12.25H3M6.77 6.77 5.709 5.709M6.77 17.73l-1.061 1.061" />
+  </svg>
+</Icon> 
