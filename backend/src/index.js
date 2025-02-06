@@ -19,9 +19,18 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const port = process.env.PORT || 3000;
 
+// 健康检查路由
+app.get('/', (req, res) => {
+  res.status(200).json({ status: 'ok', message: 'Server is healthy' });
+});
+
 // CORS 配置
+const corsOrigins = process.env.NODE_ENV === 'production'
+  ? ['https://your-frontend-domain.com'] // 替换为您的前端域名
+  : ['http://localhost:5173', 'http://localhost:4173'];
+
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:4173'],
+  origin: corsOrigins,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
