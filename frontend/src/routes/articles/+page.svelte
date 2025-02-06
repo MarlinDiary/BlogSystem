@@ -7,11 +7,14 @@
   let error = '';
   const colorThief = new ColorThief();
 
+  export let data;
+  const API_BASE = data.API_BASE;
+
   async function fetchArticles() {
     loading = true;
     error = '';
     try {
-      const response = await fetch('/api/articles');
+      const response = await fetch(`${API_BASE}/api/articles`);
       const contentType = response.headers.get('content-type');
       
       if (!response.ok) {
@@ -56,14 +59,14 @@
   function getImageUrl(url) {
     if (!url) return '';
     if (url.startsWith('http')) return url;
-    return url;
+    return `${API_BASE}${url}`;
   }
 
   // 处理头像 URL
   function getAvatarUrl(url) {
     if (!url) return '';
     if (url.startsWith('http')) return url;
-    return url;
+    return `${API_BASE}${url}`;
   }
 
   // 生成卡片样式

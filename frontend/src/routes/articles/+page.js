@@ -1,7 +1,8 @@
 /** @type {import('./$types').PageLoad} */
-export async function load({ fetch }) {
+export async function load({ fetch, parent }) {
+  const { API_BASE } = await parent();
   try {
-    const response = await fetch('/api/articles');
+    const response = await fetch(`${API_BASE}/api/articles`);
     if (!response.ok) {
       throw new Error('获取文章列表失败');
     }

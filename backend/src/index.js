@@ -20,8 +20,22 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 // CORS 配置
+const corsOrigins = process.env.NODE_ENV === 'production'
+  ? [
+      'https://blog-blush-nine-72.vercel.app',
+      'https://blog-blush-nine-72.vercel.app/',
+      'https://blog-blush-nine-72.vercel.app:3000'
+    ]
+  : ['http://localhost:5173', 'http://localhost:4173'];
+
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:4173'],
+  origin: (origin, callback) => {
+    if (!origin || corsOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']

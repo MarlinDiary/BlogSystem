@@ -56,11 +56,20 @@ export async function api(endpoint, options = {}) {
             credentials: 'include'
         });
 
-        console.log(`[API Response] ${method} ${url}`, {
-            status: response.status,
-            statusText: response.statusText,
-            headers: Object.fromEntries(response.headers.entries())
-        });
+        if (response.status === 404) {
+            throw new Error('请求的资源不存在');
+        }
+
+        if (response.status === 403) {
+            throw new Error('没有权限访问此资源');
+        }
+
+        if (response.status === 401) {
+            // 清除本地存储的 token
+            localStorage.removeItem('token');
+            auth.update(state => ({ ...state, isAuthenticated: false, token: null, user: null }));
+            throw new Error('登录已过期，请重新登录');
+        }
 
         // For 204 status, return null
         if (response.status === 204) {
@@ -72,15 +81,13 @@ export async function api(endpoint, options = {}) {
             return null;
         });
 
-        console.log(`[API Data] ${method} ${url}`, data);
-
         if (!response.ok) {
             console.error('[API Error]', {
                 status: response.status,
                 statusText: response.statusText,
                 data
             });
-            throw new Error(data?.message || `Request failed (${response.status})`);
+            throw new Error(data?.message || `请求失败 (${response.status})`);
         }
 
         return data;
@@ -96,13 +103,13 @@ export async function api(endpoint, options = {}) {
         });
 
         if (error instanceof TypeError && error.message === 'Failed to fetch') {
-            throw new Error('Unable to connect to the server. Please check your network connection or ensure the server is running.');
+            throw new Error('无法连接到服务器，请检查网络连接或确保服务器正在运行');
         }
 
         if (error instanceof Error) {
             throw error;
         }
-        throw new Error('Request failed. Please try again later.');
+        throw new Error('请求失败，请稍后重试');
     }
 }
 

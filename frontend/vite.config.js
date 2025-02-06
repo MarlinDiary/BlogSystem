@@ -8,9 +8,6 @@ export default defineConfig({
 			$lib: '/src/lib'
 		}
 	},
-	ssr: {
-		noExternal: ['marked', 'dompurify']
-	},
 	server: {
 		proxy: {
 			'/api': {
