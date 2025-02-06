@@ -1,6 +1,6 @@
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import Database from 'better-sqlite3';
-import { users, articles, comments, tags, articleTags, articleReactions } from './schema';
+import { users, articles, comments, tags, articleTags, articleReactions } from './schema.js';
 import bcrypt from 'bcryptjs';
 import { sql } from 'drizzle-orm';
 import fs from 'fs';

@@ -1,12 +1,6 @@
-import { Request, Response, NextFunction } from 'express';
-import { logError } from './logger';
+import { logError } from './logger.js';
 
-export const errorHandler = (
-  err: Error,
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
+export const errorHandler = (err, req, res, next) => {
   // 记录错误日志
   logError(err, req, res);
 

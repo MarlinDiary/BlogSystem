@@ -1,21 +1,9 @@
-import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { db } from '../db';
-import { users } from '../db/schema';
+import { db } from '../db/index.js';
+import { users } from '../db/schema.js';
 import { eq } from 'drizzle-orm';
-import { JwtPayload } from 'jsonwebtoken';
 
-export interface AuthRequest extends Request {
-  userId?: number;
-  user?: {
-    id: number;
-    username: string;
-    role: string;
-  };
-  isAdmin?: boolean;
-}
-
-export const authMiddleware = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const authMiddleware = async (req, res, next) => {
   try {
     const token = req.headers.authorization?.split(' ')[1];
     
@@ -23,7 +11,7 @@ export const authMiddleware = async (req: AuthRequest, res: Response, next: Next
       return res.status(401).json({ message: '未提供认证令牌' });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as JwtPayload;
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
     if (!decoded.userId) {
       return res.status(401).json({ message: '无效的认证令牌' });
@@ -53,7 +41,7 @@ export const authMiddleware = async (req: AuthRequest, res: Response, next: Next
   }
 };
 
-export const isAdmin = (req: AuthRequest, res: Response, next: NextFunction) => {
+export const isAdmin = (req, res, next) => {
   if (!req.isAdmin) {
     return res.status(403).json({ message: '需要管理员权限' });
   }

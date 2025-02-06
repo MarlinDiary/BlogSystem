@@ -1,6 +1,5 @@
 import multer from 'multer';
 import path from 'path';
-import { Request } from 'express';
 import fs from 'fs';
 
 // 确保上传目录存在
@@ -49,7 +48,7 @@ const avatarStorage = multer.diskStorage({
 });
 
 // 文件过滤器
-const fileFilter = (req: Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+const fileFilter = (req, file, cb) => {
   const allowedMimes = ['image/jpeg', 'image/png', 'image/gif'];
   if (allowedMimes.includes(file.mimetype)) {
     cb(null, true);

@@ -1,7 +1,9 @@
-import { Request, Response, NextFunction } from 'express';
 import fs from 'fs';
 import path from 'path';
-import { AuthRequest } from './auth';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // 创建日志目录
 const logsDir = path.join(__dirname, '../../logs');
@@ -25,27 +27,15 @@ const securityLogStream = fs.createWriteStream(
   { flags: 'a' }
 );
 
-interface LogData {
-  timestamp: string;
-  method: string;
-  url: string;
-  ip: string;
-  userAgent?: string;
-  userId?: number;
-  duration?: number;
-  statusCode?: number;
-  error?: string;
-}
-
-export const logger = (req: Request, res: Response, next: NextFunction) => {
+export const logger = (req, res, next) => {
   const start = Date.now();
-  const logData: LogData = {
+  const logData = {
     timestamp: new Date().toISOString(),
     method: req.method,
     url: req.url,
     ip: req.ip || '',
     userAgent: req.headers['user-agent'] || '',
-    userId: (req as AuthRequest).userId
+    userId: req.userId
   };
 
   // 记录请求完成后的信息
@@ -76,13 +66,13 @@ export const logger = (req: Request, res: Response, next: NextFunction) => {
 };
 
 // 错误日志记录
-export const logError = (error: Error, req: Request, res: Response) => {
+export const logError = (error, req, res) => {
   const logData = {
     timestamp: new Date().toISOString(),
     method: req.method,
     url: req.url,
     ip: req.ip,
-    userId: (req as AuthRequest).userId,
+    userId: req.userId,
     error: error.message,
     stack: error.stack
   };

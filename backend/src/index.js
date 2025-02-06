@@ -1,26 +1,28 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import swaggerUi from 'swagger-ui-express';
-import { swaggerSpec } from './config/swagger';
-import { authRouter } from './routes/auth';
-import { articlesRouter } from './routes/articles';
-import { errorHandler } from './middleware/errorHandler';
-import { usersRouter } from './routes/users';
-import { commentsRouter } from './routes/comments';
-import { logger } from './middleware/logger';
-import adminRouter from './routes/admin';
+import { authRouter } from './routes/auth.js';
+import { articlesRouter } from './routes/articles.js';
+import { errorHandler } from './middleware/errorHandler.js';
+import { usersRouter } from './routes/users.js';
+import { commentsRouter } from './routes/comments.js';
+import { logger } from './middleware/logger.js';
+import { adminRouter } from './routes/admin.js';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
 dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const port = process.env.PORT || 3000;
 
 // CORS 配置
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:4173'], // 允许的前端域名
-  credentials: true, // 允许携带认证信息
+  origin: ['http://localhost:5173', 'http://localhost:4173'],
+  credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
@@ -29,9 +31,6 @@ app.use(express.json());
 
 // 静态文件服务
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
-
-// Swagger UI
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // 路由
 app.use('/api/auth', authRouter);
@@ -48,5 +47,4 @@ app.use(errorHandler);
 
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
-  console.log(`API Documentation available at http://localhost:${port}/api-docs`);
 }); 
