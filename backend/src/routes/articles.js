@@ -14,7 +14,20 @@ const SERVER_URL = process.env.SERVER_URL || 'http://localhost:3000';
 function getFullImageUrl(imageUrl) {
   if (!imageUrl) return null;
   if (imageUrl.startsWith('http')) return imageUrl;
-  return `${SERVER_URL}${imageUrl}`;
+  
+  // 获取后端 API URL
+  const apiUrl = process.env.SERVER_URL || 'http://localhost:3000';
+  
+  // 如果 imageUrl 已经包含了完整的路径，直接返回
+  if (imageUrl.startsWith('/api/')) {
+    return imageUrl;
+  }
+  
+  // 确保 imageUrl 以 / 开头
+  const normalizedImageUrl = imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`;
+  
+  // 返回完整的图片 URL
+  return `${apiUrl}${normalizedImageUrl}`;
 }
 
 // 获取文章列表

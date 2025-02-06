@@ -6,6 +6,13 @@ import { getToken } from './auth';
 const API_URL = env.PUBLIC_API_URL;
 console.log('当前使用的 API_URL:', API_URL);
 
+// 处理图片 URL 的函数
+function getImageUrl(url) {
+    if (!url) return null;
+    if (url.startsWith('http')) return url;
+    return `${API_URL}${url.startsWith('/') ? '' : '/'}${url}`;
+}
+
 export async function api(endpoint, options = {}) {
     const { method = 'GET', body, headers = {}, useStoredToken = true, isFormData = false, params } = options;
 
@@ -225,7 +232,11 @@ export const userApi = {
                 isFormData: true
             });
             console.log('[User] Avatar uploaded', result);
-            return result;
+            // 使用新的 getImageUrl 函数处理返回的 URL
+            return {
+                ...result,
+                avatarUrl: getImageUrl(result.avatarUrl)
+            };
         } catch (error) {
             console.error('[User] Avatar upload failed', error);
             throw error;
@@ -336,3 +347,5 @@ export const userApi = {
         }
     }
 };
+
+export { getImageUrl };

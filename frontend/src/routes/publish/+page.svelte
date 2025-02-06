@@ -12,6 +12,7 @@
   import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
   import { common, createLowlight } from 'lowlight';
   import { env } from '$env/dynamic/public';
+  import { getImageUrl } from '$lib/utils/api';
   
   const lowlight = createLowlight(common);
   const API_URL = env.PUBLIC_API_URL;
@@ -96,10 +97,10 @@
     editor?.destroy();
   });
   
-  // 处理编辑器中的图片上传
+  // 修改图片上传处理函数
   async function handleEditorImageUpload() {
     if (imageUploading) return;
-    
+
     const input = document.createElement('input');
     input.setAttribute('type', 'file');
     input.setAttribute('accept', 'image/*');
@@ -129,21 +130,20 @@
           }
 
           const data = await response.json();
-          const imageUrl = data.url; // 直接使用返回的完整 URL
+          const imageUrl = getImageUrl(data.url); // 使用 getImageUrl 处理图片 URL
           console.log('上传内容图片成功 - 图片URL:', imageUrl);
-          
-          // 先加载图片，确保图片可用
+
           await new Promise((resolve, reject) => {
             const imgElement = document.createElement('img');
             imgElement.onload = resolve;
             imgElement.onerror = reject;
             imgElement.src = imageUrl;
           });
-          
-          editor?.chain().focus().setImage({ 
-            src: imageUrl, 
+
+          editor?.chain().focus().setImage({
+            src: imageUrl,
             alt: file.name,
-            title: file.name 
+            title: file.name
           }).run();
         } catch (err) {
           console.error('上传图片失败:', err);
@@ -210,14 +210,15 @@
     }
   }
   
+  // 修改封面图片上传处理函数
   async function uploadImage(event) {
     const target = event.target;
     if (!target.files?.length) return;
-    
+
     try {
       const formData = new FormData();
       formData.append('cover', target.files[0]);
-      
+
       console.log('上传封面 - API_URL:', API_URL);
       const response = await fetch(`${API_URL}/api/articles/cover`, {
         method: 'POST',
@@ -227,14 +228,14 @@
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ message: '上传失败' }));
         throw new Error(errorData.message || '上传失败');
       }
-      
+
       const data = await response.json();
-      imageUrl = data.url; // 直接使用返回的完整 URL
+      imageUrl = getImageUrl(data.url); // 使用 getImageUrl 处理图片 URL
       console.log('上传封面成功 - 图片URL:', imageUrl);
     } catch (err) {
       console.error('上传图片失败:', err);

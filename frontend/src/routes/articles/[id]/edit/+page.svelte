@@ -12,6 +12,7 @@
   import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
   import { common, createLowlight } from 'lowlight';
   import { env } from '$env/dynamic/public';
+  import { getImageUrl } from '$lib/utils/api';
 
   // ========== 1. 配置相关常量 ==========
   const lowlight = createLowlight(common);
@@ -157,7 +158,7 @@
           }
 
           const data = await response.json();
-          const imageUrl = data.url; // 直接使用返回的完整 URL
+          const imageUrl = getImageUrl(data.url); // 使用 getImageUrl 处理图片 URL
           console.log('编辑页面 - 上传内容图片成功 - 图片URL:', imageUrl);
 
           await new Promise((resolve, reject) => {
@@ -260,7 +261,7 @@
       }
 
       const data = await response.json();
-      imageUrl = data.url; // 直接使用返回的完整 URL
+      imageUrl = getImageUrl(data.url); // 使用 getImageUrl 处理图片 URL
       console.log('编辑页面 - 上传封面成功 - 图片URL:', imageUrl);
     } catch (err) {
       console.error('上传图片失败:', err);
