@@ -1,6 +1,6 @@
 [build]
 builder = "nixpacks"
-buildCommand = "rm -rf node_modules && npm ci --prefer-offline"
+buildCommand = "npm install --no-cache --production --prefer-offline"
 
 [deploy]
 startCommand = "npm start"
