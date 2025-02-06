@@ -30,7 +30,13 @@ app.use(cors({
 app.use(express.json());
 
 // 静态文件服务
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+const getStaticRoot = () => {
+  return process.env.NODE_ENV === 'production'
+    ? '/data/uploads'
+    : 'uploads';
+};
+
+app.use('/uploads', express.static(getStaticRoot()));
 
 // 路由
 app.use('/api/auth', authRouter);

@@ -3,7 +3,10 @@ import { open } from 'sqlite';
 import path from 'path';
 import fs from 'fs/promises';
 
-const dbPath = path.join(process.cwd(), 'blog.db');
+// 根据环境使用不同的数据库路径
+const dbPath = process.env.NODE_ENV === 'production'
+  ? path.join('/data', 'blog.db')
+  : path.join(process.cwd(), 'blog.db');
 
 let db;
 

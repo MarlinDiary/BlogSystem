@@ -2,9 +2,21 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 
+// 获取上传根目录
+const getUploadRoot = () => {
+  return process.env.NODE_ENV === 'production'
+    ? '/data/uploads'
+    : 'uploads';
+};
+
 // 确保上传目录存在
 const createUploadDirs = () => {
-  const dirs = ['uploads/covers', 'uploads/avatars', 'uploads/articles'];
+  const uploadRoot = getUploadRoot();
+  const dirs = [
+    path.join(uploadRoot, 'covers'),
+    path.join(uploadRoot, 'avatars'),
+    path.join(uploadRoot, 'articles')
+  ];
   dirs.forEach(dir => {
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
@@ -17,7 +29,7 @@ createUploadDirs();
 // 文章封面图上传配置
 const coverStorage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'uploads/covers');
+    cb(null, path.join(getUploadRoot(), 'covers'));
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
@@ -28,7 +40,7 @@ const coverStorage = multer.diskStorage({
 // 文章内容图片上传配置
 const articleStorage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'uploads/articles');
+    cb(null, path.join(getUploadRoot(), 'articles'));
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
@@ -39,7 +51,7 @@ const articleStorage = multer.diskStorage({
 // 用户头像上传配置
 const avatarStorage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'uploads/avatars');
+    cb(null, path.join(getUploadRoot(), 'avatars'));
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
