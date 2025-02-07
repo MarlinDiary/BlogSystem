@@ -170,7 +170,7 @@
 
   async function loadComments() {
     try {
-      const response = await fetch(`/api/comments/article/${articleId}`);
+      const response = await fetch(`${env.PUBLIC_API_URL}/api/comments/article/${articleId}`);
       if (response.ok) {
         const rawComments = await response.json();
         // 递归排序所有层级的评论
