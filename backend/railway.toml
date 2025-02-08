@@ -15,9 +15,12 @@ PORT = "3000"
 SERVER_URL = "https://blog-production-154c.up.railway.app"
 CORS_ORIGIN = "https://blog-production-154c.up.railway.app"
 
+# 持久存储配置
 [[volume]]
-source = "data"
-path = "/uploads"
+source = "uploads"
+path = "/data"
+persistent = true
 
+# 确保上传目录存在并设置软链接
 [[init]]
-command = "mkdir -p /uploads/covers /uploads/avatars /uploads/articles && chmod -R 755 /uploads" 
+command = "mkdir -p /data/uploads/covers /data/uploads/avatars /data/uploads/articles && chmod -R 755 /data && ln -sfn /data/uploads /uploads" 
