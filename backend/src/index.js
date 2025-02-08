@@ -25,7 +25,9 @@ const corsOrigins = process.env.NODE_ENV === 'production'
       'https://blog-blush-nine-72.vercel.app',
       'https://blog-blush-nine-72.vercel.app/',
       'https://blog-production-154c.up.railway.app',
-      'https://blog-production-154c.up.railway.app/'
+      'https://blog-production-154c.up.railway.app/',
+      'https://www.huizha.com',
+      'https://www.huizha.com/'
     ]
   : ['http://localhost:5173', 'http://localhost:4173'];
 
