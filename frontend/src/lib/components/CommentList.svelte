@@ -300,7 +300,7 @@
     }
 
     try {
-      const response = await fetch('/api/comments', {
+      const response = await fetch(`${env.PUBLIC_API_URL}/api/comments`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -381,7 +381,7 @@
         newVisibility: comment.visibility === 'visible' ? 'hidden' : 'visible'
       });
 
-      const response = await fetch(`/api/comments/${commentId}/visibility`, {
+      const response = await fetch(`${env.PUBLIC_API_URL}/api/comments/${commentId}/visibility`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -426,7 +426,7 @@
 
   async function handleDelete(commentId) {
     try {
-      const response = await fetch(`/api/comments/${commentId}`, {
+      const response = await fetch(`${env.PUBLIC_API_URL}/api/comments/${commentId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -494,7 +494,7 @@
                     <img
                       src={getAvatarUrl(comment.user.id)}
                       alt={comment.user.username}
-                      class="h-10 w-10 select-none rounded-full ring-2 ring-zinc-200 dark:ring-zinc-800 relative z-10 bg-white dark:bg-zinc-900 transition-opacity group-hover/avatar:opacity-80"
+                      class="h-10 w-10 select-none rounded-full ring-2 ring-zinc-200 dark:ring-zinc-800 relative z-10 bg-white dark:bg-zinc-900 transition-opacity group-hover/avatar:opacity-80 object-cover"
                       loading="lazy"
                     />
                     <button
@@ -565,7 +565,7 @@
                         <img
                           src={getAvatarUrl(user?.id)}
                           alt={user?.username}
-                          class="h-10 w-10 select-none rounded-full ring-2 ring-zinc-200 dark:ring-zinc-800 relative z-10 bg-white dark:bg-zinc-900"
+                          class="h-10 w-10 select-none rounded-full ring-2 ring-zinc-200 dark:ring-zinc-800 relative z-10 bg-white dark:bg-zinc-900 object-cover"
                         />
                       </div>
                       <div class="flex-1 min-w-0">
@@ -605,7 +605,7 @@
                                   <img
                                     src={getAvatarUrl(child.user.id)}
                                     alt={child.user.username}
-                                    class="h-10 w-10 select-none rounded-full ring-2 ring-zinc-200 dark:ring-zinc-800 relative z-10 bg-white dark:bg-zinc-900 transition-opacity group-hover/avatar:opacity-80"
+                                    class="h-10 w-10 select-none rounded-full ring-2 ring-zinc-200 dark:ring-zinc-800 relative z-10 bg-white dark:bg-zinc-900 transition-opacity group-hover/avatar:opacity-80 object-cover"
                                     loading="lazy"
                                   />
                                   <button
@@ -676,7 +676,7 @@
                                       <img
                                         src={getAvatarUrl(user?.id)}
                                         alt={user?.username}
-                                        class="h-10 w-10 select-none rounded-full ring-2 ring-zinc-200 dark:ring-zinc-800 relative z-10 bg-white dark:bg-zinc-900"
+                                        class="h-10 w-10 select-none rounded-full ring-2 ring-zinc-200 dark:ring-zinc-800 relative z-10 bg-white dark:bg-zinc-900 object-cover"
                                       />
                                     </div>
                                     <div class="flex-1 min-w-0">
@@ -715,7 +715,7 @@
                                               <img
                                                 src={getAvatarUrl(grandChild.user.id)}
                                                 alt={grandChild.user.username}
-                                                class="h-10 w-10 select-none rounded-full ring-2 ring-zinc-200 dark:ring-zinc-800 relative z-10 bg-white dark:bg-zinc-900"
+                                                class="h-10 w-10 select-none rounded-full ring-2 ring-zinc-200 dark:ring-zinc-800 relative z-10 bg-white dark:bg-zinc-900 object-cover"
                                                 loading="lazy"
                                               />
                                             </div>
