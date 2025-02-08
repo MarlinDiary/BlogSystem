@@ -100,7 +100,7 @@ router.post('/register', async (req, res, next) => {
     const result = await run(
       `INSERT INTO users (username, password, real_name, date_of_birth, bio, status, avatar_url, created_at)
        VALUES (?, ?, ?, ?, ?, 'active', ?, CURRENT_TIMESTAMP)`,
-      [username, hashedPassword, realName, birthDate.toISOString(), bio || null, avatarUrl]
+      [username, hashedPassword, realName, birthDate.toISOString(), bio || 'I love garlic bones.', avatarUrl]
     );
 
     const newUser = await get(
