@@ -67,9 +67,25 @@ console.log('Checking static directory exists:', fs.existsSync(staticRoot));
 console.log('Checking if it is a symlink:', fs.lstatSync(staticRoot).isSymbolicLink());
 if (process.env.NODE_ENV === 'production') {
   console.log('Checking /data/uploads exists:', fs.existsSync('/data/uploads'));
+  // 列出 /data/uploads 目录内容
+  console.log('Contents of /data/uploads:', fs.readdirSync('/data/uploads'));
+  // 列出各个子目录
+  ['avatars', 'covers', 'articles'].forEach(dir => {
+    const fullPath = `/data/uploads/${dir}`;
+    if (fs.existsSync(fullPath)) {
+      console.log(`Contents of ${fullPath}:`, fs.readdirSync(fullPath));
+    }
+  });
+  // 检查软链接目标
+  console.log('Symlink target:', fs.readlinkSync('/uploads'));
 }
 
-app.use('/uploads', express.static(getStaticRoot()));
+// 添加访问日志中间件
+app.use('/uploads', (req, res, next) => {
+  console.log('Accessing file:', req.path);
+  console.log('File exists:', fs.existsSync(path.join(getStaticRoot(), req.path)));
+  next();
+}, express.static(getStaticRoot()));
 
 // 健康检查端点
 app.get('/health', (req, res) => {
