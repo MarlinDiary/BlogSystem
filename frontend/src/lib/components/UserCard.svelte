@@ -5,6 +5,7 @@
   import { fade, scale } from 'svelte/transition';
   import { cubicOut } from 'svelte/easing';
   import { getImageUrl } from '$lib/utils/api';
+  import { t } from '$lib/i18n';
 
   export let userId;
   export let username = '';
@@ -39,7 +40,7 @@
       articles = result.items.slice(0, 3);
     } catch (err) {
       console.error('加载用户数据失败:', err);
-      error = err.message;
+      error = $t('userCard.loadError');
     } finally {
       loading = false;
     }
@@ -93,7 +94,7 @@
     class="fixed inset-0 w-full h-full bg-transparent cursor-default"
     on:click={() => dispatch('close')}
   >
-    <span class="sr-only">关闭</span>
+    <span class="sr-only">{$t('userCard.close')}</span>
   </button>
   
   <div class="flex min-h-full items-center justify-center p-4">
@@ -171,7 +172,7 @@
           {:else if error}
             <p class="text-sm text-red-500 dark:text-red-400">{error}</p>
           {:else if articles.length === 0}
-            <p class="text-sm text-zinc-500 dark:text-zinc-400 text-center">暂无文章</p>
+            <p class="text-sm text-zinc-500 dark:text-zinc-400 text-center">{$t('userCard.noArticles')}</p>
           {:else}
             <div class="space-y-4">
               {#each articles as article}
@@ -185,7 +186,7 @@
                   <div class="mt-1.5 flex items-center text-xs text-zinc-500 dark:text-zinc-400 space-x-2">
                     <span>{formatDate(article.createdAt)}</span>
                     <span>·</span>
-                    <span>{article.viewCount} 阅读</span>
+                    <span>{article.viewCount} {$t('userCard.views')}</span>
                   </div>
                 </button>
               {/each}

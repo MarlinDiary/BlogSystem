@@ -120,6 +120,7 @@
   import { env } from '$env/dynamic/public';
   import MarkdownRenderer from './MarkdownRenderer.svelte';
   import AuthModal from './AuthModal.svelte';
+  import { t } from '$lib/i18n';
 
   export let articleId;
   export let user = null;
@@ -145,21 +146,15 @@
     const minutes = Math.floor(seconds / 60);
     const hours = Math.floor(minutes / 60);
     const days = Math.floor(hours / 24);
-    const months = Math.floor(days / 30);
-    const years = Math.floor(days / 365);
 
     if (seconds < 60) {
-      return '刚刚';
+      return $t('time.justNow');
     } else if (minutes < 60) {
-      return `${minutes} 分钟前`;
+      return $t('time.minutesAgo', { minutes });
     } else if (hours < 24) {
-      return `${hours} 小时前`;
-    } else if (days < 30) {
-      return `${days} 天前`;
-    } else if (months < 12) {
-      return `${months} 个月前`;
+      return $t('time.hoursAgo', { hours });
     } else {
-      return `${years} 年前`;
+      return $t('time.daysAgo', { days });
     }
   }
 
@@ -350,10 +345,10 @@
         }
       } else {
         const error = await response.json();
-        alert(error.message || '回复发送失败');
+        alert(error.message || $t('comment.sendFailed'));
       }
     } catch (error) {
-      alert('回复发送失败');
+      alert($t('comment.replyFailed'));
     }
 
     // 清除回复状态
@@ -454,7 +449,8 @@
         comments = removeComment(comments);
       }
     } catch (error) {
-      console.error('删除评论失败:', error);
+      console.error($t('comment.deleteFailed'), error);
+      alert($t('comment.deleteFailed'));
     }
   }
 
@@ -483,7 +479,7 @@
     </div>
   {:else if comments.length === 0}
     <div class="py-8 text-center text-sm text-zinc-500 dark:text-zinc-400">
-      还没有评论，来说两句吧~
+      {$t('comment.noComments')}
     </div>
   {:else}
     <div class="px-4 md:px-6">
@@ -504,7 +500,7 @@
                     <button
                       class="reply-button absolute inset-0 z-20 flex items-center justify-center bg-black/0 opacity-0 group-hover/avatar:opacity-100 transition-opacity rounded-full cursor-pointer"
                       on:click={(e) => handleReplyClick(e, comment.id)}
-                      aria-label={`回复 ${comment.user.username} 的评论`}
+                      aria-label={$t('comment.replyTo', { username: comment.user.username })}
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white drop-shadow" viewBox="0 0 20 20" fill="currentColor">
                         <path fill-rule="evenodd" d="M7.707 3.293a1 1 0 010 1.414L5.414 7H11a7 7 0 017 7v2a1 1 0 11-2 0v-2a5 5 0 00-5-5H5.414l2.293 2.293a1 1 0 11-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
@@ -528,7 +524,7 @@
                             <button
                               class="action-button"
                               on:click={() => handleVisibilityToggle(comment.id)}
-                              aria-label={comment.visibility === 'visible' ? '隐藏评论' : '显示评论'}
+                              aria-label={comment.visibility === 'visible' ? $t('comment.hideComment') : $t('comment.showComment')}
                             >
                               <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                                 {#if comment.visibility === 'visible'}
@@ -545,7 +541,7 @@
                             <button
                               class="action-button"
                               on:click={() => handleDelete(comment.id)}
-                              aria-label="删除评论"
+                              aria-label={$t('comment.delete')}
                             >
                               <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                                 <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
@@ -579,7 +575,7 @@
                               {user?.username}
                             </span>
                             <time class="select-none text-zinc-400">
-                              刚刚
+                              {$t('comment.justNow')}
                             </time>
                           </div>
                         </header>
@@ -589,8 +585,8 @@
                             class="temp-reply-content comment__message prose-zinc dark:prose-invert text-[13px] [&>p]:m-0 [&>p:first-child]:-mt-1"
                             contenteditable="true"
                             role="textbox"
-                            aria-label="回复内容"
-                            data-placeholder="写下你的回复..."
+                            aria-label={$t('comment.writeReply')}
+                            data-placeholder={$t('comment.writeReply')}
                           ></div>
                         </div>
                       </div>
@@ -615,7 +611,7 @@
                                   <button
                                     class="reply-button absolute inset-0 z-20 flex items-center justify-center bg-black/0 opacity-0 group-hover/avatar:opacity-100 transition-opacity rounded-full cursor-pointer"
                                     on:click={(e) => handleReplyClick(e, child.id)}
-                                    aria-label={`回复 ${child.user.username} 的评论`}
+                                    aria-label={$t('comment.replyTo', { username: child.user.username })}
                                   >
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white drop-shadow" viewBox="0 0 20 20" fill="currentColor">
                                       <path fill-rule="evenodd" d="M7.707 3.293a1 1 0 010 1.414L5.414 7H11a7 7 0 017 7v2a1 1 0 11-2 0v-2a5 5 0 00-5-5H5.414l2.293 2.293a1 1 0 11-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
@@ -639,7 +635,7 @@
                                           <button
                                             class="action-button"
                                             on:click={() => handleVisibilityToggle(child.id)}
-                                            aria-label={child.visibility === 'visible' ? '隐藏回复' : '显示回复'}
+                                            aria-label={child.visibility === 'visible' ? $t('comment.hideReply') : $t('comment.showReply')}
                                           >
                                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                                               {#if child.visibility === 'visible'}
@@ -656,7 +652,7 @@
                                           <button
                                             class="action-button"
                                             on:click={() => handleDelete(child.id)}
-                                            aria-label="删除回复"
+                                            aria-label={$t('comment.deleteReply')}
                                           >
                                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                                               <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
@@ -690,7 +686,7 @@
                                             {user?.username}
                                           </span>
                                           <time class="select-none text-zinc-400">
-                                            刚刚
+                                            {$t('comment.justNow')}
                                           </time>
                                         </div>
                                       </header>
@@ -701,7 +697,7 @@
                                           contenteditable="true"
                                           role="textbox"
                                           aria-label="回复内容"
-                                          data-placeholder="写下你的回复..."
+                                          data-placeholder={$t('comment.writeReply')}
                                         ></div>
                                       </div>
                                     </div>
@@ -739,7 +735,7 @@
                                                         <button
                                                           class="action-button"
                                                           on:click={() => handleVisibilityToggle(grandChild.id)}
-                                                          aria-label={grandChild.visibility === 'visible' ? '隐藏回复' : '显示回复'}
+                                                          aria-label={grandChild.visibility === 'visible' ? $t('comment.hideReply') : $t('comment.showReply')}
                                                         >
                                                           <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                                                             {#if grandChild.visibility === 'visible'}
@@ -756,7 +752,7 @@
                                                         <button
                                                           class="action-button"
                                                           on:click={() => handleDelete(grandChild.id)}
-                                                          aria-label="删除回复"
+                                                          aria-label={$t('comment.deleteReply')}
                                                         >
                                                           <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                                                             <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />

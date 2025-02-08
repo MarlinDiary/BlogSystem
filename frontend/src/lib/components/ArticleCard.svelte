@@ -1,8 +1,12 @@
 <script>
+  import { t } from '$lib/i18n';
+  import { locale } from '$lib/i18n';
   export let article;
 
+  $: currentLocale = $locale === 'zh' ? 'zh-CN' : 'en-US';
+
   function formatDate(dateStr) {
-    return new Date(dateStr).toLocaleDateString('zh-CN', {
+    return new Date(dateStr).toLocaleDateString(currentLocale, {
       year: 'numeric',
       month: 'long',
       day: 'numeric'
@@ -35,8 +39,8 @@
     
     <div class="mt-4 flex items-center text-xs text-zinc-500 dark:text-zinc-400 space-x-4">
       <time datetime={article.createdAt}>{formatDate(article.createdAt)}</time>
-      <span>阅读 {article.viewCount || 0}</span>
-      <span>评论 {article.commentCount || 0}</span>
+      <span>{$t('article.views')} {article.viewCount || 0}</span>
+      <span>{$t('article.comments')} {article.commentCount || 0}</span>
     </div>
   </div>
 </a> 

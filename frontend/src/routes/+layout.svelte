@@ -6,12 +6,10 @@
 
 	// 导航数据
 	const navigationItems = [
-		{ href: '/', text: '首页' },
-		{ href: '/articles', text: '文章' },
-		{ href: '/friends', text: '社区' },
-		//{ href: '/search', text: '搜索' },
-		{ href: '/publish', text: '发布' },
-		//{ href: '/about', text: '关于' }
+		{ href: '/', key: 'nav.home' },
+		{ href: '/articles', key: 'nav.articles' },
+		{ href: '/friends', key: 'nav.community' },
+		{ href: '/publish', key: 'nav.publish' }
 	];
 
 	let initialized = false;

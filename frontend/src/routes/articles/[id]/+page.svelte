@@ -8,6 +8,7 @@
   import UserCard from '$lib/components/UserCard.svelte';
   import { env } from '$env/dynamic/public';
   import { getImageUrl } from '$lib/utils/api';
+  import { t, locale } from '$lib/i18n';
 
   const API_URL = env.PUBLIC_API_URL;
   
@@ -50,16 +51,16 @@
   }
 
   function parseToc(content) {
-    console.log('开始解析目录，HTML内容长度:', content.length);
-    console.log('HTML内容中的标题标签:', content.match(/<h[1-6][^>]*>.*?<\/h[1-6]>/g));
+    console.log('Start parsing TOC, HTML content length:', content.length);
+    console.log('Heading tags in HTML content:', content.match(/<h[1-6][^>]*>.*?<\/h[1-6]>/g));
 
     const parser = new DOMParser();
     const doc = parser.parseFromString(content, 'text/html');
     const headings = doc.querySelectorAll('h1, h2');
-    console.log('找到标题元素:', headings.length);
+    console.log('Found heading elements:', headings.length);
 
     headings.forEach((heading, index) => {
-      console.log(`标题 ${index + 1}:`, {
+      console.log(`Heading ${index + 1}:`, {
         tagName: heading.tagName,
         id: heading.id,
         innerHTML: heading.innerHTML,
@@ -76,11 +77,11 @@
         level: parseInt(heading.tagName[1]),
         isActive: false
       };
-      console.log('解析标题:', item);
+      console.log('Parsed heading:', item);
       return item;
     });
 
-    console.log('目录解析完成:', items);
+    console.log('TOC parsing completed:', items);
     return items;
   }
 
@@ -120,7 +121,7 @@
         const id = generateHeadingId(cleanText);
         const tocItem = tocItems.find(item => item.text === cleanText);
         const finalId = tocItem?.id || id;
-        return `<${tag}${cleanAttrs} id="${finalId}" class="heading-anchor" tabindex="0" role="link" aria-label="跳转到${cleanText}章节">${text}</${tag}>`;
+        return `<${tag}${cleanAttrs} id="${finalId}" class="heading-anchor" tabindex="0" role="link" aria-label="${$t('article.jumpToSection', { section: cleanText })}">${text}</${tag}>`;
       }
     );
   }
@@ -168,11 +169,11 @@
         credentials: 'omit'
       });
       if (!response.ok) {
-        throw new Error('获取文章详情失败');
+        throw new Error($t('error.fetchArticleDetailFailed'));
       }
       const data = await response.json();
       
-      // 处理图片 URL
+      // Process image URLs
       article = {
         ...data,
         imageUrl: getImageUrl(data.imageUrl),
@@ -182,7 +183,7 @@
         }
       };
 
-      console.log('获取文章数据:', {
+      console.log('Retrieved article data:', {
         title: article?.title,
         hasHtmlContent: !!article?.htmlContent,
         htmlContentLength: article?.htmlContent?.length,
@@ -215,15 +216,15 @@
         });
       }
     } catch (e) {
-      console.error('获取文章详情出错:', e);
-      error = e instanceof Error ? e.message : '获取文章详情失败';
+      console.error('Error fetching article detail:', e);
+      error = e instanceof Error ? e.message : $t('error.fetchArticleDetailFailed');
     } finally {
       loading = false;
     }
   }
 
   function formatDate(dateString) {
-    return new Date(dateString).toLocaleDateString('zh-CN', {
+    return new Date(dateString).toLocaleDateString($locale === 'zh' ? 'zh-CN' : 'en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric'
@@ -240,22 +241,18 @@
     const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
 
     if (diffInSeconds < 60) {
-      return '刚刚';
+      return $t('time.justNow');
     } else if (diffInSeconds < 3600) {
       const minutes = Math.floor(diffInSeconds / 60);
-      return `${minutes} 分钟前`;
+      return $t('time.minutesAgo', { minutes });
     } else if (diffInSeconds < 86400) {
       const hours = Math.floor(diffInSeconds / 3600);
-      return `${hours} 小时前`;
+      return $t('time.hoursAgo', { hours });
     } else if (diffInSeconds < 2592000) {
       const days = Math.floor(diffInSeconds / 86400);
-      return `${days} 天前`;
-    } else if (diffInSeconds < 31536000) {
-      const months = Math.floor(diffInSeconds / 2592000);
-      return `${months} 个月前`;
+      return $t('time.daysAgo', { days });
     } else {
-      const years = Math.floor(diffInSeconds / 31536000);
-      return `${years} 年前`;
+      return formatDate(dateString);
     }
   }
 
@@ -570,7 +567,7 @@
         <nav 
           class="toc"
           data-scrolled={isScrolled}
-          aria-label="文章目录"
+          aria-label={$t('article.tableOfContents')}
         >
           <div class="toc-list">
             {#each tocItems as item}
@@ -668,9 +665,9 @@
             <div class="divider"></div>
             <span class="meta-text">{getTimeAgo(article.createdAt)}</span>
             <div class="divider"></div>
-            <span class="meta-text">{article.viewCount} 阅读</span>
+            <span class="meta-text">{article.viewCount} {$t('article.views')}</span>
             <div class="divider"></div>
-            <span class="meta-text">{article.commentCount} 评论</span>
+            <span class="meta-text">{article.commentCount} {$t('article.comments')}</span>
             <div class="hidden md:contents">
               {#if article.tags && article.tags.length > 0}
                 <div class="divider"></div>

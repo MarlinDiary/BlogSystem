@@ -1,6 +1,7 @@
 <script>
   import { onMount } from 'svelte';
   import ColorThief from 'colorthief';
+  import { t } from '$lib/i18n';
   
   let articles = [];
   let loading = false;
@@ -18,17 +19,17 @@
       const contentType = response.headers.get('content-type');
       
       if (!response.ok) {
-        throw new Error('获取文章列表失败');
+        throw new Error($t('error.fetchArticlesFailed'));
       }
       
       if (!contentType?.includes('application/json')) {
-        throw new Error(`预期接收 JSON 数据，但收到 ${contentType}`);
+        throw new Error($t('error.invalidContentType', { type: contentType }));
       }
       
       const data = await response.json();
       articles = data.items;
       
-      // 为每篇文章提取图片主色调
+      // Extract dominant color for each article image
       for (let article of articles) {
         if (article.imageUrl) {
           try {
@@ -42,14 +43,14 @@
             const color = colorThief.getColor(img);
             article.dominantColor = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
           } catch (e) {
-            console.error('提取图片颜色失败:', e);
+            console.error('Failed to extract image color:', e);
           }
         }
       }
       
     } catch (e) {
-      console.error('获取文章列表出错:', e);
-      error = e instanceof Error ? e.message : '获取文章列表失败';
+      console.error('Error fetching article list:', e);
+      error = e instanceof Error ? e.message : $t('error.fetchArticlesFailed');
     } finally {
       loading = false;
     }
@@ -134,7 +135,7 @@
 
 <div class="mx-auto max-w-[1600px] px-4 py-12">
   <h1 class="text-4xl font-bold tracking-tight text-zinc-800 dark:text-zinc-100 sm:text-5xl mb-12 text-center">
-    探索文章
+    {$t('article.explore')}
   </h1>
 
   {#if error}

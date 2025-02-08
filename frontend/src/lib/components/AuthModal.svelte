@@ -2,6 +2,7 @@
     import { createEventDispatcher, onMount } from 'svelte';
     import { auth } from '../stores/auth';
     import { authApi } from '../utils/api';
+    import { t } from '$lib/i18n';
     
     export let isOpen = false;
     export let mode = 'login';
@@ -79,7 +80,7 @@
     $: {
         if (password && mode === 'register') {
             if (!/^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$/.test(password)) {
-                passwordError = '密码必须至少8位，且包含字母和数字';
+                passwordError = $t('validation.passwordMinLength');
             } else {
                 passwordError = '';
             }
@@ -92,7 +93,7 @@
     $: {
         if (mode === 'register' && realName) {
             if (realName.length < 2) {
-                realNameError = '真实姓名至少需要2个字符';
+                realNameError = $t('validation.required');
             } else {
                 realNameError = '';
             }
@@ -107,9 +108,9 @@
             const birthDate = new Date(dateOfBirth);
             const today = new Date();
             if (isNaN(birthDate.getTime())) {
-                dateOfBirthError = '请输入有效的日期';
+                dateOfBirthError = $t('validation.invalidDate');
             } else if (birthDate > today) {
-                dateOfBirthError = '出生日期不能晚于今天';
+                dateOfBirthError = $t('validation.invalidDate');
             } else {
                 dateOfBirthError = '';
             }
@@ -184,7 +185,7 @@
         try {
             if (!validateForm()) {
                 if (mode === 'login') {
-                    error = '用户名或密码错误';
+                    error = $t('error.invalidCredentials');
                     // 添加抖动动画
                     isShaking = true;
                     setTimeout(() => {
@@ -243,7 +244,7 @@
                     <button 
                         class="absolute top-4 right-4 text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors"
                         on:click={close}
-                        aria-label="关闭对话框"
+                        aria-label={$t('account.closeDialog')}
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -252,7 +253,7 @@
                     
                     <!-- 标题 -->
                     <h2 id="modal-title" class="text-2xl font-bold text-center mb-6 text-zinc-800 dark:text-zinc-100">
-                        {mode === 'login' ? '登录' : '注册'}
+                        {mode === 'login' ? $t('common.login') : $t('common.register')}
                     </h2>
                     
                     <!-- 表单 -->
@@ -278,7 +279,7 @@
                         {/if}
                         
                         <div>
-                            <label for="username-input" class="block text-sm font-medium text-zinc-700 dark:text-zinc-300">用户名</label>
+                            <label for="username-input" class="block text-sm font-medium text-zinc-700 dark:text-zinc-300">{$t('user.username')}</label>
                             <div class="relative">
                                 <input
                                     id="username-input"
@@ -290,7 +291,7 @@
                                 {#if mode === 'register' && showFieldError && !username}
                                     <div class="absolute left-0 -bottom-1 transform translate-y-full">
                                         <div class="bg-red-50 dark:bg-red-900/50 text-red-600 dark:text-red-200 text-xs rounded-md p-2 mt-1 shadow-sm">
-                                            请输入用户名
+                                            {$t('validation.required')}
                                         </div>
                                     </div>
                                 {/if}
@@ -300,14 +301,14 @@
                                     <span class={username && (username.length >= 6 && username.length <= 20) ? 'text-green-600 dark:text-green-400' : 'text-zinc-400 dark:text-zinc-500'}>
                                         {username && (username.length >= 6 && username.length <= 20) ? '✓' : '•'}
                                     </span>
-                                    <span class={username && (username.length < 6 || username.length > 20) ? 'text-red-500' : ''}>6-20个字符</span>
+                                    <span class={username && (username.length < 6 || username.length > 20) ? 'text-red-500' : ''}>6-20 characters</span>
                                     <span class={username && /^[a-zA-Z0-9_]*$/.test(username) ? 'text-green-600 dark:text-green-400' : 'text-zinc-400 dark:text-zinc-500'}>
                                         {username && /^[a-zA-Z0-9_]*$/.test(username) ? '✓' : '•'}
                                     </span>
-                                    <span class={username && !/^[a-zA-Z0-9_]*$/.test(username) ? 'text-red-500' : ''}>仅限字母、数字、下划线</span>
+                                    <span class={username && !/^[a-zA-Z0-9_]*$/.test(username) ? 'text-red-500' : ''}>letters, numbers, underscore only</span>
                                     {#if username}
                                         {#if !isValidUsername(username)}
-                                            <span class="text-red-500">格式无效</span>
+                                            <span class="text-red-500">{$t('validation.invalidFormat')}</span>
                                         {:else if usernameChecking}
                                             <svg class="animate-spin h-3 w-3 text-zinc-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -315,7 +316,7 @@
                                             </svg>
                                         {:else}
                                             <span class={usernameExists ? 'text-red-500' : 'text-green-600 dark:text-green-400'}>
-                                                {usernameExists ? '用户名已被使用' : '用户名可用'}
+                                                {usernameExists ? $t('validation.usernameExists') : $t('validation.usernameAvailable')}
                                             </span>
                                         {/if}
                                     {/if}
@@ -324,7 +325,7 @@
                         </div>
                         
                         <div class="relative">
-                            <label for="password-input" class="block text-sm font-medium text-zinc-700 dark:text-zinc-300">密码</label>
+                            <label for="password-input" class="block text-sm font-medium text-zinc-700 dark:text-zinc-300">{$t('user.password')}</label>
                             <div class="relative">
                                 <input
                                     id="password-input"
@@ -336,7 +337,7 @@
                                 {#if mode === 'register' && showFieldError && !password}
                                     <div class="absolute left-0 -bottom-1 transform translate-y-full">
                                         <div class="bg-red-50 dark:bg-red-900/50 text-red-600 dark:text-red-200 text-xs rounded-md p-2 mt-1 shadow-sm">
-                                            请输入密码
+                                            {$t('validation.required')}
                                         </div>
                                     </div>
                                 {/if}
@@ -344,7 +345,7 @@
                                     type="button"
                                     class="absolute inset-y-0 right-0 pr-3 flex items-center"
                                     on:click={() => showPassword = !showPassword}
-                                    aria-label={showPassword ? '隐藏密码' : '显示密码'}
+                                    aria-label={showPassword ? $t('common.hidePassword') : $t('common.showPassword')}
                                 >
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                                         {#if showPassword}
@@ -361,22 +362,22 @@
                                     <span class={password && password.length >= 8 ? 'text-green-600 dark:text-green-400' : 'text-zinc-400 dark:text-zinc-500'}>
                                         {password && password.length >= 8 ? '✓' : '•'}
                                     </span>
-                                    <span class={password && password.length < 8 ? 'text-red-500' : ''}>至少8个字符</span>
+                                    <span class={password && password.length < 8 ? 'text-red-500' : ''}>{$t('validation.passwordMinLength')}</span>
                                     <span class={password && /[A-Za-z]/.test(password) ? 'text-green-600 dark:text-green-400' : 'text-zinc-400 dark:text-zinc-500'}>
                                         {password && /[A-Za-z]/.test(password) ? '✓' : '•'}
                                     </span>
-                                    <span class={password && !/[A-Za-z]/.test(password) ? 'text-red-500' : ''}>包含字母</span>
+                                    <span class={password && !/[A-Za-z]/.test(password) ? 'text-red-500' : ''}>{$t('validation.passwordRequireLetter')}</span>
                                     <span class={password && /\d/.test(password) ? 'text-green-600 dark:text-green-400' : 'text-zinc-400 dark:text-zinc-500'}>
                                         {password && /\d/.test(password) ? '✓' : '•'}
                                     </span>
-                                    <span class={password && !/\d/.test(password) ? 'text-red-500' : ''}>包含数字</span>
+                                    <span class={password && !/\d/.test(password) ? 'text-red-500' : ''}>{$t('validation.passwordRequireNumber')}</span>
                                 </div>
                             {/if}
                         </div>
                         
                         {#if mode === 'register'}
                             <div>
-                                <label for="realname-input" class="block text-sm font-medium text-zinc-700 dark:text-zinc-300">真实姓名</label>
+                                <label for="realname-input" class="block text-sm font-medium text-zinc-700 dark:text-zinc-300">{$t('account.realName')}</label>
                                 <div class="relative">
                                     <input
                                         id="realname-input"
@@ -388,7 +389,7 @@
                                     {#if showFieldError && !realName}
                                         <div class="absolute left-0 -bottom-1 transform translate-y-full">
                                             <div class="bg-red-50 dark:bg-red-900/50 text-red-600 dark:text-red-200 text-xs rounded-md p-2 mt-1 shadow-sm">
-                                                请输入真实姓名
+                                                {$t('validation.required')}
                                             </div>
                                         </div>
                                     {/if}
@@ -397,12 +398,12 @@
                                     <span class={realName && realName.length >= 2 ? 'text-green-600 dark:text-green-400' : 'text-zinc-400 dark:text-zinc-500'}>
                                         {realName && realName.length >= 2 ? '✓' : '•'}
                                     </span>
-                                    <span class={realName && realName.length < 2 ? 'text-red-500' : ''}>至少2个字符</span>
+                                    <span class={realName && realName.length < 2 ? 'text-red-500' : ''}>at least 2 characters</span>
                                 </div>
                             </div>
                             
                             <div>
-                                <label for="birth-input" class="block text-sm font-medium text-zinc-700 dark:text-zinc-300">出生日期</label>
+                                <label for="birth-input" class="block text-sm font-medium text-zinc-700 dark:text-zinc-300">{$t('account.dateOfBirth')}</label>
                                 <div class="relative">
                                     <input
                                         id="birth-input"
@@ -425,7 +426,7 @@
                                     {#if showFieldError && !dateOfBirth}
                                         <div class="absolute left-0 -bottom-1 transform translate-y-full">
                                             <div class="bg-red-50 dark:bg-red-900/50 text-red-600 dark:text-red-200 text-xs rounded-md p-2 mt-1 shadow-sm">
-                                                请输入出生日期
+                                                {$t('validation.required')}
                                             </div>
                                         </div>
                                     {/if}
@@ -439,17 +440,17 @@
                                     <span class={dateOfBirth && /^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth) ? 'text-green-600 dark:text-green-400' : 'text-zinc-400 dark:text-zinc-500'}>
                                         {dateOfBirth && /^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth) ? '✓' : '•'}
                                     </span>
-                                    <span>格式：YYYY-MM-DD</span>
+                                    <span>Format: YYYY-MM-DD</span>
                                     {#if dateOfBirth && !/^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth)}
-                                        <span class="text-red-500">格式无效</span>
+                                        <span class="text-red-500">{$t('validation.invalidFormat')}</span>
                                     {:else if dateOfBirth && new Date(dateOfBirth) > new Date()}
-                                        <span class="text-red-500">不能晚于今天</span>
+                                        <span class="text-red-500">{$t('validation.invalidDate')}</span>
                                     {/if}
                                 </div>
                             </div>
                             
                             <div>
-                                <label for="bio-input" class="block text-sm font-medium text-zinc-700 dark:text-zinc-300">个人简介</label>
+                                <label for="bio-input" class="block text-sm font-medium text-zinc-700 dark:text-zinc-300">{$t('user.bio')}</label>
                                 <textarea
                                     id="bio-input"
                                     bind:value={bio}
@@ -469,9 +470,9 @@
                                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                 </svg>
-                                处理中...
+                                {$t('common.processing')}
                             {:else}
-                                {mode === 'login' ? '登录' : '注册'}
+                                {mode === 'login' ? $t('common.login') : $t('common.register')}
                             {/if}
                         </button>
                     </form>
@@ -479,20 +480,20 @@
                     <!-- 切换模式 -->
                     <div class="mt-4 text-center text-sm">
                         {#if mode === 'login'}
-                            <span class="text-zinc-600 dark:text-zinc-400">还没有账户？</span>
+                            <span class="text-zinc-600 dark:text-zinc-400">{$t('account.noAccount')}</span>
                             <button
                                 class="text-zinc-900 hover:text-zinc-700 dark:text-zinc-300 dark:hover:text-zinc-100 underline underline-offset-2"
                                 on:click={toggleMode}
                             >
-                                注册
+                                {$t('common.register')}
                             </button>
                         {:else}
-                            <span class="text-zinc-600 dark:text-zinc-400">已有账户？</span>
+                            <span class="text-zinc-600 dark:text-zinc-400">{$t('account.hasAccount')}</span>
                             <button
                                 class="text-zinc-900 hover:text-zinc-700 dark:text-zinc-300 dark:hover:text-zinc-100 underline underline-offset-2"
                                 on:click={toggleMode}
                             >
-                                登录
+                                {$t('common.login')}
                             </button>
                         {/if}
                     </div>

@@ -3,6 +3,7 @@
   import { onMount } from 'svelte';
   import { fade } from 'svelte/transition';
   import { env } from '$env/dynamic/public';
+  import { t, locale } from '$lib/i18n';
   
   let latestArticles = [];
   let loading = true;
@@ -13,55 +14,55 @@
   async function fetchArticles() {
     try {
       const url = `${API_URL}/api/articles?sort=createdAt&order=desc&pageSize=5&status=published`;
-      console.log('首页 - API_URL:', API_URL);
-      console.log('首页 - 开始请求文章，URL:', url);
+      console.log('Home - API_URL:', API_URL);
+      console.log('Home - Start fetching articles, URL:', url);
       
       const response = await fetch(url, {
         mode: 'cors',
         credentials: 'omit'
       });
-      console.log('首页 - 响应状态:', response.status, response.statusText);
+      console.log('Home - Response status:', response.status, response.statusText);
       
       if (response.ok) {
         const data = await response.json();
-        console.log('首页 - 获取到的数据:', data);
+        console.log('Home - Received data:', data);
         latestArticles = data.items;
       } else {
-        console.error('首页 - 请求失败:', response.status, response.statusText);
-        error = `加载文章失败: ${response.status} ${response.statusText}`;
+        console.error('Home - Request failed:', response.status, response.statusText);
+        error = $t('error.loadArticlesFailed', { status: response.status, statusText: response.statusText });
         try {
           const errorData = await response.json();
-          console.error('首页 - 错误详情:', errorData);
+          console.error('Home - Error details:', errorData);
         } catch (e) {
-          console.error('首页 - 无法解析错误响应');
+          console.error('Home - Cannot parse error response');
         }
       }
     } catch (err) {
-      console.error('首页 - 请求异常:', err);
-      error = '加载文章失败，请稍后重试';
+      console.error('Home - Request exception:', err);
+      error = $t('error.loadArticlesRetry');
     } finally {
       loading = false;
     }
   }
   
   onMount(() => {
-    console.log('首页 - 组件挂载，开始加载数据');
+    console.log('Home - Component mounted, start loading data');
     fetchArticles();
-    // 禁用滚动
+    // Disable scrolling
     document.body.style.overflow = 'hidden';
     return () => {
-      // 组件卸载时恢复滚动
+      // Restore scrolling when component unmounts
       document.body.style.overflow = '';
     };
   });
   
-  // 将文章数据转换为轮播图格式
+  // Convert article data to carousel format
   $: carouselSlides = latestArticles.map(article => ({
     id: article.id,
     title: article.title,
     description: article.content.substring(0, 150).replace(/[#*`]/g, '') + '...',
     image: article.imageUrl || '/images/default-cover.jpg',
-    publishDate: new Date(article.createdAt).toLocaleDateString('zh-CN', {
+    publishDate: new Date(article.createdAt).toLocaleDateString($locale === 'zh' ? 'zh-CN' : 'en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric'

@@ -9,6 +9,7 @@
   import Portal from './Portal.svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
+  import { t } from '$lib/i18n';
   
   export let isOpen = false;
   
@@ -126,7 +127,7 @@
                 type="text"
                 bind:this={searchInputRef}
                 bind:value={searchQuery}
-                placeholder="搜索文章..."
+                placeholder={$t('search.placeholder')}
                 class="w-full pl-10 pr-4 py-2 bg-transparent border-none text-lg text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-0"
               />
               <svg class="absolute left-2 top-3 w-5 h-5 text-zinc-400 dark:text-zinc-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
@@ -143,7 +144,7 @@
                 <svg class="w-12 h-12 mb-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
                 </svg>
-                <p>搜索中...</p>
+                <p>{$t('search.loading')}</p>
               </div>
             <!-- 错误状态 -->
             {:else if error}
@@ -159,7 +160,7 @@
                 <svg class="w-12 h-12 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
                 </svg>
-                <p>输入关键词开始搜索</p>
+                <p>{$t('search.enterKeyword')}</p>
               </div>
             <!-- 搜索结果为空 -->
             {:else if searchQuery && searchResults.length === 0}
@@ -167,7 +168,7 @@
                 <svg class="w-12 h-12 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
                 </svg>
-                <p>未找到相关文章</p>
+                <p>{$t('search.noResults')}</p>
               </div>
             <!-- 搜索结果列表 -->
             {:else}
@@ -186,8 +187,8 @@
                     <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400 line-clamp-2">{result.content}</p>
                     <div class="mt-2 flex items-center text-xs text-zinc-400 dark:text-zinc-500 space-x-4">
                       <span>{new Date(result.createdAt).toLocaleDateString()}</span>
-                      <span>阅读 {result.viewCount || 0}</span>
-                      <span>评论 {result.commentCount || 0}</span>
+                      <span>{$t('article.views')} {result.viewCount || 0}</span>
+                      <span>{$t('article.comments')} {result.commentCount || 0}</span>
                     </div>
                   </button>
                 {/each}

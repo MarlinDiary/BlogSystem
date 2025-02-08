@@ -4,6 +4,7 @@
     import { onMount } from 'svelte';
     import ColorThief from 'colorthief';
     import { getImageUrl } from '$lib/utils/api';
+    import { t } from '$lib/i18n';
   
     export let user;
   
@@ -97,7 +98,7 @@
 <TiltCard maxTilt={10} lerpSpeed={0.15} scale={1.05}>
   <div
     role="article"
-    aria-label="{user.realName}的个人卡片"
+    aria-label={$t('friendCard.userCard', { name: user.realName })}
     class="friend-card group relative not-prose flex flex-col justify-between rounded-2xl p-6
       border transition-all duration-300 backdrop-blur-md
       {$focusingFriendId && $focusingFriendId !== user.id.toString() ? 'md:opacity-80 md:blur-[1px]' : 'blur-none'}"
@@ -152,7 +153,7 @@
         </span>
         <span class="mt-1 block text-xs tracking-wider uppercase"
           style="color: color-mix(in srgb, var(--card-color) 50%, transparent)">
-          文章
+          {$t('friendCard.articles')}
         </span>
       </div>
       <div class="text-center">
@@ -162,7 +163,7 @@
         </span>
         <span class="mt-1 block text-xs tracking-wider uppercase"
           style="color: color-mix(in srgb, var(--card-color) 50%, transparent)">
-          评论
+          {$t('friendCard.comments')}
         </span>
       </div>
     </div>

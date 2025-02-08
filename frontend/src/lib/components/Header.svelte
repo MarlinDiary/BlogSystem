@@ -3,6 +3,7 @@
   import Navigation from './Navigation.svelte';
   import SearchButton from './SearchButton.svelte';
   import UserButton from './UserButton.svelte';
+  import { t } from '$lib/i18n';
   
   export let navigationItems;
   
@@ -43,7 +44,7 @@
         <a href="/" class="block h-10 w-10 rounded-full bg-white p-0.5 shadow-lg shadow-zinc-800/5 ring-1 ring-zinc-900/5 dark:bg-zinc-800 dark:ring-white/10">
           <img
             src="/logo.png"
-            alt="网站Logo"
+            alt={$t('common.siteLogo')}
             class="h-9 w-9 rounded-full bg-zinc-100 object-cover dark:bg-zinc-800"
           />
         </a>

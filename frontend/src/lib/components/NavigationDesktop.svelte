@@ -2,7 +2,7 @@
 <script>
   import { page } from '$app/stores';
 
-  // 模拟导航数据，你也可以从外部传入
+  // 导航数据从父组件传入
   export let navigationItems = [
     { href: '/', text: '首页' },
     { href: '/about', text: '关于' },

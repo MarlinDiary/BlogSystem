@@ -9,6 +9,9 @@
   import { goto } from '$app/navigation';
   import { toast } from '$lib/utils/toast';
   import { getImageUrl } from '$lib/utils/api';
+  import { t } from '$lib/i18n';
+  import { locale, toggleLocale } from '$lib/i18n';
+  import LanguageSettings from './LanguageSettings.svelte';
   
   export let isOpen = false;
   
@@ -17,6 +20,7 @@
   let isClosing = false;
   let fileInput;
   let avatarTimestamp = Date.now();
+  let currentSection = 'profile'; // 'profile' | 'settings' | 'security'
   
   let editingField = null;
   let editForm = {
@@ -101,7 +105,7 @@
   function getAvatarUrl(userId) {
     if (!userId) return '/logo.png';
     const url = `${env.PUBLIC_API_URL}/api/users/${userId}/avatar?t=${avatarTimestamp}`;
-    console.log('AccountModal 生成的头像URL:', url);
+    console.log('AccountModal generating avatar URL:', url);
     return url;
   }
 
@@ -160,7 +164,7 @@
       };
       
       editingField = null;
-      success = '已更新';
+      success = $t('account.updateSuccess');
       setTimeout(() => {
         success = '';
       }, 2000);
@@ -183,12 +187,12 @@
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      error = '请上传图片文件';
+      error = 'Please upload an image file';
       return;
     }
 
     if (file.size > 2 * 1024 * 1024) {
-      error = '图片大小不能超过 2MB';
+      error = 'Image size cannot exceed 2MB';
       return;
     }
 
@@ -198,9 +202,9 @@
       const formData = new FormData();
       formData.append('avatar', file);
       
-      console.log('开始上传头像...');
+      console.log('Starting avatar upload...');
       const updatedUser = await userApi.uploadAvatar(formData);
-      console.log('头像上传成功:', updatedUser);
+      console.log('Avatar upload successful:', updatedUser);
       
       const currentUserId = getUserId($auth.user);
       
@@ -224,12 +228,12 @@
         avatarUrl: getAvatarUrl(currentUserId)
       };
 
-      success = '头像已更新';
+      success = $t('account.updateSuccess');
       setTimeout(() => {
         success = '';
       }, 2000);
     } catch (err) {
-      console.error('头像上传失败:', err);
+      console.log('Avatar upload failed:', err);
       error = err.message;
     } finally {
       loading = false;
@@ -256,8 +260,6 @@
   
   let loading = false;
 
-  let currentSection = 'profile';
-  
   let comments = [];
   
   async function loadUserArticles() {
@@ -266,7 +268,7 @@
       error = '';
       const userId = getUserId($auth.user);
       if (!userId) {
-        error = '无法获取用户ID';
+        error = 'Unable to get user ID';
         return;
       }
       const result = await userApi.getUserArticles(userId);
@@ -287,7 +289,7 @@
       error = '';
       const userId = getUserId($auth.user);
       if (!userId) {
-        error = '无法获取用户ID';
+        error = 'Unable to get user ID';
         return;
       }
       const result = await userApi.getUserComments(userId);
@@ -324,7 +326,7 @@
       error = '';
       const updatedUser = await userApi.updateProfile(editForm);
       auth.updateUser(updatedUser);
-      success = '个人资料已更新';
+      success = $t('account.updateSuccess');
       setTimeout(() => {
         success = '';
       }, 3000);
@@ -337,7 +339,7 @@
 
   async function changePassword() {
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      error = '两次输入的密码不一致';
+      error = $t('validation.passwordMismatch');
       return;
     }
     
@@ -345,7 +347,7 @@
       loading = true;
       error = '';
       await userApi.changePassword(passwordForm.currentPassword, passwordForm.newPassword);
-      success = '密码已修改';
+      success = $t('success.passwordChanged');
       isChangingPassword = false;
       passwordForm = {
         currentPassword: '',
@@ -407,7 +409,7 @@
       }
       
     } catch (error) {
-      console.error('删除文章失败:', error);
+      console.error('Failed to delete article:', error);
       await loadUserArticles();
     } finally {
       loading = false;
@@ -435,8 +437,8 @@
       comments = comments.filter(comment => comment.id !== commentId);
       await userApi.deleteComment(commentId);
     } catch (error) {
-      console.error('删除评论失败:', error);
-      error = error.message || '删除评论失败';
+      console.error('Failed to delete comment:', error);
+      error = error.message || 'Failed to delete comment';
       comments = [...comments];
     } finally {
       loading = false;
@@ -502,7 +504,11 @@
   function formatDate(dateStr) {
     if (!dateStr) return '';
     const date = new Date(dateStr);
-    return `${date.getFullYear()} 年 ${date.getMonth() + 1} 月 ${date.getDate()} 日`;
+    return $t('common.dateFormat', {
+      year: date.getFullYear(),
+      month: date.getMonth() + 1,
+      day: date.getDate()
+    });
   }
   
   function handleDateInput(event) {
@@ -516,11 +522,8 @@
     validationState.dateOfBirth = validateField('dateOfBirth', value);
   }
 
-  function handleSectionClick(section) {
+  function handleSectionChange(section) {
     currentSection = section;
-    if (isMobile) {
-      showContent = true;
-    }
   }
 
   function handleKeydown(event) {
@@ -555,7 +558,7 @@
             ? { ...comment, visibility: targetComment.visibility }
             : comment
         );
-        throw new Error('切换评论可见性失败');
+        throw new Error('Failed to toggle comment visibility');
       }
 
       const updatedComment = await response.json();
@@ -565,7 +568,7 @@
           : comment
       );
     } catch (err) {
-      console.error('切换评论可见性失败:', err);
+      console.log('Failed to toggle comment visibility:', err);
     }
   }
 </script>
@@ -582,7 +585,7 @@
       <button
         class="fixed inset-0 w-full h-full bg-transparent cursor-default"
         on:click={close}
-        aria-label="关闭对话框"
+        aria-label={$t('account.closeDialog')}
       ></button>
 
       <div class="relative bg-white/90 dark:bg-zinc-800/90 backdrop-blur-[2px] rounded-lg shadow-2xl shadow-zinc-500/20 dark:shadow-zinc-900/30 w-full {isMobile ? 'max-w-sm' : 'max-w-4xl'} h-[600px] flex overflow-hidden {isClosing ? 'modal-closing' : 'modal-open'}">
@@ -596,7 +599,7 @@
                 {#if $auth.user?.avatarUrl}
                   <img
                     src={getImageUrl($auth.user.avatarUrl)}
-                    alt={$auth.user?.username || '用户头像'}
+                    alt={$auth.user?.username || $t('account.unknownUser')}
                     class="h-12 w-12 rounded-full object-cover ring-2 ring-white/50 dark:ring-zinc-700/50"
                   />
                 {:else}
@@ -610,7 +613,7 @@
                 <div class="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-green-400 ring-2 ring-white dark:ring-zinc-800"></div>
               </div>
               <div>
-                <p class="font-medium dark:text-white uppercase">{$auth.user?.username || '未知用户'}</p>
+                <p class="font-medium dark:text-white uppercase">{$auth.user?.username || $t('account.unknownUser')}</p>
                 <p class="text-sm text-zinc-500 dark:text-zinc-400">{$auth.user?.realName || ''}</p>
               </div>
             </div>
@@ -619,53 +622,63 @@
             <nav class="space-y-1">
               <button
                 class="w-full text-left px-4 py-2.5 rounded-lg transition-colors flex items-center space-x-3 {currentSection === 'profile' ? 'bg-zinc-100 dark:bg-zinc-700/70 text-zinc-900 dark:text-white font-medium' : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}"
-                on:click={() => handleSectionClick('profile')}
+                on:click={() => handleSectionChange('profile')}
               >
                 <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
                   <circle cx="12" cy="7" r="4" />
                 </svg>
-                <span>个人资料</span>
+                <span>{$t('account.profile')}</span>
+              </button>
+              <button
+                class="w-full text-left px-4 py-2.5 rounded-lg transition-colors flex items-center space-x-3 {currentSection === 'settings' ? 'bg-zinc-100 dark:bg-zinc-700/70 text-zinc-900 dark:text-white font-medium' : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}"
+                on:click={() => handleSectionChange('settings')}
+              >
+                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
+                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1Z" />
+                </svg>
+                <span>{$t('account.generalSettings')}</span>
               </button>
               <button
                 class="w-full text-left px-4 py-2.5 rounded-lg transition-colors flex items-center space-x-3 {currentSection === 'articles' ? 'bg-zinc-100 dark:bg-zinc-700/70 text-zinc-900 dark:text-white font-medium' : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}"
-                on:click={() => handleSectionClick('articles')}
+                on:click={() => handleSectionChange('articles')}
               >
                 <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
                   <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
                 </svg>
-                <span>我的文章</span>
+                <span>{$t('account.articles')}</span>
               </button>
               <button
                 class="w-full text-left px-4 py-2.5 rounded-lg transition-colors flex items-center space-x-3 {currentSection === 'comments' ? 'bg-zinc-100 dark:bg-zinc-700/70 text-zinc-900 dark:text-white font-medium' : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}"
-                on:click={() => handleSectionClick('comments')}
+                on:click={() => handleSectionChange('comments')}
               >
                 <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                 </svg>
-                <span>我的评论</span>
+                <span>{$t('account.comments')}</span>
               </button>
               <button
                 class="w-full text-left px-4 py-2.5 rounded-lg transition-colors flex items-center space-x-3 {currentSection === 'security' ? 'bg-zinc-100 dark:bg-zinc-700/70 text-zinc-900 dark:text-white font-medium' : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}"
-                on:click={() => handleSectionClick('security')}
+                on:click={() => handleSectionChange('security')}
               >
                 <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
                   <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                 </svg>
-                <span>安全设置</span>
+                <span>{$t('account.security')}</span>
               </button>
               <button
                 class="w-full text-left px-4 py-2.5 rounded-lg transition-colors flex items-center space-x-3 {currentSection === 'danger' ? 'bg-zinc-100 dark:bg-zinc-700/70 text-zinc-900 dark:text-white font-medium' : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}"
-                on:click={() => handleSectionClick('danger')}
+                on:click={() => handleSectionChange('danger')}
               >
                 <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
                   <line x1="12" x2="12" y1="9" y2="13" />
                   <line x1="12" x2="12.01" y1="17" y2="17" />
                 </svg>
-                <span>危险区域</span>
+                <span>{$t('account.danger')}</span>
               </button>
             </nav>
           </div>
@@ -680,7 +693,7 @@
                 <polyline points="16 17 21 12 16 7" />
                 <line x1="21" x2="9" y1="12" y2="12" />
               </svg>
-              <span>退出登录</span>
+              <span>{$t('account.logout')}</span>
             </button>
           </div>
         </div>
@@ -692,13 +705,19 @@
                 <button
                   class="p-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-700/50"
                   on:click={() => showContent = false}
-                  aria-label="返回"
+                  aria-label={$t('common.back')}
                 >
                   <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M19 12H5M12 19l-7-7 7-7"/>
                   </svg>
                 </button>
-                <h3 class="absolute left-1/2 -translate-x-1/2 text-base font-medium dark:text-white">{currentSection === 'profile' ? '个人资料' : currentSection === 'articles' ? '我的文章' : currentSection === 'comments' ? '我的评论' : currentSection === 'security' ? '安全设置' : '危险区域'}</h3>
+                <h3 class="absolute left-1/2 -translate-x-1/2 text-base font-medium dark:text-white">
+                  {currentSection === 'profile' ? $t('account.profile') : 
+                   currentSection === 'articles' ? $t('account.articles') : 
+                   currentSection === 'comments' ? $t('account.comments') : 
+                   currentSection === 'security' ? $t('account.security') : 
+                   $t('account.danger')}
+                </h3>
               </div>
             </div>
           {/if}
@@ -721,7 +740,7 @@
             {#if currentSection === 'profile'}
               <div class="space-y-8">
                 {#if !isMobile}
-                  <h3 class="text-lg font-semibold mb-8 dark:text-white">个人资料</h3>
+                  <h3 class="text-lg font-semibold mb-8 dark:text-white">{$t('account.profile')}</h3>
                 {/if}
                 <div class="flex items-start space-x-4">
                   <div class="shrink-0">
@@ -729,7 +748,7 @@
                       {#if $auth.user?.avatarUrl}
                         <img
                           src={getImageUrl($auth.user.avatarUrl)}
-                          alt="用户头像"
+                          alt={$t('account.defaultAvatar')}
                           class="h-20 w-20 rounded-full object-cover ring-2 ring-white/50 dark:ring-zinc-700/50 transition-opacity group-hover:opacity-75"
                         />
                       {:else}
@@ -745,7 +764,7 @@
                           class="p-2 bg-black/50 backdrop-blur-sm rounded-full text-white hover:bg-black/60 transition-colors {loading ? 'opacity-50 cursor-not-allowed' : ''}"
                           on:click={() => fileInput.click()}
                           disabled={loading}
-                          aria-label="上传头像"
+                          aria-label={$t('account.uploadAvatar')}
                         >
                           {#if loading}
                             <svg class="w-5 h-5 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -770,15 +789,15 @@
                     />
                   </div>
                   <div class="flex-1">
-                    <h4 class="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">头像</h4>
-                    <p class="text-sm text-zinc-500 dark:text-zinc-400">{'推荐使用正方形图片，支持 PNG、JPG 格式，大小不超过 2 MB'}</p>
+                    <h4 class="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">{$t('account.avatar')}</h4>
+                    <p class="text-sm text-zinc-500 dark:text-zinc-400">{$t('account.avatarTip')}</p>
                   </div>
                 </div>
 
                 <div class="space-y-6">
                   <div class="flex {isMobile ? 'flex-col space-y-2' : 'items-center space-x-4'}">
                     <div class="{isMobile ? 'w-full' : 'w-32 shrink-0'}">
-                      <span class="block text-sm font-medium text-zinc-500 dark:text-zinc-400">用户名</span>
+                      <span class="block text-sm font-medium text-zinc-500 dark:text-zinc-400">{$t('account.username')}</span>
                     </div>
                     <div class="flex-1">
                       {#if editingField === 'username'}
@@ -798,7 +817,7 @@
                             class="p-1 {validationState.username ? 'text-zinc-900 hover:text-zinc-700 dark:text-zinc-100 dark:hover:text-zinc-300' : 'text-zinc-400 cursor-not-allowed'}"
                             on:click={() => validationState.username && saveField('username')}
                             disabled={!validationState.username}
-                            aria-label="保存修改"
+                            aria-label={$t('common.save')}
                           >
                             <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                               <polyline points="20 6 9 17 4 12" />
@@ -819,7 +838,7 @@
 
                   <div class="flex {isMobile ? 'flex-col space-y-2' : 'items-center space-x-4'}">
                     <div class="{isMobile ? 'w-full' : 'w-32 shrink-0'}">
-                      <span class="block text-sm font-medium text-zinc-500 dark:text-zinc-400">真实姓名</span>
+                      <span class="block text-sm font-medium text-zinc-500 dark:text-zinc-400">{$t('account.realName')}</span>
                     </div>
                     <div class="flex-1">
                       {#if editingField === 'realName'}
@@ -839,7 +858,7 @@
                             class="p-1 {validationState.realName ? 'text-zinc-900 hover:text-zinc-700 dark:text-zinc-100 dark:hover:text-zinc-300' : 'text-zinc-400 cursor-not-allowed'}"
                             on:click={() => validationState.realName && saveField('realName')}
                             disabled={!validationState.realName}
-                            aria-label="保存修改"
+                            aria-label={$t('common.save')}
                           >
                             <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                               <polyline points="20 6 9 17 4 12" />
@@ -855,7 +874,7 @@
                           {#if editForm.realName}
                             <span class="text-zinc-900 dark:text-white">{editForm.realName}</span>
                           {:else}
-                            <span class="text-zinc-400 dark:text-zinc-500 italic">未设置</span>
+                            <span class="text-zinc-400 dark:text-zinc-500 italic">{$t('common.noData')}</span>
                           {/if}
                         </button>
                       {/if}
@@ -864,7 +883,7 @@
 
                   <div class="flex {isMobile ? 'flex-col space-y-2' : 'items-center space-x-4'}">
                     <div class="{isMobile ? 'w-full' : 'w-32 shrink-0'}">
-                      <span class="block text-sm font-medium text-zinc-500 dark:text-zinc-400">出生日期</span>
+                      <span class="block text-sm font-medium text-zinc-500 dark:text-zinc-400">{$t('account.dateOfBirth')}</span>
                     </div>
                     <div class="flex-1">
                       {#if editingField === 'dateOfBirth'}
@@ -886,7 +905,7 @@
                             type="button"
                             class="p-1 text-zinc-900 hover:text-zinc-700 dark:text-zinc-100 dark:hover:text-zinc-300"
                             on:click={() => saveField('dateOfBirth')}
-                            aria-label="保存修改"
+                            aria-label={$t('common.save')}
                           >
                             <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                               <polyline points="20 6 9 17 4 12" />
@@ -902,7 +921,7 @@
                           {#if editForm.dateOfBirth}
                             <span class="text-zinc-900 dark:text-white">{formatDate(editForm.dateOfBirth)}</span>
                           {:else}
-                            <span class="text-zinc-400 dark:text-zinc-500 italic">未设置</span>
+                            <span class="text-zinc-400 dark:text-zinc-500 italic">{$t('common.noData')}</span>
                           {/if}
                         </button>
                       {/if}
@@ -911,7 +930,7 @@
 
                   <div class="flex {isMobile ? 'flex-col space-y-2' : 'items-center space-x-4'}">
                     <div class="{isMobile ? 'w-full' : 'w-32 shrink-0'}">
-                      <span class="block text-sm font-medium text-zinc-500 dark:text-zinc-400">个人简介</span>
+                      <span class="block text-sm font-medium text-zinc-500 dark:text-zinc-400">{$t('account.bio')}</span>
                     </div>
                     <div class="flex-1">
                       {#if editingField === 'bio'}
@@ -919,7 +938,7 @@
                           <input
                             type="text"
                             bind:value={tempEditValue}
-                            placeholder="写点什么来介绍一下自己吧..."
+                            placeholder={$t('account.bioPlaceholder')}
                             on:keydown={e => {
                               handleKeydown(e);
                               if (e.key === 'Enter' && validationState.bio) saveField('bio');
@@ -932,7 +951,7 @@
                             class="p-1 {validationState.bio ? 'text-zinc-900 hover:text-zinc-700 dark:text-zinc-100 dark:hover:text-zinc-300' : 'text-zinc-400 cursor-not-allowed'}"
                             on:click={() => validationState.bio && saveField('bio')}
                             disabled={!validationState.bio}
-                            aria-label="保存修改"
+                            aria-label={$t('common.save')}
                           >
                             <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                               <polyline points="20 6 9 17 4 12" />
@@ -948,7 +967,7 @@
                           {#if editForm.bio}
                             <span class="text-zinc-900 dark:text-white whitespace-pre-wrap">{editForm.bio}</span>
                           {:else}
-                            <span class="text-zinc-400 dark:text-zinc-500 italic">未设置</span>
+                            <span class="text-zinc-400 dark:text-zinc-500 italic">{$t('common.noData')}</span>
                           {/if}
                         </button>
                       {/if}
@@ -956,10 +975,19 @@
                   </div>
                 </div>
               </div>
+            {:else if currentSection === 'settings'}
+              <div>
+                {#if !isMobile}
+                  <h3 class="text-lg font-semibold mb-8 dark:text-white">{$t('account.generalSettings')}</h3>
+                {/if}
+                <div class="space-y-4">
+                  <LanguageSettings />
+                </div>
+              </div>
             {:else if currentSection === 'articles'}
               <div>
                 {#if !isMobile}
-                  <h3 class="text-lg font-semibold mb-8 dark:text-white">我的文章</h3>
+                  <h3 class="text-lg font-semibold mb-8 dark:text-white">{$t('account.articles')}</h3>
                 {/if}
                 {#if loading}
                   <div class="flex justify-center py-12">
@@ -973,13 +1001,13 @@
                       <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
                       <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
                     </svg>
-                    <p class="mb-6 text-zinc-500 dark:text-zinc-400">还没有发布过文章</p>
+                    <p class="mb-6 text-zinc-500 dark:text-zinc-400">{$t('account.noArticles')}</p>
                     <a 
                       href="/publish" 
                       class="inline-block px-4 py-2 text-sm bg-zinc-900 text-white rounded-md hover:bg-zinc-800 dark:bg-zinc-800 dark:hover:bg-zinc-700 transition-colors"
                       on:click={close}
                     >
-                      写一篇文章
+                      {$t('account.writeArticle')}
                     </a>
                   </div>
                 {:else}
@@ -996,15 +1024,15 @@
                           </a>
                           <div class="mt-1 flex items-center text-sm text-zinc-500 dark:text-zinc-400 space-x-4">
                             <span>{new Date(article.createdAt).toLocaleDateString()}</span>
-                            <span>阅读 {article.viewCount || 0}</span>
-                            <span>评论 {article.commentCount || 0}</span>
+                            <span>{$t('article.views')} {article.viewCount || 0}</span>
+                            <span>{$t('article.comments')} {article.commentCount || 0}</span>
                           </div>
                         </div>
                         <div class="flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
                           <a
                             href="/articles/{article.id}/edit"
                             class="p-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-700/50 transition-colors"
-                            aria-label="编辑文章"
+                            aria-label={$t('account.editArticle')}
                             on:click|preventDefault={() => {
                               close();
                               window.location.href = `/articles/${article.id}/edit`;
@@ -1022,7 +1050,7 @@
                                 class="p-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
                                 on:click={() => deletingArticleId = null}
                                 disabled={loading}
-                                aria-label="取消删除"
+                                aria-label={$t('account.cancelDelete')}
                               >
                                 <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                   <line x1="18" x2="6" y1="6" y2="18" />
@@ -1034,7 +1062,7 @@
                                 class="p-2 text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors"
                                 on:click={() => deleteArticle(article.id)}
                                 disabled={loading}
-                                aria-label="确认删除"
+                                aria-label={$t('account.confirmDelete')}
                               >
                                 {#if loading}
                                   <svg class="w-5 h-5 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1053,7 +1081,7 @@
                               class="p-2 text-zinc-400 hover:text-red-600 dark:hover:text-red-400 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-700/50 transition-colors"
                               on:click={() => deletingArticleId = article.id}
                               disabled={loading}
-                              aria-label="删除文章"
+                              aria-label={$t('account.deleteArticle')}
                             >
                               <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M3 6h18" />
@@ -1073,7 +1101,7 @@
             {:else if currentSection === 'comments'}
               <div>
                 {#if !isMobile}
-                  <h3 class="text-lg font-semibold mb-8 dark:text-white">我的评论</h3>
+                  <h3 class="text-lg font-semibold mb-8 dark:text-white">{$t('account.comments')}</h3>
                 {/if}
                 {#if loading}
                   <div class="flex justify-center py-12">
@@ -1086,7 +1114,7 @@
                     <svg class="w-16 h-16 text-zinc-300 dark:text-zinc-600 mb-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
                       <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                     </svg>
-                    <p class="text-zinc-500 dark:text-zinc-400">还没有发表过评论</p>
+                    <p class="text-zinc-500 dark:text-zinc-400">{$t('account.noComments')}</p>
                   </div>
                 {:else}
                   <div class="space-y-4">
@@ -1106,7 +1134,7 @@
                                 window.location.href = `/articles/${comment.articleId}`;
                               }}
                             >
-                              评论于：{comment.articleTitle}
+                              {$t('account.commentOn', { title: comment.articleTitle })}
                             </a>
                           </div>
                         </div>
@@ -1117,7 +1145,7 @@
                               class="p-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-700/50 transition-colors"
                               on:click={() => toggleCommentVisibility(comment.id)}
                               disabled={loading}
-                              aria-label="显示评论"
+                              aria-label={$t('account.showComment')}
                             >
                               <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
@@ -1130,7 +1158,7 @@
                               class="p-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-700/50 transition-colors"
                               on:click={() => toggleCommentVisibility(comment.id)}
                               disabled={loading}
-                              aria-label="隐藏评论"
+                              aria-label={$t('account.hideComment')}
                             >
                               <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
@@ -1146,7 +1174,7 @@
                                 class="p-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
                                 on:click={() => deletingCommentId = null}
                                 disabled={loading}
-                                aria-label="取消删除"
+                                aria-label={$t('account.cancelDelete')}
                               >
                                 <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                   <line x1="18" x2="6" y1="6" y2="18" />
@@ -1158,7 +1186,7 @@
                                 class="p-2 text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors"
                                 on:click={() => deleteComment(comment.id)}
                                 disabled={loading}
-                                aria-label="确认删除"
+                                aria-label={$t('account.confirmDelete')}
                               >
                                 {#if loading}
                                   <svg class="w-5 h-5 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1177,7 +1205,7 @@
                               class="p-2 text-zinc-400 hover:text-red-600 dark:hover:text-red-400 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-700/50 transition-colors"
                               on:click={() => startDeleteComment(comment.id)}
                               disabled={loading}
-                              aria-label="删除评论"
+                              aria-label={$t('account.deleteComment')}
                             >
                               <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M3 6h18" />
@@ -1197,12 +1225,12 @@
             {:else if currentSection === 'security'}
               <div>
                 {#if !isMobile}
-                  <h3 class="text-lg font-semibold mb-8 dark:text-white">安全设置</h3>
+                  <h3 class="text-lg font-semibold mb-8 dark:text-white">{$t('account.security')}</h3>
                 {/if}
                 <div class="space-y-6">
                   <div class="space-y-4">
                     <div>
-                      <label for="currentPassword" class="block text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-1">当前密码</label>
+                      <label for="currentPassword" class="block text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-1">{$t('account.currentPassword')}</label>
                       <input
                         type="password"
                         id="currentPassword"
@@ -1211,7 +1239,7 @@
                       />
                     </div>
                     <div>
-                      <label for="newPassword" class="block text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-1">新密码</label>
+                      <label for="newPassword" class="block text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-1">{$t('account.newPassword')}</label>
                       <input
                         type="password"
                         id="newPassword"
@@ -1220,7 +1248,7 @@
                       />
                     </div>
                     <div>
-                      <label for="confirmPassword" class="block text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-1">确认新密码</label>
+                      <label for="confirmPassword" class="block text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-1">{$t('account.confirmPassword')}</label>
                       <input
                         type="password"
                         id="confirmPassword"
@@ -1239,10 +1267,10 @@
                           <svg class="w-5 h-5 animate-spin mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M12 3v3m6.366-.366-2.12 2.12M21 12h-3m.366 6.366-2.12-2.12M12 21v-3m-6.366.366 2.12-2.12M3 12h3m-.366-6.366 2.12 2.12" />
                           </svg>
-                          修改中...
+                          {$t('account.changing')}
                         </span>
                       {:else}
-                        修改密码
+                        {$t('account.changePassword')}
                       {/if}
                     </button>
                   </div>
@@ -1251,13 +1279,13 @@
             {:else if currentSection === 'danger'}
               <div>
                 {#if !isMobile}
-                  <h3 class="text-lg font-semibold mb-8 dark:text-white">危险区域</h3>
+                  <h3 class="text-lg font-semibold mb-8 dark:text-white">{$t('account.danger')}</h3>
                 {/if}
                 <div class="space-y-6">
                   <div class="space-y-4">
-                    <p class="text-sm text-zinc-500 dark:text-zinc-400">删除账号后，您的所有数据将被永久删除且无法恢复。请谨慎操作。</p>
+                    <p class="text-sm text-zinc-500 dark:text-zinc-400">{$t('account.dangerZoneDesc')}</p>
                     <div>
-                      <label for="deletePassword" class="block text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-1">输入密码以确认</label>
+                      <label for="deletePassword" class="block text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-1">{$t('account.passwordRequired')}</label>
                       <input
                         type="password"
                         id="deletePassword"
@@ -1273,7 +1301,7 @@
                           bind:checked={deleteForm.deleteArticles}
                           class="h-4 w-4 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800/50"
                         />
-                        <label for="deleteArticles" class="ml-2 block text-sm text-zinc-500 dark:text-zinc-400">同时删除我的所有文章</label>
+                        <label for="deleteArticles" class="ml-2 block text-sm text-zinc-500 dark:text-zinc-400">{$t('account.deleteArticlesConfirm')}</label>
                       </div>
                       <div class="flex items-center">
                         <input
@@ -1282,7 +1310,7 @@
                           bind:checked={deleteForm.deleteComments}
                           class="h-4 w-4 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800/50"
                         />
-                        <label for="deleteComments" class="ml-2 block text-sm text-zinc-500 dark:text-zinc-400">同时删除我的所有评论</label>
+                        <label for="deleteComments" class="ml-2 block text-sm text-zinc-500 dark:text-zinc-400">{$t('account.deleteCommentsConfirm')}</label>
                       </div>
                     </div>
                     <button
@@ -1296,10 +1324,10 @@
                           <svg class="w-5 h-5 animate-spin mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M12 3v3m6.366-.366-2.12 2.12M21 12h-3m.366 6.366-2.12-2.12M12 21v-3m-6.366.366 2.12-2.12M3 12h3m-.366-6.366 2.12 2.12" />
                           </svg>
-                          删除中...
+                          {$t('account.deleting')}
                         </span>
                       {:else}
-                        删除账号
+                        {$t('account.deleteAccount')}
                       {/if}
                     </button>
                   </div>
@@ -1363,6 +1391,7 @@
       animation: modal-slide-out 0.2s ease-in;
     }
   }
+  
   
   @keyframes modal-slide-in {
     from {

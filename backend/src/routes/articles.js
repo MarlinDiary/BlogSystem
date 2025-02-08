@@ -949,7 +949,11 @@ router.put('/:id/tags', authMiddleware, async (req, res, next) => {
     const articleId = parseInt(req.params.id);
     const { tags: tagNames } = req.body;
 
+    console.log('Updating tags for article:', articleId);
+    console.log('Received tags:', tagNames);
+
     if (!Array.isArray(tagNames)) {
+      console.error('Invalid tags format:', tagNames);
       return res.status(400).json({ message: '标签必须是数组' });
     }
 
@@ -964,70 +968,88 @@ router.put('/:id/tags', authMiddleware, async (req, res, next) => {
     );
 
     if (!article || article.length === 0) {
+      console.error('Article not found or unauthorized:', { articleId, userId: req.userId });
       return res.status(404).json({ message: '文章不存在或无权限' });
     }
 
-    // 开启事务处理标签更新
-    await transaction(async (tx) => {
-      // 1. 删除原有标签
-      await tx(
+    try {
+      // 开启事务处理标签更新
+      await transaction(async (connection) => {
+        console.log('Starting tag update transaction');
+        
+        // 1. 删除原有标签
+        await query(
+          `
+            DELETE FROM article_tags
+            WHERE article_id = ?
+          `,
+          [articleId],
+          connection
+        );
+        console.log('Deleted existing tags');
+
+        // 2. 添加新标签
+        for (const tagName of tagNames) {
+          // 查找或创建标签
+          let [tag] = await query(
+            `
+              SELECT *
+              FROM tags
+              WHERE name = ?
+            `,
+            [tagName],
+            connection
+          );
+
+          if (!tag) {
+            console.log('Creating new tag:', tagName);
+            [tag] = await query(
+              `
+                INSERT INTO tags (name, created_at)
+                VALUES (?, CURRENT_TIMESTAMP)
+                RETURNING *
+              `,
+              [tagName],
+              connection
+            );
+          }
+
+          // 创建文章-标签关联
+          await query(
+            `
+              INSERT INTO article_tags (article_id, tag_id, created_at)
+              VALUES (?, ?, CURRENT_TIMESTAMP)
+            `,
+            [articleId, tag.id],
+            connection
+          );
+          console.log('Added tag association:', { articleId, tagId: tag.id, tagName });
+        }
+      });
+      console.log('Tag update transaction completed successfully');
+
+      // 获取更新后的标签列表
+      const updatedTags = await query(
         `
-          DELETE FROM article_tags
-          WHERE article_id = ?
+          SELECT 
+            t.id, t.name, t.created_at
+          FROM article_tags at
+          LEFT JOIN tags t ON t.id = at.tag_id
+          WHERE at.article_id = ?
+          ORDER BY t.created_at DESC
         `,
         [articleId]
       );
+      console.log('Retrieved updated tags:', updatedTags);
 
-      // 2. 添加新标签
-      for (const tagName of tagNames) {
-        // 查找或创建标签
-        let [tag] = await tx(
-          `
-            SELECT *
-            FROM tags
-            WHERE name = ?
-          `,
-          [tagName]
-        );
-
-        if (!tag) {
-          [tag] = await tx(
-            `
-              INSERT INTO tags (name, created_at)
-              VALUES (?, CURRENT_TIMESTAMP)
-              RETURNING *
-            `,
-            [tagName]
-          );
-        }
-
-        // 创建文章-标签关联
-        await tx(
-          `
-            INSERT INTO article_tags (article_id, tag_id, created_at)
-            VALUES (?, ?, CURRENT_TIMESTAMP)
-          `,
-          [articleId, tag.id]
-        );
-      }
-    });
-
-    // 获取更新后的标签列表
-    const updatedTags = await query(
-      `
-        SELECT 
-          t.id, t.name, t.created_at
-        FROM article_tags at
-        LEFT JOIN tags t ON t.id = at.tag_id
-        WHERE at.article_id = ?
-        ORDER BY t.created_at DESC
-      `,
-      [articleId]
-    );
-
-    res.json(updatedTags);
+      res.json(updatedTags);
+    } catch (txError) {
+      console.error('Transaction error:', txError);
+      throw new Error(`标签更新事务失败: ${txError.message}`);
+    }
   } catch (error) {
-    next(error);
+    console.error('Tag update failed:', error);
+    res.status(500).json({ message: error.message || '服务器内部错误' });
   }
 });
 

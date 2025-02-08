@@ -6,6 +6,7 @@
   import AuthModal from './AuthModal.svelte';
   import MarkdownRenderer from './MarkdownRenderer.svelte';
   import { env } from '$env/dynamic/public';
+  import { t } from '$lib/i18n';
 
   export let articleId;
   export let user = null;
@@ -69,10 +70,10 @@
         isPreview = false;
       } else {
         const error = await response.json();
-        console.error('评论发送失败:', error);
+        console.error($t('comment.sendFailed'), error);
       }
     } catch (error) {
-      console.error('评论发送失败:', error);
+      console.error($t('comment.sendFailed'), error);
     } finally {
       isSubmitting = false;
     }
@@ -108,7 +109,7 @@
   style="--spotlight-color: rgb(236 252 203 / 0.25);"
   on:mousemove={handleMouseMove}
   role="region"
-  aria-label="评论输入区域"
+  aria-label={$t('comment.inputArea')}
 >
   <div
     class="pointer-events-none absolute inset-0 rounded-lg opacity-0 transition-opacity duration-500 group-hover:opacity-100"
@@ -118,7 +119,7 @@
 
   {#if !user}
     <div class="text-center py-8 text-sm text-zinc-500 dark:text-zinc-400">
-      请<button on:click={handleAuth} class="text-primary-600 hover:underline dark:text-primary-400">登录</button>后发表评论
+      {$t('comment.loginToComment')}
     </div>
   {:else}
     <div class="relative flex space-x-4">
@@ -145,7 +146,7 @@
         {:else}
           <textarea
             bind:value={content}
-            placeholder="说点什么吧，万一火不了呢..."
+            placeholder={$t('comment.placeholder')}
             class="block w-full shrink-0 resize-none border-0 bg-transparent p-0 text-sm leading-6 text-zinc-800 placeholder-zinc-400 outline-none transition-[height] will-change-[height] focus:outline-none focus:ring-0 dark:text-zinc-200 dark:placeholder-zinc-500"
             maxlength={MAX_LENGTH}
             on:input={adjustHeight}
@@ -155,14 +156,14 @@
         
         <footer class="-mb-1.5 mt-3 flex h-5 w-full items-center justify-between">
           <span class="flex-1 shrink-0 select-none text-[10px] text-zinc-500 transition-opacity {content.length > 0 ? 'opacity-100' : 'opacity-0'}">
-            支持 <b>Markdown</b> 与 
+            {$t('comment.markdownSupport')} <b>Markdown</b> & 
             <a 
               href="https://docs.github.com/zh/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax"
               class="font-bold hover:underline"
               target="_blank"
               rel="noopener noreferrer"
             >
-              GFM
+              {$t('comment.gfmLink')}
             </a>
           </span>
 
@@ -179,7 +180,7 @@
                 type="button"
                 class="appearance-none transform transition-transform hover:scale-105 active:scale-95"
                 on:click={() => isPreview = !isPreview}
-                aria-label={isPreview ? '关闭预览' : '预览评论'}
+                aria-label={isPreview ? $t('comment.closePreview') : $t('comment.preview')}
               >
                 <svg class="h-5 w-5 text-zinc-800 dark:text-zinc-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
                   {#if isPreview}
@@ -196,7 +197,7 @@
                 class="appearance-none transform transition-transform hover:scale-105 active:scale-95"
                 on:click={handleSubmit}
                 disabled={!content.trim() || isSubmitting}
-                aria-label={isSubmitting ? '发送中...' : '发送评论'}
+                aria-label={isSubmitting ? $t('comment.sending') : $t('comment.send')}
               >
                 <svg class="h-5 w-5 text-zinc-800 dark:text-zinc-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />

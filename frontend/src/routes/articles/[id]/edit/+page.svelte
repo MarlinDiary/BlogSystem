@@ -13,6 +13,8 @@
   import { common, createLowlight } from 'lowlight';
   import { env } from '$env/dynamic/public';
   import { getImageUrl } from '$lib/utils/api';
+  import { t, locale } from '$lib/i18n';
+  import { get } from 'svelte/store';
 
   // ========== 1. 配置相关常量 ==========
   const lowlight = createLowlight(common);
@@ -48,7 +50,7 @@
     articleId = $page.params?.id;
 
     try {
-      console.log('加载文章数据 - API_URL:', API_URL);
+      console.log('Loading article data - API_URL:', API_URL);
       const res = await fetch(`${API_URL}/api/articles/${articleId}`, {
         method: 'GET',
         credentials: 'include',
@@ -58,16 +60,21 @@
       });
 
       if (!res.ok) {
-        throw new Error('加载文章失败，请检查文章ID或网络状态');
+        throw new Error($t('error.loadArticlesRetry'));
       }
 
       const articleData = await res.json();
+      console.log('Loaded article data:', articleData);
       title = articleData.title || '';
       content = articleData.content || '';
       htmlContent = articleData.htmlContent || '';
       imageUrl = articleData.imageUrl || '';
-      tags = (articleData.tags || []).map(tag => tag.name);
-      console.log('加载文章数据成功');
+      if (Array.isArray(articleData.tags)) {
+        tags = articleData.tags.map(tag => typeof tag === 'string' ? tag : tag.name);
+      } else {
+        tags = [];
+      }
+      console.log('Initial tags:', tags);
     } catch (err) {
       console.error('获取文章数据失败:', err);
       error = err instanceof Error ? err.message : '获取文章数据失败';
@@ -187,14 +194,15 @@
     if (!title || isGeneratingTags) return;
 
     if (!OPENAI_API_KEY) {
-      error = 'OpenAI API Key未配置，请联系管理员';
+      error = $t('error.noApiKey');
       return;
     }
 
     try {
       isGeneratingTags = true;
       error = '';
-
+      
+      const currentLocale = get(locale);
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -206,11 +214,15 @@
           messages: [
             {
               role: "system",
-              content: "你是一个专业的文章标签生成器。请根据文章标题生成3-5个相关的标签，每个标签不超过4个字。请直接返回标签，用逗号分隔。标签要简洁有力，突出文章主题。"
+              content: currentLocale === 'zh' 
+                ? "你是一个专业的文章标签生成器。请根据文章标题生成3-5个相关的标签，每个标签不超过4个字。请直接返回标签，用逗号分隔。标签要简洁有力，突出文章主题。"
+                : "You are a professional article tag generator. Please generate 3-5 relevant tags based on the article title, each tag should not exceed 15 characters. Please return tags directly, separated by commas. Tags should be concise and highlight the article's theme."
             },
             {
               role: "user",
-              content: `文章标题：${title}`
+              content: currentLocale === 'zh'
+                ? `文章标题：${title}`
+                : `Article title: ${title}`
             }
           ],
           temperature: 0.8,
@@ -271,16 +283,17 @@
 
   async function generateArticle() {
     if (!title || isGeneratingArticle) return;
-
+    
     if (!OPENAI_API_KEY) {
-      error = 'OpenAI API Key未配置，请联系管理员';
+      error = $t('error.noApiKey');
       return;
     }
-
+    
     try {
       isGeneratingArticle = true;
       error = '';
-
+      
+      const currentLocale = get(locale);
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -292,11 +305,15 @@
           messages: [
             {
               role: "system",
-              content: "你是一个专业的文章写手。请根据标题生成一篇结构完整、内容丰富的文章。文章要包含适当的标题、段落和格式。生成的内容要专业、有深度，并注意文章的逻辑性和可读性。"
+              content: currentLocale === 'zh' 
+                ? "你是一个专业的文章写手。请根据标题生成一篇结构完整、内容丰富的文章。文章要包含适当的标题、段落和格式。生成的内容要专业、有深度，并注意文章的逻辑性和可读性。"
+                : "You are a professional article writer. Please generate a well-structured and content-rich article based on the title. The article should include appropriate headings, paragraphs, and formatting. The generated content should be professional, in-depth, and pay attention to the logic and readability of the article."
             },
             {
               role: "user",
-              content: `请根据以下标题生成一篇文章：${title}`
+              content: currentLocale === 'zh'
+                ? `请根据以下标题生成一篇文章：${title}`
+                : `Please generate an article based on the following title: ${title}`
             }
           ],
           temperature: 0.8,
@@ -305,73 +322,83 @@
       });
 
       if (!response.ok) {
-        throw new Error('生成文章失败');
+        throw new Error($t('error.generateArticleFailed'));
       }
 
       const data = await response.json();
       const generatedContent = data.choices[0].message.content;
-
+      
       editor?.commands.setContent(generatedContent);
+      
     } catch (err) {
-      console.error('生成文章失败:', err);
-      error = err instanceof Error ? err.message : '生成文章失败';
+      console.error($t('log.generateArticleError'), err);
+      error = err instanceof Error ? err.message : $t('error.generateArticleFailed');
     } finally {
       isGeneratingArticle = false;
     }
   }
 
-  async function handleUpdate() {
-    if (!title.trim()) {
-      error = '请输入文章标题';
-      return;
-    }
-
-    if (!content.trim()) {
-      error = '请输入文章内容';
-      return;
-    }
-
-    if (!imageUrl) {
-      error = '请上传封面图片';
-      return;
-    }
-
-    if (tags.length === 0) {
-      error = '请至少添加一个标签';
-      return;
-    }
-
+  async function updateArticle() {
+    if (!title) return;
+    
+    loading = true;
+    error = '';
+    
     try {
-      loading = true;
-      error = '';
+      console.log('Updating article - Current tags:', tags);
+      
+      // 首先更新文章内容
+      const requestBody = {
+        title,
+        content,
+        htmlContent,
+        imageUrl
+      };
+      console.log('Update request body:', requestBody);
 
-      console.log('更新文章 - API_URL:', API_URL);
       const response = await fetch(`${API_URL}/api/articles/${articleId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
-        body: JSON.stringify({
-          title,
-          content,
-          htmlContent,
-          imageUrl,
-          tags
-        }),
+        body: JSON.stringify(requestBody),
         credentials: 'include'
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: '更新失败' }));
-        throw new Error(errorData.message || '更新失败');
+        const errorData = await response.json().catch(() => ({ message: $t('error.publishFailed') }));
+        throw new Error(errorData.message || $t('error.publishFailed'));
       }
 
       const data = await response.json();
+      console.log('Update response:', data);
+      
+      // 然后更新标签
+      console.log('Updating tags with:', { tags });
+      const tagsResponse = await fetch(`${API_URL}/api/articles/${articleId}/tags`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ tags: tags }),
+        credentials: 'include'
+      });
+
+      const tagsResponseData = await tagsResponse.json();
+      console.log('Tags update response:', tagsResponseData);
+
+      if (!tagsResponse.ok) {
+        throw new Error(tagsResponseData.message || $t('error.updateTagsFailed'));
+      }
+
+      console.log('Updated tags:', tagsResponseData);
+      
       goto(`/articles/${data.id}`);
     } catch (err) {
-      console.error('更新文章失败:', err);
-      error = err instanceof Error ? err.message : '更新失败';
+      console.error('Failed to update article:', err);
+      error = err instanceof Error ? err.message : $t('error.publishFailed');
     } finally {
       loading = false;
     }
@@ -380,10 +407,11 @@
   function addTag() {
     if (newTag && !tags.includes(newTag)) {
       if (newTag.length > 4) {
-        error = '标签不能超过4个字';
+        error = $t('validation.tagTooLong');
         return;
       }
       tags = [...tags, newTag];
+      console.log('Added tag:', newTag, 'Current tags:', tags);
       newTag = '';
       error = '';
     }
@@ -391,6 +419,7 @@
 
   function removeTag(tag) {
     tags = tags.filter(t => t !== tag);
+    console.log('Removed tag:', tag, 'Current tags:', tags);
   }
 </script>
 
@@ -635,10 +664,10 @@
     <!-- 页面标题 -->
     <div class="text-center space-y-4">
       <h1 class="text-5xl font-extrabold tracking-tight text-zinc-800 dark:text-zinc-100 bg-clip-text text-transparent bg-gradient-to-r from-zinc-800 to-zinc-600 dark:from-zinc-100 dark:to-zinc-300">
-        编辑文章
+        {$t('article.update')}
       </h1>
       <p class="mt-4 text-lg text-zinc-600 dark:text-zinc-400 max-w-2xl mx-auto">
-        在这里更新你的文章内容
+        {$t('article.createDescription')}
       </p>
     </div>
     
@@ -661,7 +690,7 @@
       <div class="space-y-2">
         <div class="flex justify-between items-center">
           <label for="title" class="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            文章标题
+            {$t('article.title')}
           </label>
           <span class="text-sm {titleLength > MAX_TITLE_LENGTH ? 'text-red-500' : 'text-zinc-500'} dark:text-zinc-400">
             {titleLength}/{MAX_TITLE_LENGTH}
@@ -673,7 +702,7 @@
           bind:value={title}
           maxlength={MAX_TITLE_LENGTH}
           class="w-full rounded-xl border border-zinc-200 bg-white/80 px-4 py-3 text-lg text-zinc-800 shadow-sm backdrop-blur-sm transition-all duration-200 ease-in-out focus:border-lime-500 focus:ring-2 focus:ring-lime-500/20 hover:border-zinc-300 dark:border-zinc-700/50 dark:bg-zinc-800/80 dark:text-zinc-200 dark:focus:border-lime-400 dark:focus:ring-lime-400/20 dark:hover:border-zinc-600 {!isValidTitle ? 'border-red-300 dark:border-red-700' : ''}"
-          placeholder="更新你的标题..."
+          placeholder={$t('article.titlePlaceholder')}
         />
       </div>
       
@@ -682,19 +711,19 @@
         <!-- 封面图片上传 -->
         <div>
           <label for="cover-image" class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-            封面图片
+            {$t('article.cover')}
           </label>
           <div class="h-[240px]">
             {#if imageUrl}
               <div class="relative group h-full">
                 <img 
                   src={imageUrl}
-                  alt="封面"
+                  alt={$t('article.cover')}
                   class="h-full w-full object-cover rounded-xl shadow-sm transition-all duration-300 group-hover:scale-[1.02] group-hover:shadow-md" 
                 />
                 <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-all duration-300 rounded-xl flex items-center justify-center backdrop-blur-sm">
                   <label for="cover-image" class="cursor-pointer text-white text-sm font-medium px-4 py-2 bg-white/20 rounded-lg hover:bg-white/30 transition-colors">
-                    更换封面
+                    {$t('article.changeCover')}
                   </label>
                 </div>
               </div>
@@ -707,9 +736,9 @@
                   <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
                 </svg>
                 <div class="mt-4 flex text-sm text-zinc-600 dark:text-zinc-400">
-                  <span>上传封面图片</span>
+                  <span>{$t('article.uploadCover')}</span>
                 </div>
-                <p class="mt-1 text-xs text-zinc-500 dark:text-zinc-500">点击或拖拽图片至此处</p>
+                <p class="mt-1 text-xs text-zinc-500 dark:text-zinc-500">{$t('article.dragImageTip')}</p>
               </label>
             {/if}
             <input
@@ -726,7 +755,7 @@
         <!-- 文章标签 -->
         <div>
           <label for="tag-area" class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-            文章标签
+            {$t('article.tags')}
           </label>
           <button 
             id="tag-area"
@@ -735,7 +764,7 @@
             on:click={() => !isGeneratingTags && title && generateTags()}
             on:keydown={(e) => e.key === 'Enter' && !isGeneratingTags && title && generateTags()}
             disabled={isGeneratingTags || !title}
-            aria-label="点击生成标签"
+            aria-label={$t('article.generateTags')}
           >
             {#if tags.length > 0}
               <div class="tags-wrapper">
@@ -753,7 +782,7 @@
                       role="button"
                       tabindex="0"
                       on:keydown={(e) => e.key === 'Enter' && removeTag(tag)}
-                      aria-label={`删除标签 ${tag}`}
+                      aria-label={$t('article.removeTag', { tag })}
                     >
                       <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -766,20 +795,20 @@
               <div class="flex flex-col items-center justify-center h-full text-center p-4">
                 {#if isGeneratingTags}
                   <div class="w-12 h-12 border-4 border-lime-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-                  <p class="text-sm text-zinc-500 dark:text-zinc-400">正在生成标签...</p>
+                  <p class="text-sm text-zinc-500 dark:text-zinc-400">{$t('common.processing')}</p>
                 {:else if !title}
                   <svg class="w-12 h-12 text-zinc-400 dark:text-zinc-500 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z" />
                     <path stroke-linecap="round" stroke-linejoin="round" d="M6 6h.008v.008H6V6z" />
                   </svg>
-                  <p class="text-sm text-zinc-500 dark:text-zinc-400">请先输入文章标题</p>
+                  <p class="text-sm text-zinc-500 dark:text-zinc-400">{$t('validation.titleRequired')}</p>
                 {:else}
                   <svg class="w-12 h-12 text-zinc-400 dark:text-zinc-500 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z" />
                     <path stroke-linecap="round" stroke-linejoin="round" d="M6 6h.008v.008H6V6z" />
                   </svg>
-                  <p class="text-sm text-zinc-500 dark:text-zinc-400">点击生成标签</p>
-                  <p class="mt-1 text-xs text-zinc-400 dark:text-zinc-500">AI 将根据文章标题生成合适的标签</p>
+                  <p class="text-sm text-zinc-500 dark:text-zinc-400">{$t('article.generateTags')}</p>
+                  <p class="mt-1 text-xs text-zinc-400 dark:text-zinc-500">{$t('article.generateTagsTip')}</p>
                 {/if}
               </div>
             {/if}
@@ -794,8 +823,8 @@
             class="toolbar-button"
             class:is-active={editor?.isActive('heading', { level: 1 })}
             on:click={() => editor?.chain().focus().toggleHeading({ level: 1 }).run()}
-            title="标题 1"
-            aria-label="标题 1"
+            title={$t('editor.h1')}
+            aria-label={$t('editor.h1')}
           >
             H1
           </button>
@@ -803,8 +832,8 @@
             class="toolbar-button"
             class:is-active={editor?.isActive('heading', { level: 2 })}
             on:click={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}
-            title="标题 2"
-            aria-label="标题 2"
+            title={$t('editor.h2')}
+            aria-label={$t('editor.h2')}
           >
             H2
           </button>
@@ -812,8 +841,8 @@
             class="toolbar-button"
             class:is-active={editor?.isActive('bold')}
             on:click={() => editor?.chain().focus().toggleBold().run()}
-            title="加粗"
-            aria-label="加粗"
+            title={$t('editor.bold')}
+            aria-label={$t('editor.bold')}
           >
             B
           </button>
@@ -821,8 +850,8 @@
             class="toolbar-button"
             class:is-active={editor?.isActive('italic')}
             on:click={() => editor?.chain().focus().toggleItalic().run()}
-            title="斜体"
-            aria-label="斜体"
+            title={$t('editor.italic')}
+            aria-label={$t('editor.italic')}
           >
             I
           </button>
@@ -830,8 +859,8 @@
             class="toolbar-button"
             class:is-active={editor?.isActive('underline')}
             on:click={() => editor?.chain().focus().toggleUnderline().run()}
-            title="下划线"
-            aria-label="下划线"
+            title={$t('editor.underline')}
+            aria-label={$t('editor.underline')}
           >
             U
           </button>
@@ -839,8 +868,8 @@
             class="toolbar-button"
             on:click={handleEditorImageUpload}
             disabled={imageUploading}
-            title="插入图片"
-            aria-label="插入图片"
+            title={$t('editor.image')}
+            aria-label={$t('editor.image')}
           >
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
               <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd" />
@@ -850,8 +879,8 @@
             class="toolbar-button"
             class:is-active={editor?.isActive('bulletList')}
             on:click={() => editor?.chain().focus().toggleBulletList().run()}
-            title="无序列表"
-            aria-label="无序列表"
+            title={$t('editor.bulletList')}
+            aria-label={$t('editor.bulletList')}
           >
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
@@ -859,24 +888,24 @@
           </button>
           <button
             class="toolbar-button"
-            class:is-active={editor?.isActive('orderedList')}
-            on:click={() => editor?.chain().focus().toggleOrderedList().run()}
-            title="有序列表"
-            aria-label="有序列表"
+            class:is-active={editor?.isActive('codeBlock')}
+            on:click={() => editor?.chain().focus().toggleCodeBlock().run()}
+            title={$t('editor.codeBlock')}
+            aria-label={$t('editor.codeBlock')}
           >
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h12M7 12h12M7 17h12M3 7h.01M3 12h.01M3 17h.01" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
             </svg>
           </button>
           <button
             class="toolbar-button"
-            class:is-active={editor?.isActive('codeBlock')}
-            on:click={() => editor?.chain().focus().toggleCodeBlock().run()}
-            title="代码块"
-            aria-label="代码块"
+            class:is-active={editor?.isActive('orderedList')}
+            on:click={() => editor?.chain().focus().toggleOrderedList().run()}
+            title={$t('editor.orderedList')}
+            aria-label={$t('editor.orderedList')}
           >
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h12M7 12h12M7 17h12M3 7h.01M3 12h.01M3 17h.01" />
             </svg>
           </button>
           <!-- AI写作按钮 -->
@@ -884,7 +913,8 @@
             class="toolbar-button flex items-center justify-center {isGeneratingArticle ? 'is-active' : ''}"
             on:click={generateArticle}
             disabled={isGeneratingArticle || !title}
-            title="AI智能写作"
+            title={$t('editor.aiWriting')}
+            aria-label={$t('editor.aiWriting')}
           >
             {#if isGeneratingArticle}
               <div class="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
@@ -913,45 +943,45 @@
               <span class="animate-ping absolute inline-flex h-2 w-2 rounded-full bg-red-400 opacity-75"></span>
               <span class="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
             </span>
-            <span class="ml-2">文章标题不能为空</span>
+            <span class="ml-2">{$t('validation.titleRequired')}</span>
           {:else if !content}
             <span class="inline-flex relative">
               <span class="animate-ping absolute inline-flex h-2 w-2 rounded-full bg-red-400 opacity-75"></span>
               <span class="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
             </span>
-            <span class="ml-2">文章内容不能为空</span>
+            <span class="ml-2">{$t('validation.contentRequired')}</span>
           {:else if !imageUrl}
             <span class="inline-flex relative">
               <span class="animate-ping absolute inline-flex h-2 w-2 rounded-full bg-red-400 opacity-75"></span>
               <span class="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
             </span>
-            <span class="ml-2">请上传封面图片</span>
+            <span class="ml-2">{$t('validation.coverRequired')}</span>
           {:else if tags.length === 0}
             <span class="inline-flex relative">
               <span class="animate-ping absolute inline-flex h-2 w-2 rounded-full bg-red-400 opacity-75"></span>
               <span class="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
             </span>
-            <span class="ml-2">至少需要一个标签</span>
+            <span class="ml-2">{$t('validation.tagsRequired')}</span>
           {:else if !isDirty}
-            <span class="text-zinc-400">✓ </span>暂无修改
+            <span class="text-zinc-400">✓ </span>{$t('article.noChanges')}
           {/if}
         </div>
         <button
-          on:click={handleUpdate}
+          on:click={updateArticle}
           disabled={loading || !isDirty || !title || !content || !imageUrl || tags.length === 0}
           class="rounded-xl bg-lime-600 dark:bg-lime-500 backdrop-blur-sm px-8 py-3 text-base font-medium text-white shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-1 active:translate-y-0 focus:outline-none focus:ring-2 focus:ring-lime-500 focus:ring-offset-2 dark:focus:ring-offset-zinc-900 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none hover:bg-lime-700 dark:hover:bg-lime-600 border border-lime-500/20 dark:border-lime-400/20"
         >
           {#if loading}
             <div class="flex items-center gap-2">
               <div class="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-              <span>更新中...</span>
+              <span>{$t('common.processing')}</span>
             </div>
           {:else}
             <div class="flex items-center gap-2">
               <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
               </svg>
-              <span>更新文章</span>
+              <span>{$t('article.update')}</span>
             </div>
           {/if}
         </button>

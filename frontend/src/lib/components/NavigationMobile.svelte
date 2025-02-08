@@ -6,6 +6,7 @@
   import { browser } from '$app/environment';
   import { onDestroy } from 'svelte';
   import Portal from './Portal.svelte';
+  import { t } from '$lib/i18n';
 
   export let navigationItems = [
     { href: '/', text: '首页' },
@@ -49,7 +50,7 @@
       on:click={toggleMenu}
       class="group flex items-center rounded-full bg-gradient-to-b from-zinc-50/20 to-white/80 px-4 py-2 text-base font-medium text-zinc-800 shadow-lg shadow-zinc-800/5 ring-1 ring-zinc-900/5 backdrop-blur-md focus:outline-none dark:from-zinc-900/30 dark:to-zinc-800/80 dark:text-zinc-200 dark:ring-white/10 dark:hover:ring-white/20"
     >
-      前往
+      {$t('nav.goto')}
       <!-- 小箭头图标 -->
       <svg
         viewBox="0 0 8 6"
@@ -91,7 +92,7 @@
         <div class="flex flex-row-reverse items-center justify-between">
           <!-- 关闭按钮 -->
           <button
-            aria-label="关闭菜单"
+            aria-label={$t('common.close')}
             on:click={closeMenu}
             class="-m-1 p-1"
           >
@@ -110,7 +111,7 @@
               />
             </svg>
           </button>
-          <h2 class="text-sm font-medium text-zinc-600 dark:text-zinc-400">站内导航</h2>
+          <h2 class="text-sm font-medium text-zinc-600 dark:text-zinc-400">{$t('common.siteNavigation')}</h2>
         </div>
         <nav class="mt-6">
           <ul class="-my-2 divide-y divide-zinc-500/20 text-lg text-zinc-800 dark:divide-zinc-100/5 dark:text-zinc-300">
