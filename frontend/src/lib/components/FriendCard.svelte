@@ -4,7 +4,7 @@
     import { onMount } from 'svelte';
     import ColorThief from 'colorthief';
     import { getImageUrl } from '$lib/utils/api';
-    import { t } from '$lib/i18n';
+    import { t, locale } from '$lib/i18n';
   
     export let user;
   
@@ -41,9 +41,9 @@
   
     function formatJoinedDate(dateString) {
       const date = new Date(dateString);
-      return date.toLocaleString('zh-CN', {
+      return date.toLocaleString($locale === 'zh' ? 'zh-CN' : 'en-US', {
         year: 'numeric',
-        month: 'long'
+        month: $locale === 'zh' ? 'long' : 'short'
       });
     }
   
@@ -99,7 +99,7 @@
   <div
     role="article"
     aria-label={$t('friendCard.userCard', { name: user.realName })}
-    class="friend-card group relative not-prose flex flex-col justify-between rounded-2xl p-6
+    class="friend-card group relative not-prose h-[400px] flex flex-col rounded-2xl p-6
       border transition-all duration-300 backdrop-blur-md
       {$focusingFriendId && $focusingFriendId !== user.id.toString() ? 'md:opacity-80 md:blur-[1px]' : 'blur-none'}"
     style="--card-color: {dominantColor};
@@ -119,7 +119,7 @@
     ></div>
 
     <!-- 头像 + 名称 + 简介 -->
-    <header class="relative mb-6 flex flex-col items-center">
+    <header class="relative flex-1 flex flex-col items-center">
       <img
         src={getImageUrl(user.avatarUrl)}
         alt={user.realName}
@@ -136,12 +136,14 @@
         style="color: color-mix(in srgb, var(--card-color) 70%, transparent)">
         @{user.username}
       </span>
-      {#if user.bio}
-        <p class="mt-3 text-center text-sm line-clamp-2 max-w-[85%]"
-          style="color: color-mix(in srgb, var(--card-color) 60%, transparent)">
-          {user.bio}
-        </p>
-      {/if}
+      <div class="mt-3 h-12 flex items-center">
+        {#if user.bio}
+          <p class="text-center text-sm line-clamp-2 max-w-[85%]"
+            style="color: color-mix(in srgb, var(--card-color) 60%, transparent)">
+            {user.bio}
+          </p>
+        {/if}
+      </div>
     </header>
 
     <!-- 统计信息 -->
