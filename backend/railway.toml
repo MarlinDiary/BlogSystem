@@ -19,6 +19,5 @@ CORS_ORIGIN = "https://blog-production-154c.up.railway.app"
 source = "data"
 path = "/data"
 
-[[volume]]
-source = "uploads"
-path = "/data/uploads" 
+[[init]]
+command = "mkdir -p /data/uploads/covers /data/uploads/avatars /data/uploads/articles && chmod -R 755 /data" 

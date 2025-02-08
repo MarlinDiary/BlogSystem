@@ -10,6 +10,7 @@ import { logger } from './middleware/logger.js';
 import { adminRouter } from './routes/admin.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import fs from 'fs';
 
 dotenv.config();
 
@@ -65,6 +66,30 @@ app.use('/uploads', express.static(getStaticRoot()));
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok' });
 });
+
+// 确保必要的目录存在
+const ensureDirectories = () => {
+  const dirs = [
+    '/data',
+    '/data/uploads',
+    '/data/uploads/covers',
+    '/data/uploads/avatars',
+    '/data/uploads/articles'
+  ];
+
+  dirs.forEach(dir => {
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+      // 设置目录权限
+      fs.chmodSync(dir, '755');
+    }
+  });
+};
+
+// 在应用启动时初始化目录
+if (process.env.NODE_ENV === 'production') {
+  ensureDirectories();
+}
 
 // 路由
 app.use('/api/auth', authRouter);

@@ -5,7 +5,7 @@ import fs from 'fs';
 // 获取上传根目录
 const getUploadRoot = () => {
   return process.env.NODE_ENV === 'production'
-    ? '/uploads'
+    ? '/data/uploads'
     : 'uploads';
 };
 
