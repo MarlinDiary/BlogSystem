@@ -3,12 +3,50 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { query, get, run } from '../db/index.js';
 import { authMiddleware } from '../middleware/auth.js';
+import axios from 'axios';
+import fs from 'fs';
+import path from 'path';
+import { getUrlPrefix, getUploadRoot } from '../middleware/upload.js';
 
 /**
  * @typedef {import('express').Request & { userId?: string }} AuthRequest
  */
 
 const router = express.Router();
+
+// 下载并保存头像
+async function downloadAndSaveAvatar(username) {
+  try {
+    // 确保头像目录存在
+    const avatarDir = path.join(getUploadRoot(), 'avatars');
+    if (!fs.existsSync(avatarDir)) {
+      fs.mkdirSync(avatarDir, { recursive: true });
+    }
+
+    // 生成文件名
+    const fileName = `${username}-${Date.now()}.png`;
+    const filePath = path.join(avatarDir, fileName);
+
+    // 下载 RoboHash 头像
+    const response = await axios({
+      method: 'get',
+      url: `https://robohash.org/${encodeURIComponent(username)}?set=set4`,
+      responseType: 'stream'
+    });
+
+    // 保存到本地文件
+    const writer = fs.createWriteStream(filePath);
+    response.data.pipe(writer);
+
+    return new Promise((resolve, reject) => {
+      writer.on('finish', () => resolve(`${getUrlPrefix()}/avatars/${fileName}`));
+      writer.on('error', reject);
+    });
+  } catch (error) {
+    console.error('下载头像失败:', error);
+    return `${getUrlPrefix()}/avatars/default.png`;
+  }
+}
 
 // 用户注册
 router.post('/register', async (req, res, next) => {
@@ -56,10 +94,13 @@ router.post('/register', async (req, res, next) => {
     
     const hashedPassword = await bcrypt.hash(password, 10);
     
+    // 下载并保存 RoboHash 头像
+    const avatarUrl = await downloadAndSaveAvatar(username);
+    
     const result = await run(
-      `INSERT INTO users (username, password, real_name, date_of_birth, bio, status, created_at)
-       VALUES (?, ?, ?, ?, ?, 'active', CURRENT_TIMESTAMP)`,
-      [username, hashedPassword, realName, birthDate.toISOString(), bio || null]
+      `INSERT INTO users (username, password, real_name, date_of_birth, bio, status, avatar_url, created_at)
+       VALUES (?, ?, ?, ?, ?, 'active', ?, CURRENT_TIMESTAMP)`,
+      [username, hashedPassword, realName, birthDate.toISOString(), bio || null, avatarUrl]
     );
 
     const newUser = await get(
@@ -83,6 +124,7 @@ router.post('/register', async (req, res, next) => {
         realName: newUser.real_name,
         dateOfBirth: newUser.date_of_birth,
         bio: newUser.bio,
+        avatarUrl: newUser.avatar_url,
         createdAt: newUser.created_at
       }
     });
