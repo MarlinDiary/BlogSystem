@@ -8,7 +8,7 @@
   
     export let user;
   
-    let dominantColor = '';
+    let dominantColor = 'rgba(55, 65, 81, 0.1)';  // 初始透明色
     let lightColor = '';
     let darkColor = '';
     const colorThief = new ColorThief();
@@ -86,9 +86,9 @@
       } catch (e) {
         console.error('提取头像颜色失败:', e);
         // 使用默认颜色
-        dominantColor = '#374151';
-        lightColor = '#374151';
-        darkColor = '#9CA3AF';
+        dominantColor = 'rgba(55, 65, 81, 0.8)';
+        lightColor = 'rgba(55, 65, 81, 0.8)';
+        darkColor = 'rgba(156, 163, 175, 0.8)';
       }
     }
   
@@ -128,17 +128,17 @@
         class="mx-auto h-24 w-24 rounded-full object-cover outline-none"
         crossorigin="anonymous"
       />
-      <span class="mt-4 block text-center text-lg font-bold tracking-tight"
+      <span class="mt-4 block text-center text-lg font-bold tracking-tight text-gray-500 dark:text-gray-400"
         style="color: var(--card-color)">
         {user.realName}
       </span>
-      <span class="mt-1 block text-center text-sm leading-4 tracking-widest uppercase font-medium"
+      <span class="mt-1 block text-center text-sm leading-4 tracking-widest uppercase font-medium text-gray-400 dark:text-gray-500"
         style="color: color-mix(in srgb, var(--card-color) 70%, transparent)">
         @{user.username}
       </span>
       <div class="mt-3 h-12 flex items-center">
         {#if user.bio}
-          <p class="text-center text-sm line-clamp-2 max-w-[85%]"
+          <p class="text-center text-sm line-clamp-2 max-w-[85%] text-gray-400 dark:text-gray-500"
             style="color: color-mix(in srgb, var(--card-color) 60%, transparent)">
             {user.bio}
           </p>
@@ -149,21 +149,21 @@
     <!-- 统计信息 -->
     <div class="relative mb-6 flex justify-center gap-12">
       <div class="text-center">
-        <span class="block text-2xl font-bold"
+        <span class="block text-2xl font-bold text-gray-500 dark:text-gray-400"
           style="color: var(--card-color)">
           {formatCount(user.articleCount)}
         </span>
-        <span class="mt-1 block text-xs tracking-wider uppercase"
+        <span class="mt-1 block text-xs tracking-wider uppercase text-gray-400 dark:text-gray-500"
           style="color: color-mix(in srgb, var(--card-color) 50%, transparent)">
           {$t('friendCard.articles')}
         </span>
       </div>
       <div class="text-center">
-        <span class="block text-2xl font-bold"
+        <span class="block text-2xl font-bold text-gray-500 dark:text-gray-400"
           style="color: var(--card-color)">
           {formatCount(user.commentCount)}
         </span>
-        <span class="mt-1 block text-xs tracking-wider uppercase"
+        <span class="mt-1 block text-xs tracking-wider uppercase text-gray-400 dark:text-gray-500"
           style="color: color-mix(in srgb, var(--card-color) 50%, transparent)">
           {$t('friendCard.comments')}
         </span>
@@ -173,7 +173,7 @@
     <!-- 底部信息：加入时间 -->
     <footer class="relative mt-auto flex w-full items-center justify-between">
       <time
-        class="select-none rounded-lg border p-2 text-xs tracking-wider"
+        class="select-none rounded-lg border p-2 text-xs tracking-wider text-gray-400 dark:text-gray-500"
         style="
           color: color-mix(in srgb, var(--card-color) 50%, transparent);
           border-color: color-mix(in srgb, var(--card-color) 30%, transparent);
@@ -189,12 +189,11 @@
 <style>
   .friend-card {
     border-width: 1px;
+    border-color: rgba(0, 0, 0, 0.1);
   }
   
   .friend-card:hover {
     border-width: 1.5px;
-    border-color: color-mix(in srgb, var(--card-color) 35%, transparent);
-    box-shadow: 0 0 0 1px color-mix(in srgb, var(--card-color) 15%, transparent);
   }
 
   div {
@@ -206,6 +205,9 @@
     div {
       --bg-base: rgb(28, 25, 23);
       --bg-mix: 97%;
+    }
+    .friend-card {
+      border-color: rgba(255, 255, 255, 0.1);
     }
   }
 </style>  
