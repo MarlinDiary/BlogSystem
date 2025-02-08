@@ -30,7 +30,7 @@ async function downloadAndSaveAvatar(username) {
     // 下载 RoboHash 头像
     const response = await axios({
       method: 'get',
-      url: `https://robohash.org/${encodeURIComponent(username)}?set=set4`,
+      url: `https://robohash.org/${encodeURIComponent(username)}`,
       responseType: 'stream'
     });
 
