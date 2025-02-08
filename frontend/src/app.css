@@ -1,4 +1,4 @@
-@import '../styles.css';
+@import '$lib/styles/styles.css';
 
 @import '$lib/styles/typography.css';
 @import '$lib/styles/selection.css';
