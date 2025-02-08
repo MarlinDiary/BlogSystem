@@ -60,6 +60,15 @@ const getStaticRoot = () => {
     : 'uploads';
 };
 
+// 添加调试日志
+const staticRoot = getStaticRoot();
+console.log('Static files root:', staticRoot);
+console.log('Checking static directory exists:', fs.existsSync(staticRoot));
+console.log('Checking if it is a symlink:', fs.lstatSync(staticRoot).isSymbolicLink());
+if (process.env.NODE_ENV === 'production') {
+  console.log('Checking /data/uploads exists:', fs.existsSync('/data/uploads'));
+}
+
 app.use('/uploads', express.static(getStaticRoot()));
 
 // 健康检查端点

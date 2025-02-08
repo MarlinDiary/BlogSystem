@@ -3,7 +3,7 @@ builder = "nixpacks"
 buildCommand = "npm install"
 
 [deploy]
-startCommand = "npm start"
+startCommand = "mkdir -p /data/uploads/covers /data/uploads/avatars /data/uploads/articles && chmod -R 755 /data && ln -sfn /data/uploads /uploads && npm start"
 healthcheckPath = "/api/articles"
 healthcheckTimeout = 300
 restartPolicyType = "on_failure"
