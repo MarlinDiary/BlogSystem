@@ -23,14 +23,17 @@ async function downloadAndSaveAvatar(username) {
       fs.mkdirSync(avatarDir, { recursive: true });
     }
 
+    // 生成随机种子
+    const randomSeed = Math.random().toString(36).substring(2, 15);
+    
     // 生成文件名
     const fileName = `${username}-${Date.now()}.png`;
     const filePath = path.join(avatarDir, fileName);
 
-    // 下载 RoboHash 头像
+    // 下载 DiceBear Bottts Neutral 头像（使用随机种子）
     const response = await axios({
       method: 'get',
-      url: `https://robohash.org/${encodeURIComponent(username)}`,
+      url: `https://api.dicebear.com/7.x/bottts-neutral/png?seed=${randomSeed}&size=200`,
       responseType: 'stream'
     });
 
