@@ -9,8 +9,10 @@ console.log('当前使用的 API_URL:', API_URL);
 // 处理图片 URL 的函数
 function getImageUrl(url) {
     if (!url) return null;
-    if (url.startsWith('http')) return url;
-    return `${API_URL}${url.startsWith('/') ? '' : '/'}${url}`;
+    if (url.startsWith('https')) return url;  // 只有https链接才保持原样
+    // 如果是http链接或相对路径，都转换为使用API_URL
+    const path = url.replace(/^http:\/\/[^/]+/, '');  // 移除可能存在的http前缀
+    return `${API_URL}${path.startsWith('/') ? '' : '/'}${path}`;
 }
 
 export async function api(endpoint, options = {}) {
