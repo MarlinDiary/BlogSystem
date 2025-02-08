@@ -70,11 +70,10 @@ app.get('/health', (req, res) => {
 // 确保必要的目录存在
 const ensureDirectories = () => {
   const dirs = [
-    '/data',
-    '/data/uploads',
-    '/data/uploads/covers',
-    '/data/uploads/avatars',
-    '/data/uploads/articles'
+    '/uploads',
+    '/uploads/covers',
+    '/uploads/avatars',
+    '/uploads/articles'
   ];
 
   dirs.forEach(dir => {
