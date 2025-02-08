@@ -33,39 +33,25 @@
   }
 
   function next() {
-    if (transitioning) return;
-    transitioning = true;
     previousIndex = currentIndex;
     currentIndex = (currentIndex + 1) % slides.length;
     progress = 0;
     startAutoPlay();
-    setTimeout(() => {
-      transitioning = false;
-    }, 1000);
   }
 
   function prev() {
-    if (transitioning) return;
-    transitioning = true;
     previousIndex = currentIndex;
     currentIndex = (currentIndex - 1 + slides.length) % slides.length;
     progress = 0;
     startAutoPlay();
-    setTimeout(() => {
-      transitioning = false;
-    }, 1000);
   }
 
   function goTo(index) {
-    if (transitioning || index === currentIndex) return;
-    transitioning = true;
+    if (index === currentIndex) return;
     previousIndex = currentIndex;
     currentIndex = index;
     progress = 0;
     startAutoPlay();
-    setTimeout(() => {
-      transitioning = false;
-    }, 1000);
   }
 
   function handleKeydown(event) {
@@ -134,7 +120,6 @@
   <button 
     class="group absolute left-4 top-1/2 -translate-y-1/2 rounded-full bg-black/20 p-3 text-white backdrop-blur-sm transition-all hover:bg-white/20 sm:left-8 opacity-0 group-hover:opacity-100"
     on:click|preventDefault={prev}
-    disabled={transitioning}
     aria-label="上一张"
     on:keydown={handleKeydown}
   >
@@ -146,7 +131,6 @@
   <button 
     class="group absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-black/20 p-3 text-white backdrop-blur-sm transition-all hover:bg-white/20 sm:right-8 opacity-0 group-hover:opacity-100"
     on:click|preventDefault={next}
-    disabled={transitioning}
     aria-label="下一张"
     on:keydown={handleKeydown}
   >
