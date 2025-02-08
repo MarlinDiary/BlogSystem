@@ -28,18 +28,18 @@ const corsOrigins = process.env.NODE_ENV === 'production'
       'https://blog-production-154c.up.railway.app',
       'https://blog-production-154c.up.railway.app/',
       'https://www.huizha.com',
-      'https://www.huizha.com/'
+      'https://www.huizha.com/',
+      'http://blog-production-154c.up.railway.app',
+      'http://blog-production-154c.up.railway.app/',
+      'https://huizha.com',
+      'https://huizha.com/',
+      'http://huizha.com',
+      'http://huizha.com/'
     ]
   : ['http://localhost:5173', 'http://localhost:4173'];
 
 app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin || corsOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: corsOrigins,  // 直接使用域名列表
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: [
