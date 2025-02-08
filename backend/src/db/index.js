@@ -1,73 +1,117 @@
 import sqlite3 from 'sqlite3';
 import { open } from 'sqlite';
 import path from 'path';
-import fs from 'fs/promises';
+import fs from 'fs';
+import fsPromises from 'fs/promises';
 import bcrypt from 'bcryptjs';
+import axios from 'axios';
+
+// 下载并保存头像
+async function downloadAndSaveAvatar(username) {
+  try {
+    const avatarDir = path.join(process.env.NODE_ENV === 'production' ? '/data/uploads/avatars' : 'uploads/avatars');
+    await fsPromises.mkdir(avatarDir, { recursive: true });
+
+    // 生成随机种子
+    const randomSeed = Math.random().toString(36).substring(2, 15);
+    
+    // 生成文件名
+    const fileName = `${username}-${Date.now()}.png`;
+    const filePath = path.join(avatarDir, fileName);
+
+    // 下载 DiceBear Bottts Neutral 头像
+    const response = await axios({
+      method: 'get',
+      url: `https://api.dicebear.com/7.x/bottts-neutral/png?seed=${randomSeed}&size=200`,
+      responseType: 'stream'
+    });
+
+    // 保存到本地文件
+    const writer = fs.createWriteStream(filePath);
+    response.data.pipe(writer);
+
+    return new Promise((resolve, reject) => {
+      writer.on('finish', () => resolve(`/uploads/avatars/${fileName}`));
+      writer.on('error', reject);
+    });
+  } catch (error) {
+    console.error('下载头像失败:', error);
+    return '/uploads/avatars/default.png';
+  }
+}
+
+// 生成随机创建日期（2023年1月到2024年2月之间）
+function getRandomCreatedAt() {
+  const start = new Date('2023-01-01').getTime();
+  const end = new Date('2024-02-08').getTime();
+  const randomTime = start + Math.random() * (end - start);
+  return new Date(randomTime).toISOString();
+}
 
 // 默认用户数据
 const defaultUsers = [
   {
     username: 'Leo',
     password: 'Leo1234',
-    realName: '李奥',
+    realName: 'Leonardo Mitchell',
     dateOfBirth: '1990-03-15',
-    bio: '热爱技术和创新的全栈开发者，专注于构建优秀的用户体验。'
+    bio: 'Full-stack developer passionate about technology and innovation, focused on building excellent user experiences.'
   },
   {
     username: 'Kevin',
     password: 'Kevin1234',
-    realName: '凯文',
+    realName: 'Kevin Anderson',
     dateOfBirth: '1988-07-22',
-    bio: '资深系统架构师，对分布式系统和云原生技术充满热情。'
+    bio: 'Senior System Architect with a passion for distributed systems and cloud-native technologies.'
   },
   {
     username: 'Mia',
     password: 'Mia1234',
-    realName: '米娅',
+    realName: 'Mia Thompson',
     dateOfBirth: '1992-11-30',
-    bio: 'UI/UX设计师，追求简约而不简单的设计美学。'
+    bio: 'UI/UX Designer pursuing minimalist yet sophisticated design aesthetics.'
   },
   {
     username: 'Joy',
     password: 'Joy1234',
-    realName: '乔伊',
+    realName: 'Joy Williams',
     dateOfBirth: '1991-05-18',
-    bio: '产品经理，致力于将创意转化为实际解决方案。'
+    bio: 'Product Manager dedicated to transforming creative ideas into practical solutions.'
   },
   {
     username: 'Vita',
     password: 'Vita1234',
-    realName: '维塔',
+    realName: 'Vita Parker',
     dateOfBirth: '1993-09-25',
-    bio: '前端开发专家，热衷于探索最新的Web技术。'
+    bio: 'Frontend Expert passionate about exploring cutting-edge web technologies.'
   },
   {
     username: 'Tyne',
     password: 'Tyne1234',
-    realName: '泰恩',
+    realName: 'Tyne Harrison',
     dateOfBirth: '1989-12-10',
-    bio: '后端工程师，专注于高性能服务端开发。'
+    bio: 'Backend Engineer focused on high-performance server-side development.'
   },
   {
     username: 'Dewey',
     password: 'Dewey1234',
-    realName: '杜威',
+    realName: 'Dewey Cooper',
     dateOfBirth: '1987-04-05',
-    bio: 'DevOps工程师，追求自动化和效率的完美结合。'
+    bio: 'DevOps Engineer pursuing the perfect blend of automation and efficiency.'
   },
   {
     username: 'Cameron',
     password: 'Cameron1234',
-    realName: '卡梅伦',
+    realName: 'Cameron Foster',
     dateOfBirth: '1994-08-20',
-    bio: '全栈开发者，热爱尝试新技术和分享技术经验。'
+    bio: 'Full-stack Developer who loves trying new technologies and sharing technical experiences.'
   },
   {
     username: 'Karson',
     password: 'Karson1234',
-    realName: '卡森',
+    realName: 'Karson Blake',
     dateOfBirth: '1990-06-15',
-    bio: '技术主管，专注于团队管理和技术架构设计。'
+    bio: 'Technical Lead specializing in team management and technical architecture design.'
   }
 ];
 
@@ -81,7 +125,7 @@ let db;
 async function initializeDatabase() {
   try {
     // 确保数据库目录存在
-    await fs.mkdir(path.dirname(dbPath), { recursive: true });
+    await fsPromises.mkdir(path.dirname(dbPath), { recursive: true });
     
     // 打开数据库连接
     db = await open({
@@ -94,7 +138,7 @@ async function initializeDatabase() {
     
     // 读取并执行 schema.sql
     const schemaPath = path.join(process.cwd(), 'src', 'db', 'schema.sql');
-    const schema = await fs.readFile(schemaPath, 'utf-8');
+    const schema = await fsPromises.readFile(schemaPath, 'utf-8');
     
     // 执行建表语句
     await db.exec(schema);
@@ -108,18 +152,22 @@ async function initializeDatabase() {
       
       if (!existingUser) {
         const hashedPassword = await bcrypt.hash(user.password, 10);
+        const avatarUrl = await downloadAndSaveAvatar(user.username);
+        const createdAt = getRandomCreatedAt();
+        
         await db.run(
           `INSERT INTO users (
             username, password, role, status, real_name, 
             date_of_birth, bio, avatar_url, created_at
-          ) VALUES (?, ?, 'admin', 'active', ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+          ) VALUES (?, ?, 'admin', 'active', ?, ?, ?, ?, ?)`,
           [
             user.username,
             hashedPassword,
             user.realName,
             user.dateOfBirth,
             user.bio,
-            '/uploads/avatars/default.png'
+            avatarUrl,
+            createdAt
           ]
         );
         console.log(`默认用户 ${user.username} 创建成功`);
