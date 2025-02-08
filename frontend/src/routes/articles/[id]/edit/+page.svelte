@@ -120,7 +120,7 @@
           class: 'prose prose-zinc dark:prose-invert max-w-none focus:outline-none min-h-[300px] px-4 py-2',
         },
       },
-      content: content,
+      content: htmlContent,
       onUpdate: ({ editor }) => {
         content = editor.getText();
         htmlContent = editor.getHTML();
@@ -301,19 +301,19 @@
           'Authorization': `Bearer ${OPENAI_API_KEY}`
         },
         body: JSON.stringify({
-          model: "gpt-4",
+          model: "gpt-4o",
           messages: [
             {
               role: "system",
               content: currentLocale === 'zh' 
-                ? "你是一个专业的文章写手。请根据标题生成一篇结构完整、内容丰富的文章。文章要包含适当的标题、段落和格式。生成的内容要专业、有深度，并注意文章的逻辑性和可读性。"
-                : "You are a professional article writer. Please generate a well-structured and content-rich article based on the title. The article should include appropriate headings, paragraphs, and formatting. The generated content should be professional, in-depth, and pay attention to the logic and readability of the article."
+                ? "你是一个专业的文章写手。请根据标题生成一篇结构完整、内容丰富的文章。请直接输出HTML格式，不要包含任何代码块标记。所有的标题都使用<h2>标签。生成的内容要专业、有深度，并注意文章的逻辑性和可读性。支持的HTML标签包括：<h2>（用于所有标题）、<p>、<ul>、<ol>、<li>、<strong>、<em>、<u>、<code>、<pre>、<blockquote>等。"
+                : "You are a professional article writer. Please generate a well-structured and content-rich article based on the title. Output directly in HTML format without any code block markers. Use <h2> tag for all headings. The generated content should be professional, in-depth, and pay attention to the logic and readability of the article. Supported HTML tags include: <h2> (for all headings), <p>, <ul>, <ol>, <li>, <strong>, <em>, <u>, <code>, <pre>, <blockquote>, etc."
             },
             {
               role: "user",
               content: currentLocale === 'zh'
-                ? `请根据以下标题生成一篇文章：${title}`
-                : `Please generate an article based on the following title: ${title}`
+                ? `文章标题：${title}`
+                : `Article title: ${title}`
             }
           ],
           temperature: 0.8,
@@ -329,6 +329,9 @@
       const generatedContent = data.choices[0].message.content;
       
       editor?.commands.setContent(generatedContent);
+      content = editor.getText();
+      htmlContent = editor.getHTML();
+      isDirty = true;
       
     } catch (err) {
       console.error($t('log.generateArticleError'), err);
