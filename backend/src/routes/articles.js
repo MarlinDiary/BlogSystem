@@ -43,9 +43,17 @@ router.get('/', async (req, res, next) => {
         a.status, a.view_count as viewCount, 
         a.created_at as createdAt, a.updated_at as updatedAt,
         u.id as author_id, u.username as author_username, 
-        u.avatar_url as author_avatarUrl
+        u.avatar_url as author_avatarUrl,
+        COUNT(DISTINCT c.id) as commentCount,
+        (
+          SELECT COUNT(*)
+          FROM article_reactions ar2
+          WHERE ar2.article_id = a.id
+          AND ar2.type IN ('like', 'love', 'haha', 'angry')
+        ) as reactionCount
       FROM articles a
       LEFT JOIN users u ON u.id = a.author_id
+      LEFT JOIN comments c ON c.article_id = a.id
       WHERE 1=1
     `;
     const params = [];
@@ -62,11 +70,18 @@ router.get('/', async (req, res, next) => {
       params.push(`%${search}%`, `%${search}%`);
     }
 
+    // 添加分组
+    sql += ' GROUP BY a.id';
+
     // 添加排序
     if (sort === 'createdAt') {
       sql += ` ORDER BY a.created_at ${order === 'desc' ? 'DESC' : 'ASC'}`;
     } else if (sort === 'viewCount') {
       sql += ` ORDER BY a.view_count ${order === 'desc' ? 'DESC' : 'ASC'}`;
+    } else if (sort === 'commentCount') {
+      sql += ` ORDER BY commentCount ${order === 'desc' ? 'DESC' : 'ASC'}`;
+    } else if (sort === 'reactionCount') {
+      sql += ` ORDER BY reactionCount ${order === 'desc' ? 'DESC' : 'ASC'}`;
     }
 
     // 添加分页
