@@ -154,7 +154,7 @@
 
     <div class="flex justify-center gap-8">
       <button 
-        class="flex items-center gap-2 px-3 py-2 rounded-lg transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800 {sortBy === 'createdAt' ? 'text-lime-500' : 'text-zinc-500 dark:text-zinc-400'}"
+        class="flex items-center gap-2 px-3 py-2 rounded-lg transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800 {sortBy === 'createdAt' ? 'text-lime-500' : 'text-zinc-400 dark:text-zinc-300'}"
         on:click={() => { sortBy = 'createdAt'; fetchArticles(); }}
         title={$t('article.sortByTime')}
         aria-label={$t('article.sortByTime')}
@@ -165,7 +165,7 @@
       </button>
       
       <button 
-        class="flex items-center gap-2 px-3 py-2 rounded-lg transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800 {sortBy === 'viewCount' ? 'text-lime-500' : 'text-zinc-500 dark:text-zinc-400'}"
+        class="flex items-center gap-2 px-3 py-2 rounded-lg transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800 {sortBy === 'viewCount' ? 'text-lime-500' : 'text-zinc-400 dark:text-zinc-300'}"
         on:click={() => { sortBy = 'viewCount'; fetchArticles(); }}
         title={$t('article.sortByViews')}
         aria-label={$t('article.sortByViews')}
@@ -177,7 +177,7 @@
       </button>
       
       <button 
-        class="flex items-center gap-2 px-3 py-2 rounded-lg transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800 {sortBy === 'commentCount' ? 'text-lime-500' : 'text-zinc-500 dark:text-zinc-400'}"
+        class="flex items-center gap-2 px-3 py-2 rounded-lg transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800 {sortBy === 'commentCount' ? 'text-lime-500' : 'text-zinc-400 dark:text-zinc-300'}"
         on:click={() => { sortBy = 'commentCount'; fetchArticles(); }}
         title={$t('article.sortByComments')}
         aria-label={$t('article.sortByComments')}
@@ -188,7 +188,7 @@
       </button>
       
       <button 
-        class="flex items-center gap-2 px-3 py-2 rounded-lg transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800 {sortBy === 'reactionCount' ? 'text-lime-500' : 'text-zinc-500 dark:text-zinc-400'}"
+        class="flex items-center gap-2 px-3 py-2 rounded-lg transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800 {sortBy === 'reactionCount' ? 'text-lime-500' : 'text-zinc-400 dark:text-zinc-300'}"
         on:click={() => { sortBy = 'reactionCount'; fetchArticles(); }}
         title={$t('article.sortByReactions')}
         aria-label={$t('article.sortByReactions')}
