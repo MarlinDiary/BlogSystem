@@ -467,8 +467,21 @@ router.get('/:id/avatar', async (req, res, next) => {
       return res.status(404).json({ message: '头像文件不存在' });
     }
 
+    // 生成 ETag
+    const stats = fs.statSync(avatarPath);
+    const etag = `W/"${stats.size}-${stats.mtime.getTime()}"`;
+
+    // 检查客户端缓存
+    if (req.headers['if-none-match'] === etag) {
+      return res.status(304).end();
+    }
+
     const ext = path.extname(avatarPath).toLowerCase();
     const contentType = ext === '.png' ? 'image/png' : 'image/jpeg';
+    
+    // 设置缓存控制和 ETag
+    res.setHeader('Cache-Control', 'public, max-age=604800');
+    res.setHeader('ETag', etag);
     res.setHeader('Content-Type', contentType);
     res.sendFile(path.resolve(avatarPath));
   } catch (error) {

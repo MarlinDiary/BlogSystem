@@ -84,6 +84,15 @@ if (process.env.NODE_ENV === 'production') {
 app.use('/uploads', (req, res, next) => {
   console.log('Accessing file:', req.path);
   console.log('File exists:', fs.existsSync(path.join(getStaticRoot(), req.path)));
+  
+  // 添加缓存控制
+  const ext = path.extname(req.path).toLowerCase();
+  if (['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(ext)) {
+    // 图片缓存 7 天
+    res.setHeader('Cache-Control', 'public, max-age=604800');
+    res.setHeader('Expires', new Date(Date.now() + 604800000).toUTCString());
+  }
+  
   next();
 }, express.static(getStaticRoot()));
 

@@ -37,6 +37,39 @@ function getFullImageUrl(imageUrl, options = {}) {
   return params.toString() ? `${baseUrl}?${params}` : baseUrl;
 }
 
+// 获取图片 ETag
+function getImageETag(filePath) {
+  const stats = fs.statSync(filePath);
+  return `W/"${stats.size}-${stats.mtime.getTime()}"`;
+}
+
+// 设置图片缓存头
+function setImageCacheHeaders(res, etag) {
+  res.setHeader('Cache-Control', 'public, max-age=604800');
+  res.setHeader('ETag', etag);
+}
+
+// 处理图片请求
+function handleImageRequest(req, res, filePath) {
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ message: '图片文件不存在' });
+  }
+
+  const etag = getImageETag(filePath);
+
+  // 检查客户端缓存
+  if (req.headers['if-none-match'] === etag) {
+    return res.status(304).end();
+  }
+
+  const ext = path.extname(filePath).toLowerCase();
+  const contentType = ext === '.png' ? 'image/png' : 'image/jpeg';
+  
+  setImageCacheHeaders(res, etag);
+  res.setHeader('Content-Type', contentType);
+  return res.sendFile(path.resolve(filePath));
+}
+
 // 获取文章列表
 router.get('/', async (req, res, next) => {
   try {
