@@ -519,18 +519,6 @@
     background-color: rgb(63 63 70 / 0.8);
   }
   
-  .toolbar-button.is-active {
-    background-color: rgb(244 244 245 / 0.9);
-    color: rgb(101 163 13);
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05), 0 0 0 1px rgba(101, 163, 13, 0.1);
-  }
-  
-  :global(.dark) .toolbar-button.is-active {
-    background-color: rgb(63 63 70 / 0.9);
-    color: rgb(132 204 22);
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(132, 204, 22, 0.2);
-  }
-  
   .toolbar-button:disabled {
     opacity: 0.5;
     cursor: not-allowed;
