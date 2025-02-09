@@ -114,6 +114,10 @@ const translations = {
     'article.update': '更新文章',
     'article.noChanges': '暂无修改',
     'article.tableOfContents': '文章目录',
+    'article.sortByTime': '按时间排序',
+    'article.sortByViews': '按阅读量排序',
+    'article.sortByComments': '按评论数排序',
+    'article.sortByReactions': '按反应数排序',
     
     // 用户相关
     'user.username': '用户名',
@@ -406,6 +410,10 @@ const translations = {
     'article.update': 'Update Article',
     'article.noChanges': 'No changes',
     'article.tableOfContents': 'Table of Contents',
+    'article.sortByTime': 'Sort by Time',
+    'article.sortByViews': 'Sort by Views',
+    'article.sortByComments': 'Sort by Comments',
+    'article.sortByReactions': 'Sort by Reactions',
     
     // User related
     'user.username': 'Username',
