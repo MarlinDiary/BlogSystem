@@ -46,6 +46,25 @@
       return;
     }
 
+    // 保存当前状态用于回滚
+    const previousUserReaction = userReaction;
+    const previousReactions = { ...reactions };
+
+    // 乐观更新UI
+    if (userReaction === type) {
+      // 如果点击的是当前激活的反应，则取消反应
+      userReaction = null;
+      reactions[type] -= 1;
+    } else {
+      // 如果是新的反应，更新反应类型
+      if (userReaction) {
+        // 如果之前有其他反应，先减少之前的反应数
+        reactions[userReaction] -= 1;
+      }
+      userReaction = type;
+      reactions[type] += 1;
+    }
+
     try {
       const response = await fetch(`${API_URL}/api/articles/${articleId}/reaction`, {
         method: 'POST',
@@ -58,11 +77,19 @@
 
       if (response.ok) {
         const data = await response.json();
+        // 使用服务器返回的最新数据更新状态
         userReaction = data.userReaction;
         reactions = data.reactionCounts;
+      } else {
+        // 如果请求失败，回滚到之前的状态
+        userReaction = previousUserReaction;
+        reactions = previousReactions;
       }
     } catch (err) {
       console.error('反应失败:', err);
+      // 发生错误时回滚到之前的状态
+      userReaction = previousUserReaction;
+      reactions = previousReactions;
     }
   }
 
