@@ -55,7 +55,7 @@
         const now = new Date();
         return date <= now;
       case 'bio':
-        return value.length <= 500;
+        return value.length <= 100; // 限制bio最大长度为100字符
       default:
         return true;
     }
@@ -1028,7 +1028,12 @@
                           on:click={() => startEditing('bio')}
                         >
                           {#if editForm.bio}
-                            <span class="text-zinc-900 dark:text-white whitespace-pre-wrap">{editForm.bio}</span>
+                            <span class="text-zinc-900 dark:text-white truncate block" title={editForm.bio}>
+                              {isMobile 
+                                ? (editForm.bio.length > 25 ? editForm.bio.slice(0, 25) + '...' : editForm.bio)
+                                : (editForm.bio.length > 50 ? editForm.bio.slice(0, 50) + '...' : editForm.bio)
+                              }
+                            </span>
                           {:else}
                             <span class="text-zinc-400 dark:text-zinc-500 italic">{$t('common.noData')}</span>
                           {/if}
