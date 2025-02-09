@@ -102,7 +102,7 @@
                 {#if slide.publishDate}
                   <p class="text-sm font-medium text-lime-400">{slide.publishDate}</p>
                 {/if}
-                <h2 class="max-w-4xl text-4xl font-bold text-white sm:text-5xl md:text-6xl lg:text-7xl line-clamp-2">
+                <h2 class="max-w-4xl text-4xl font-bold text-white sm:text-5xl md:text-6xl lg:text-7xl line-clamp-2 py-1">
                   {slide.title}
                 </h2>
                 <p class="max-w-2xl text-lg text-zinc-300 sm:text-xl md:text-2xl line-clamp-2">
