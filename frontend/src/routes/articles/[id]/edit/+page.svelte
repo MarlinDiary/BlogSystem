@@ -15,6 +15,7 @@
   import { getImageUrl } from '$lib/utils/api';
   import { t, locale } from '$lib/i18n';
   import { get } from 'svelte/store';
+  import { setPageTitle } from '$lib/utils/title';
 
   // ========== 1. 配置相关常量 ==========
   const lowlight = createLowlight(common);
@@ -43,6 +44,11 @@
   $: {
     if (editor) {
       isDirty = true;
+    }
+    if (title) {
+      setPageTitle($t('article.editTitle', { title }));
+    } else {
+      setPageTitle($t('article.newArticle'));
     }
   }
 

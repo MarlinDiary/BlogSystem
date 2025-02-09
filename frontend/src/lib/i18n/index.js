@@ -120,6 +120,8 @@ const translations = {
     'article.sortByViews': '按阅读量排序',
     'article.sortByComments': '按评论数排序',
     'article.sortByReactions': '按反应数排序',
+    'article.editTitle': '编辑文章 - {title}',
+    'article.newArticle': '新建文章',
     
     // 用户相关
     'user.username': '用户名',
@@ -421,6 +423,8 @@ const translations = {
     'article.sortByViews': 'Sort by Views',
     'article.sortByComments': 'Sort by Comments',
     'article.sortByReactions': 'Sort by Reactions',
+    'article.editTitle': 'Edit Article - {title}',
+    'article.newArticle': 'New Article',
     
     // User related
     'user.username': 'Username',
