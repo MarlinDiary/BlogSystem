@@ -70,15 +70,22 @@
       // 初始化所有文章为可见状态
       articles = data.items.map(article => ({
         ...article,
-        isVisible: true // 默认可见
+        isVisible: true,
+        imagePreloaded: false // 添加预加载标记
       }));
       
       // 更新可见文章列表
       visibleArticles = articles;
       
-      // 预加载前几张图片
+      // 立即预加载前面的图片
       preloadNextImages(articles, 0);
       
+      // 使用 requestIdleCallback 预加载更多图片
+      if (window.requestIdleCallback) {
+        requestIdleCallback(() => {
+          preloadNextImages(articles, 10); // 预加载第二批图片
+        });
+      }
     } catch (e) {
       console.error('Error fetching article list:', e);
       error = e instanceof Error ? e.message : $t('error.fetchArticlesFailed');
@@ -98,6 +105,14 @@
         entries.forEach(entry => {
           const articleId = Number(entry.target.dataset.articleId);
           pendingUpdates.set(articleId, entry.isIntersecting);
+          
+          // 如果元素即将进入视口，预加载后面的图片
+          if (entry.isIntersecting) {
+            const currentIndex = articles.findIndex(a => a.id === articleId);
+            if (currentIndex !== -1) {
+              preloadNextImages(articles, currentIndex);
+            }
+          }
         });
 
         // 如果已经有待处理的动画帧，不需要再次请求
@@ -119,8 +134,8 @@
       },
       {
         root: null,
-        rootMargin: '200px', // 增加预加载区域
-        threshold: [0, 0.1, 0.5, 1], // 添加更多观察点以平滑过渡
+        rootMargin: '500px', // 增大预加载区域到 500px
+        threshold: [0, 0.1, 0.5, 1],
       }
     );
   }
@@ -253,13 +268,33 @@
 
   // 预加载下一页图片
   function preloadNextImages(articles, startIndex) {
-    const PRELOAD_COUNT = 5;
+    const PRELOAD_COUNT = 10; // 增加预加载数量到 10 张
     const imagesToPreload = articles.slice(startIndex, startIndex + PRELOAD_COUNT)
       .filter(article => article.imageUrl);
 
     imagesToPreload.forEach(article => {
-      const img = new Image();
-      img.src = getImageUrl(article.imageUrl);
+      if (!article.imagePreloaded) { // 避免重复预加载
+        const img = new Image();
+        img.crossOrigin = 'anonymous'; // 添加跨域支持
+        img.src = getImageUrl(article.imageUrl);
+        article.imagePreloaded = true; // 标记为已预加载
+        
+        // 预加载时就开始提取颜色
+        img.onload = () => {
+          if (!colorCache.has(article.imageUrl)) {
+            requestIdleCallback(() => {
+              try {
+                const color = colorThief.getColor(img);
+                const dominantColor = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
+                colorCache.set(article.imageUrl, dominantColor);
+                saveColorCache();
+              } catch (err) {
+                console.error('Failed to extract color during preload:', err);
+              }
+            });
+          }
+        };
+      }
     });
   }
 
