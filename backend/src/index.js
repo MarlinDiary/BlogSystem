@@ -83,18 +83,34 @@ if (process.env.NODE_ENV === 'production') {
 // 添加访问日志中间件
 app.use('/uploads', (req, res, next) => {
   console.log('Accessing file:', req.path);
-  console.log('File exists:', fs.existsSync(path.join(getStaticRoot(), req.path)));
+  const filePath = path.join(getStaticRoot(), req.path);
   
-  // 添加缓存控制
+  if (!fs.existsSync(filePath)) {
+    return next();
+  }
+
   const ext = path.extname(req.path).toLowerCase();
   if (['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(ext)) {
-    // 图片缓存 7 天
+    // 生成 ETag
+    const stats = fs.statSync(filePath);
+    const etag = `W/"${stats.size}-${stats.mtime.getTime()}"`;
+    
+    // 设置缓存控制头
     res.setHeader('Cache-Control', 'public, max-age=604800');
-    res.setHeader('Expires', new Date(Date.now() + 604800000).toUTCString());
+    res.setHeader('ETag', etag);
+    
+    // 检查条件请求
+    if (req.headers['if-none-match'] === etag) {
+      return res.status(304).end();
+    }
   }
   
   next();
-}, express.static(getStaticRoot()));
+}, express.static(getStaticRoot(), {
+  etag: true,
+  lastModified: true,
+  maxAge: '7d'
+}));
 
 // 健康检查端点
 app.get('/health', (req, res) => {

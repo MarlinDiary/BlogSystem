@@ -55,19 +55,26 @@ function handleImageRequest(req, res, filePath) {
     return res.status(404).json({ message: '图片文件不存在' });
   }
 
-  const etag = getImageETag(filePath);
+  const stats = fs.statSync(filePath);
+  const etag = `W/"${stats.size}-${stats.mtime.getTime()}"`;
 
-  // 检查客户端缓存
-  if (req.headers['if-none-match'] === etag) {
+  // 设置缓存控制头
+  res.setHeader('Cache-Control', 'public, max-age=604800, must-revalidate');
+  res.setHeader('ETag', etag);
+
+  // 检查条件请求
+  const ifNoneMatch = req.headers['if-none-match'];
+  if (ifNoneMatch && ifNoneMatch === etag) {
     return res.status(304).end();
   }
 
   const ext = path.extname(filePath).toLowerCase();
   const contentType = ext === '.png' ? 'image/png' : 'image/jpeg';
-  
-  setImageCacheHeaders(res, etag);
   res.setHeader('Content-Type', contentType);
-  return res.sendFile(path.resolve(filePath));
+  
+  // 使用 stream 发送文件以提高性能
+  const fileStream = fs.createReadStream(filePath);
+  fileStream.pipe(res);
 }
 
 // 获取文章列表

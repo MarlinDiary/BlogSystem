@@ -471,19 +471,23 @@ router.get('/:id/avatar', async (req, res, next) => {
     const stats = fs.statSync(avatarPath);
     const etag = `W/"${stats.size}-${stats.mtime.getTime()}"`;
 
-    // 检查客户端缓存
-    if (req.headers['if-none-match'] === etag) {
+    // 设置缓存控制头
+    res.setHeader('Cache-Control', 'public, max-age=604800, must-revalidate');
+    res.setHeader('ETag', etag);
+
+    // 检查条件请求
+    const ifNoneMatch = req.headers['if-none-match'];
+    if (ifNoneMatch && ifNoneMatch === etag) {
       return res.status(304).end();
     }
 
     const ext = path.extname(avatarPath).toLowerCase();
     const contentType = ext === '.png' ? 'image/png' : 'image/jpeg';
-    
-    // 设置缓存控制和 ETag
-    res.setHeader('Cache-Control', 'public, max-age=604800');
-    res.setHeader('ETag', etag);
     res.setHeader('Content-Type', contentType);
-    res.sendFile(path.resolve(avatarPath));
+    
+    // 使用 stream 发送文件以提高性能
+    const fileStream = fs.createReadStream(avatarPath);
+    fileStream.pipe(res);
   } catch (error) {
     next(error);
   }
