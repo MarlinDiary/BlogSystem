@@ -25,11 +25,23 @@
   export let data;
   const API_BASE = data.API_BASE;
 
-  // 初始化 ColorThief
+  // 从 localStorage 加载颜色缓存
   onMount(() => {
     colorThief = new ColorThief();
     initIntersectionObserver();
     setPageTitle($t('nav.articles'));
+    
+    // 加载颜色缓存
+    try {
+      const savedColors = localStorage.getItem('articleColors');
+      if (savedColors) {
+        const colors = JSON.parse(savedColors);
+        colorCache = new Map(Object.entries(colors));
+      }
+    } catch (err) {
+      console.error('Failed to load color cache:', err);
+    }
+    
     fetchArticles();
   });
 
@@ -113,42 +125,106 @@
     );
   }
 
-  // 处理图片加载
-  function handleImageLoad(event, article) {
-    const img = event.target;
-    
-    requestAnimationFrame(() => {
-      img.style.opacity = '1';
-      
-      if (colorCache.has(article.imageUrl)) {
-        article.dominantColor = colorCache.get(article.imageUrl);
-        articles = articles;
-        return;
-      }
-
-      // 使用 requestIdleCallback 在空闲时间提取主色调
-      if (window.requestIdleCallback) {
-        requestIdleCallback(() => extractDominantColor(img, article));
-      } else {
-        setTimeout(() => extractDominantColor(img, article), 0);
-      }
-    });
+  // 保存颜色缓存到 localStorage
+  function saveColorCache() {
+    try {
+      const colors = Object.fromEntries(colorCache);
+      localStorage.setItem('articleColors', JSON.stringify(colors));
+    } catch (err) {
+      console.error('Failed to save color cache:', err);
+    }
   }
 
   // 提取主色调
   function extractDominantColor(img, article) {
+    return new Promise((resolve, reject) => {
+      try {
+        // 确保图片已完全加载
+        if (!img.complete) {
+          img.onload = () => {
+            try {
+              const color = colorThief.getColor(img);
+              resolve(color);
+            } catch (err) {
+              reject(err);
+            }
+          };
+          img.onerror = reject;
+        } else {
+          const color = colorThief.getColor(img);
+          resolve(color);
+        }
+      } catch (err) {
+        reject(err);
+      }
+    });
+  }
+
+  // 处理图片加载
+  async function handleImageLoad(event, article) {
+    const img = event.target;
+    
     try {
-      const color = colorThief.getColor(img);
-      requestAnimationFrame(() => {
-        const dominantColor = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
-        article.dominantColor = dominantColor;
-        colorCache.set(article.imageUrl, dominantColor);
+      // 先尝试从内存缓存获取
+      if (colorCache.has(article.imageUrl)) {
+        article.dominantColor = colorCache.get(article.imageUrl);
         articles = articles;
-      });
+        img.style.opacity = '1';
+        return;
+      }
+
+      // 确保图片有正确的跨域属性
+      if (img.crossOrigin !== 'anonymous') {
+        img.crossOrigin = 'anonymous';
+      }
+
+      // 使用 requestIdleCallback 在空闲时间提取主色调
+      if (window.requestIdleCallback) {
+        requestIdleCallback(async () => {
+          try {
+            const color = await extractDominantColor(img, article);
+            requestAnimationFrame(() => {
+              const dominantColor = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
+              article.dominantColor = dominantColor;
+              colorCache.set(article.imageUrl, dominantColor);
+              articles = articles;
+              // 保存到 localStorage
+              saveColorCache();
+              img.style.opacity = '1';
+            });
+          } catch (err) {
+            console.error('Failed to extract image color:', err);
+            article.dominantColor = 'rgb(32, 32, 32)';
+            articles = articles;
+            img.style.opacity = '1';
+          }
+        });
+      } else {
+        setTimeout(async () => {
+          try {
+            const color = await extractDominantColor(img, article);
+            requestAnimationFrame(() => {
+              const dominantColor = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
+              article.dominantColor = dominantColor;
+              colorCache.set(article.imageUrl, dominantColor);
+              articles = articles;
+              // 保存到 localStorage
+              saveColorCache();
+              img.style.opacity = '1';
+            });
+          } catch (err) {
+            console.error('Failed to extract image color:', err);
+            article.dominantColor = 'rgb(32, 32, 32)';
+            articles = articles;
+            img.style.opacity = '1';
+          }
+        }, 0);
+      }
     } catch (err) {
-      console.error('Failed to extract image color:', err);
+      console.error('Error in handleImageLoad:', err);
       article.dominantColor = 'rgb(32, 32, 32)';
       articles = articles;
+      img.style.opacity = '1';
     }
   }
 
@@ -401,30 +477,12 @@
                 decoding="async"
                 crossorigin="anonymous"
                 style="opacity: 0"
-                on:load={(e) => {
-                  const img = e.target;
-                  requestAnimationFrame(() => {
-                    img.style.opacity = '1';
-                    
-                    if (colorCache.has(article.imageUrl)) {
-                      article.dominantColor = colorCache.get(article.imageUrl);
-                      articles = articles;
-                      return;
-                    }
-
-                    try {
-                      const color = colorThief.getColor(img);
-                      const dominantColor = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
-                      article.dominantColor = dominantColor;
-                      colorCache.set(article.imageUrl, dominantColor);
-                      articles = articles;
-                    } catch (err) {
-                      console.error('Failed to extract image color:', err);
-                      article.dominantColor = 'rgb(32, 32, 32)';
-                      articles = articles;
-                    }
-                  });
+                on:error={() => {
+                  console.error('Image load error:', article.imageUrl);
+                  article.dominantColor = 'rgb(32, 32, 32)';
+                  articles = articles;
                 }}
+                on:load={(e) => handleImageLoad(e, article)}
               />
             </div>
           {/if}

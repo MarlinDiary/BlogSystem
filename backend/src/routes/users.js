@@ -482,7 +482,11 @@ router.get('/:id/avatar', async (req, res, next) => {
     }
 
     const ext = path.extname(avatarPath).toLowerCase();
-    const contentType = ext === '.png' ? 'image/png' : 'image/jpeg';
+    const contentType = ext === '.png' ? 'image/png' : 
+                       ext === '.gif' ? 'image/gif' :
+                       ext === '.webp' ? 'image/webp' :
+                       ext === '.avif' ? 'image/avif' :
+                       'image/jpeg';
     res.setHeader('Content-Type', contentType);
     
     // 使用 stream 发送文件以提高性能

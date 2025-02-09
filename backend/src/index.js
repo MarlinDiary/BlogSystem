@@ -90,7 +90,7 @@ app.use('/uploads', (req, res, next) => {
   }
 
   const ext = path.extname(req.path).toLowerCase();
-  if (['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(ext)) {
+  if (['.jpg', '.jpeg', '.png', '.gif', '.webp', '.avif'].includes(ext)) {
     // 生成 ETag
     const stats = fs.statSync(filePath);
     const etag = `W/"${stats.size}-${stats.mtime.getTime()}"`;
