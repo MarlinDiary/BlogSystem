@@ -138,6 +138,24 @@
     validationState[editingField] = validateField(editingField, tempEditValue);
   }
 
+  let error = '';
+  let success = '';
+  
+  // 添加吐司消息自动消失的函数
+  function showToast(type, message, duration = 3000) {
+    if (type === 'error') {
+      error = message;
+      setTimeout(() => {
+        error = '';
+      }, duration);
+    } else if (type === 'success') {
+      success = message;
+      setTimeout(() => {
+        success = '';
+      }, duration);
+    }
+  }
+
   async function saveField(field) {
     if (!validationState[field]) return;
     
@@ -164,12 +182,9 @@
       };
       
       editingField = null;
-      success = $t('account.updateSuccess');
-      setTimeout(() => {
-        success = '';
-      }, 2000);
+      showToast('success', $t('account.updateSuccess'));
     } catch (err) {
-      error = err.message;
+      showToast('error', err.message);
     } finally {
       loading = false;
     }
@@ -255,9 +270,6 @@
     deleteComments: true
   };
   
-  let error = '';
-  let success = '';
-  
   let loading = false;
 
   let comments = [];
@@ -339,7 +351,7 @@
 
   async function changePassword() {
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      error = $t('validation.passwordMismatch');
+      showToast('error', $t('validation.passwordMismatch'));
       return;
     }
     
@@ -347,7 +359,7 @@
       loading = true;
       error = '';
       await userApi.changePassword(passwordForm.currentPassword, passwordForm.newPassword);
-      success = $t('success.passwordChanged');
+      showToast('success', $t('success.passwordChanged'));
       isChangingPassword = false;
       passwordForm = {
         currentPassword: '',
@@ -355,7 +367,7 @@
         confirmPassword: ''
       };
     } catch (err) {
-      error = err.message;
+      showToast('error', err.message);
     } finally {
       loading = false;
     }
@@ -363,7 +375,7 @@
 
   async function deleteAccount() {
     if (!deleteForm.password) {
-      error = $t('validation.passwordRequired');
+      showToast('error', $t('validation.passwordRequired'));
       return;
     }
 
@@ -383,7 +395,7 @@
       close();
     } catch (err) {
       console.error('删除账号失败:', err);
-      error = err.message;
+      showToast('error', err.message);
     } finally {
       loading = false;
     }
@@ -538,6 +550,9 @@
 
   function handleSectionChange(section) {
     currentSection = section;
+    if (isMobile) {
+      showContent = true;
+    }
   }
 
   function handleKeydown(event) {
@@ -737,16 +752,22 @@
           {/if}
 
           <div class="h-full overflow-y-auto {isMobile ? 'mt-14' : ''} scrollbar-none">
-            <div class="fixed top-4 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 pointer-events-none">
+            <div class="fixed top-4 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-3 pointer-events-none">
               {#if error}
-                <div class="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-200 text-sm backdrop-blur-sm animate-in fade-in slide-in-from-top duration-300">
-                  {error}
+                <div class="flex items-center gap-3 px-4 py-3 rounded-lg bg-red-50/80 dark:bg-red-900/20 text-red-600 dark:text-red-200 text-sm backdrop-blur-md shadow-lg shadow-red-900/10 dark:shadow-red-900/20 border border-red-100/50 dark:border-red-800/50 animate-in fade-in slide-in-from-top duration-300 transition-all">
+                  <svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <span class="font-medium">{error}</span>
                 </div>
               {/if}
               
               {#if success}
-                <div class="p-3 rounded-lg bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-200 text-sm backdrop-blur-sm animate-in fade-in slide-in-from-top duration-300">
-                  {success}
+                <div class="flex items-center gap-3 px-4 py-3 rounded-lg bg-green-50/80 dark:bg-green-900/20 text-green-600 dark:text-green-200 text-sm backdrop-blur-md shadow-lg shadow-green-900/10 dark:shadow-green-900/20 border border-green-100/50 dark:border-green-800/50 animate-in fade-in slide-in-from-top duration-300 transition-all">
+                  <svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span class="font-medium">{success}</span>
                 </div>
               {/if}
             </div>
