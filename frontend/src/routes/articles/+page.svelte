@@ -1,17 +1,21 @@
 <script>
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import ColorThief from 'colorthief';
   import { t, locale } from '$lib/i18n';
   import { setPageTitle } from '$lib/utils/title';
   import Loading from '$lib/components/Loading.svelte';
   
   let articles = [];
+  let visibleArticles = [];
   let loading = false;
   let error = '';
   let sortBy = typeof window !== 'undefined' 
     ? localStorage.getItem('articleSortBy') || 'createdAt'
     : 'createdAt';
-  const colorThief = new ColorThief();
+  let containerRef;
+  let observer;
+  let colorThief;
+  let colorCache = new Map();
 
   // 监听排序变化并保存到 localStorage
   $: if (typeof window !== 'undefined' && sortBy) {
@@ -20,6 +24,20 @@
 
   export let data;
   const API_BASE = data.API_BASE;
+
+  // 初始化 ColorThief
+  onMount(() => {
+    colorThief = new ColorThief();
+    initIntersectionObserver();
+    setPageTitle($t('nav.articles'));
+    fetchArticles();
+  });
+
+  onDestroy(() => {
+    if (observer) {
+      observer.disconnect();
+    }
+  });
 
   async function fetchArticles() {
     loading = true;
@@ -37,26 +55,17 @@
       }
       
       const data = await response.json();
-      articles = data.items;
+      // 初始化所有文章为可见状态
+      articles = data.items.map(article => ({
+        ...article,
+        isVisible: true // 默认可见
+      }));
       
-      // Extract dominant color for each article image
-      for (let article of articles) {
-        if (article.imageUrl) {
-          try {
-            const img = new Image();
-            img.crossOrigin = 'Anonymous';
-            await new Promise((resolve, reject) => {
-              img.onload = resolve;
-              img.onerror = reject;
-              img.src = getImageUrl(article.imageUrl);
-            });
-            const color = colorThief.getColor(img);
-            article.dominantColor = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
-          } catch (e) {
-            console.error('Failed to extract image color:', e);
-          }
-        }
-      }
+      // 更新可见文章列表
+      visibleArticles = articles;
+      
+      // 预加载前几张图片
+      preloadNextImages(articles, 0);
       
     } catch (e) {
       console.error('Error fetching article list:', e);
@@ -66,7 +75,119 @@
     }
   }
 
-  // 处理图片 URL
+  // 初始化 Intersection Observer
+  function initIntersectionObserver() {
+    let pendingUpdates = new Map();
+    let frameId = null;
+
+    observer = new IntersectionObserver(
+      (entries) => {
+        // 收集所有更新
+        entries.forEach(entry => {
+          const articleId = Number(entry.target.dataset.articleId);
+          pendingUpdates.set(articleId, entry.isIntersecting);
+        });
+
+        // 如果已经有待处理的动画帧，不需要再次请求
+        if (frameId) return;
+
+        // 在下一帧处理所有更新
+        frameId = requestAnimationFrame(() => {
+          articles = articles.map(article => ({
+            ...article,
+            isVisible: pendingUpdates.has(article.id) 
+              ? pendingUpdates.get(article.id) 
+              : article.isVisible
+          }));
+
+          // 清理
+          pendingUpdates.clear();
+          frameId = null;
+        });
+      },
+      {
+        root: null,
+        rootMargin: '200px', // 增加预加载区域
+        threshold: [0, 0.1, 0.5, 1], // 添加更多观察点以平滑过渡
+      }
+    );
+  }
+
+  // 处理图片加载
+  function handleImageLoad(event, article) {
+    const img = event.target;
+    
+    requestAnimationFrame(() => {
+      img.style.opacity = '1';
+      
+      if (colorCache.has(article.imageUrl)) {
+        article.dominantColor = colorCache.get(article.imageUrl);
+        articles = articles;
+        return;
+      }
+
+      // 使用 requestIdleCallback 在空闲时间提取主色调
+      if (window.requestIdleCallback) {
+        requestIdleCallback(() => extractDominantColor(img, article));
+      } else {
+        setTimeout(() => extractDominantColor(img, article), 0);
+      }
+    });
+  }
+
+  // 提取主色调
+  function extractDominantColor(img, article) {
+    try {
+      const color = colorThief.getColor(img);
+      requestAnimationFrame(() => {
+        const dominantColor = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
+        article.dominantColor = dominantColor;
+        colorCache.set(article.imageUrl, dominantColor);
+        articles = articles;
+      });
+    } catch (err) {
+      console.error('Failed to extract image color:', err);
+      article.dominantColor = 'rgb(32, 32, 32)';
+      articles = articles;
+    }
+  }
+
+  // 处理 Intersection Observer
+  function intersectionObserver(node, { callback, options }) {
+    if (observer) {
+      node.dataset.articleId = node.getAttribute('data-article-id');
+      observer.observe(node);
+    }
+
+    return {
+      destroy() {
+        if (observer) {
+          observer.unobserve(node);
+        }
+      }
+    };
+  }
+
+  // 处理元素可见性变化
+  function handleIntersection(entry, article) {
+    article.isVisible = entry.isIntersecting;
+    // 强制更新可见文章列表
+    visibleArticles = articles.filter(a => a.isVisible);
+  }
+
+  // 预加载下一页图片
+  function preloadNextImages(articles, startIndex) {
+    const PRELOAD_COUNT = 5;
+    const imagesToPreload = articles.slice(startIndex, startIndex + PRELOAD_COUNT)
+      .filter(article => article.imageUrl);
+
+    imagesToPreload.forEach(article => {
+      const img = new Image();
+      img.src = getImageUrl(article.imageUrl);
+    });
+  }
+
+  // 获取图片 URL
   function getImageUrl(url) {
     if (!url) return '';
     if (url.startsWith('http')) return url;
@@ -99,11 +220,6 @@
     const height = minHeight + (rand * (maxHeight - minHeight) / 100);
     return `${height}px`;
   }
-
-  onMount(() => {
-    setPageTitle($t('nav.articles'));
-    fetchArticles();
-  });
 </script>
 
 <style lang="postcss">
@@ -115,10 +231,14 @@
     padding: 0 0 1.5rem 0;
     break-inside: avoid;
     margin-bottom: 1.5rem;
+    will-change: transform;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .article-card:hover {
-    transform: translateY(-2px);
+    transform: translateY(-2px) translateZ(0);
   }
 
   .article-card .title-link {
@@ -129,16 +249,26 @@
   .article-card .image-container {
     margin-bottom: 1.5rem;
     overflow: hidden;
-    transition: height 0.3s ease;
+    transition: height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: transform;
+    transform: translateZ(0);
+  }
+
+  .articles-container {
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    contain: layout style paint;
   }
 
   @media (min-width: 1280px) {
     .articles-container {
       column-count: 3;
       column-gap: 1.5rem;
+      contain: layout style paint;
     }
     .article-card {
       margin-bottom: 1.5rem;
+      contain: layout style paint;
     }
   }
 
@@ -146,18 +276,22 @@
     .articles-container {
       column-count: 2;
       column-gap: 1.5rem;
+      contain: layout style paint;
     }
     .article-card {
       margin-bottom: 1.5rem;
+      contain: layout style paint;
     }
   }
 
   @media (max-width: 767px) {
     .articles-container {
       column-count: 1;
+      contain: layout style paint;
     }
     .article-card {
       margin-bottom: 1.5rem;
+      contain: layout style paint;
     }
     .article-card .image-container {
       height: 280px !important;
@@ -245,11 +379,16 @@
   {#if loading}
     <Loading />
   {:else}
-    <div class="articles-container">
-      {#each articles as article}
+    <div class="articles-container" bind:this={containerRef}>
+      {#each articles as article (article.id)}
         <article 
           class="article-card group flex flex-col rounded-2xl transition-all duration-300 hover:shadow-xl relative"
           style={getCardStyle(article)}
+          data-article-id={article.id}
+          use:intersectionObserver={{
+            callback: (entry) => handleIntersection(entry, article),
+            options: { rootMargin: '100px' }
+          }}
         >
           {#if article.imageUrl}
             <div class="relative image-container w-full"
@@ -257,8 +396,35 @@
               <img
                 src={getImageUrl(article.imageUrl)}
                 alt={article.title}
-                class="w-full h-full object-cover"
+                class="w-full h-full object-cover transition-opacity duration-300"
+                loading="lazy"
+                decoding="async"
                 crossorigin="anonymous"
+                style="opacity: 0"
+                on:load={(e) => {
+                  const img = e.target;
+                  requestAnimationFrame(() => {
+                    img.style.opacity = '1';
+                    
+                    if (colorCache.has(article.imageUrl)) {
+                      article.dominantColor = colorCache.get(article.imageUrl);
+                      articles = articles;
+                      return;
+                    }
+
+                    try {
+                      const color = colorThief.getColor(img);
+                      const dominantColor = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
+                      article.dominantColor = dominantColor;
+                      colorCache.set(article.imageUrl, dominantColor);
+                      articles = articles;
+                    } catch (err) {
+                      console.error('Failed to extract image color:', err);
+                      article.dominantColor = 'rgb(32, 32, 32)';
+                      articles = articles;
+                    }
+                  });
+                }}
               />
             </div>
           {/if}
@@ -272,7 +438,7 @@
             </h2>
 
             <p class="text-sm line-clamp-2 flex-grow excerpt">
-              {article.content.substring(0, 120)}...
+              {article.content}
             </p>
           </div>
         </article>

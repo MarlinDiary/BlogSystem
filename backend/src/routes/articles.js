@@ -11,7 +11,7 @@ const router = express.Router();
 const SERVER_URL = process.env.SERVER_URL || 'http://localhost:3000';
 
 // 处理图片URL的函数
-function getFullImageUrl(imageUrl) {
+function getFullImageUrl(imageUrl, options = {}) {
   if (!imageUrl) return null;
   if (imageUrl.startsWith('http')) return imageUrl;
   
@@ -26,8 +26,15 @@ function getFullImageUrl(imageUrl) {
   // 确保 imageUrl 以 / 开头
   const normalizedImageUrl = imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`;
   
+  // 处理图片参数
+  const { quality, size } = options;
+  const params = new URLSearchParams();
+  if (quality) params.append('quality', quality);
+  if (size) params.append('size', size);
+  
   // 返回完整的图片 URL
-  return `${apiUrl}${normalizedImageUrl}`;
+  const baseUrl = `${apiUrl}${normalizedImageUrl}`;
+  return params.toString() ? `${baseUrl}?${params}` : baseUrl;
 }
 
 // 获取文章列表
