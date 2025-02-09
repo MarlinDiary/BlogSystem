@@ -16,7 +16,7 @@
 </script>
 
 {#if fullscreen}
-  <div class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-900/20 backdrop-blur-sm dark:bg-zinc-900/50">
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-900/20 dark:bg-zinc-900/50">
     <div class="{sizeMap[size]} animate-spin rounded-full border-2 {colorMap[color]}"></div>
   </div>
 {:else}
