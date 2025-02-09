@@ -1,7 +1,7 @@
 <!-- UserArrowLeft.svelte -->
 <script>
-  export let width = '1.25em';
-  export let height = '1.25em';
+  export let width = '1.5em';
+  export let height = '1.5em';
   export let className = '';
 </script>
 

@@ -84,7 +84,7 @@
       class="group flex items-center h-10 rounded-full bg-white/90 px-3 py-2 shadow-lg shadow-zinc-800/5 ring-1 ring-zinc-900/5 backdrop-blur dark:bg-zinc-800/90 dark:ring-white/10 dark:hover:ring-white/20"
       on:click={handleAuth}
     >
-      <UserArrowLeft class="h-5 w-5 stroke-zinc-500 transition group-hover:stroke-zinc-700 dark:group-hover:stroke-zinc-200" />
+      <UserArrowLeft class="h-6 w-6 stroke-zinc-900 transition group-hover:stroke-[#65a30d] dark:stroke-white dark:group-hover:stroke-[#65a30d]" />
     </button>
   {/if}
 </div>
