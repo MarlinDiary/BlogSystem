@@ -402,13 +402,29 @@
                                         bind:value={dateOfBirth}
                                         placeholder="YYYY-MM-DD"
                                         pattern="\d{4}-\d{2}-\d{2}"
+                                        maxlength="10"
+                                        on:keydown={(e) => {
+                                            // 允许删除键和退格键
+                                            if (e.key === 'Backspace' || e.key === 'Delete') {
+                                                return;
+                                            }
+                                            
+                                            // 阻止非数字输入
+                                            if (!/^\d$/.test(e.key) && !['Tab', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+                                                e.preventDefault();
+                                            }
+                                        }}
                                         on:input={(e) => {
-                                            const input = e.target;
-                                            let value = input.value.replace(/\D/g, '');
-                                            if (value.length > 8) value = value.slice(0, 8);
-                                            if (value.length >= 4) value = value.slice(0, 4) + '-' + value.slice(4);
-                                            if (value.length >= 7) value = value.slice(0, 7) + '-' + value.slice(7);
-                                            input.value = value;
+                                            let value = e.target.value.replace(/\D/g, '');
+                                            if (value.length >= 4) {
+                                                value = value.slice(0, 4) + (value.length > 4 ? '-' : '') + value.slice(4);
+                                            }
+                                            if (value.length >= 7) {
+                                                value = value.slice(0, 7) + (value.length > 7 ? '-' : '') + value.slice(7);
+                                            }
+                                            if (value.length > 10) {
+                                                value = value.slice(0, 10);
+                                            }
                                             dateOfBirth = value;
                                         }}
                                         class="mt-1 block w-full rounded-md border-zinc-300 bg-white/50 shadow-sm focus:border-zinc-500 focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800/50 dark:text-zinc-100 dark:focus:border-zinc-400 dark:focus:ring-zinc-400 {dateOfBirthError && showFieldError ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}"

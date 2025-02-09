@@ -132,9 +132,11 @@ router.put('/me', authMiddleware, async (req, res, next) => {
 router.delete('/me', authMiddleware, async (req, res, next) => {
   try {
     const userId = req.userId;
+    console.log('开始删除用户账号:', { userId });
     
     const { password, deleteArticles = true, deleteComments = true } = req.body;
     if (!password) {
+      console.log('删除账号失败: 未提供密码');
       return res.status(400).json({ message: '请提供密码以确认删除' });
     }
     
@@ -143,62 +145,107 @@ router.delete('/me', authMiddleware, async (req, res, next) => {
       [userId]
     );
     
-    if (!user || !await bcrypt.compare(password, user.password)) {
+    if (!user) {
+      console.log('删除账号失败: 用户不存在');
+      return res.status(404).json({ message: '用户不存在' });
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      console.log('删除账号失败: 密码错误');
       return res.status(401).json({ message: '密码错误' });
     }
 
+    console.log('开始删除用户数据事务:', { userId, deleteArticles, deleteComments });
     await transaction(async (tx) => {
-      // 删除用户的所有点赞
-      await tx.run(
-        'DELETE FROM article_reactions WHERE user_id = ?',
-        [userId]
-      );
-      
-      if (deleteComments) {
+      try {
+        // 先删除用户的所有点赞
+        console.log('删除用户点赞');
+        await tx.run(
+          'DELETE FROM article_reactions WHERE user_id = ?',
+          [userId]
+        );
+        
         // 删除用户的所有评论
-        await tx.run(
-          'DELETE FROM comments WHERE user_id = ?',
-          [userId]
-        );
-      } else {
-        // 将评论标记为已删除用户
-        await tx.run(
-          'UPDATE comments SET user_id = NULL WHERE user_id = ?',
-          [userId]
-        );
-      }
-      
-      if (deleteArticles) {
-        // 删除用户的所有文章
-        await tx.run(
-          'DELETE FROM articles WHERE author_id = ?',
-          [userId]
-        );
-      } else {
-        // 将文章标记为已删除用户
-        await tx.run(
-          'UPDATE articles SET author_id = NULL, status = ? WHERE author_id = ?',
-          ['pending', userId]
-        );
-      }
-
-      // 删除用户头像文件
-      if (user.avatar_url && !user.avatar_url.includes('default.png')) {
-        const avatarPath = path.join(process.cwd(), user.avatar_url);
-        if (fs.existsSync(avatarPath)) {
-          fs.unlinkSync(avatarPath);
+        if (deleteComments) {
+          console.log('删除用户评论');
+          // 先删除子评论
+          await tx.run(
+            'DELETE FROM comments WHERE parent_id IN (SELECT id FROM comments WHERE user_id = ?)',
+            [userId]
+          );
+          // 再删除用户的评论
+          await tx.run(
+            'DELETE FROM comments WHERE user_id = ?',
+            [userId]
+          );
+        } else {
+          console.log('标记用户评论为已删除');
+          // 将评论标记为已删除用户
+          await tx.run(
+            'UPDATE comments SET user_id = NULL WHERE user_id = ?',
+            [userId]
+          );
         }
+        
+        // 删除用户的所有文章
+        if (deleteArticles) {
+          console.log('删除用户文章');
+          // 先删除文章的评论
+          await tx.run(
+            'DELETE FROM comments WHERE article_id IN (SELECT id FROM articles WHERE author_id = ?)',
+            [userId]
+          );
+          // 删除文章的标签关联
+          await tx.run(
+            'DELETE FROM article_tags WHERE article_id IN (SELECT id FROM articles WHERE author_id = ?)',
+            [userId]
+          );
+          // 删除文章的点赞
+          await tx.run(
+            'DELETE FROM article_reactions WHERE article_id IN (SELECT id FROM articles WHERE author_id = ?)',
+            [userId]
+          );
+          // 最后删除文章
+          await tx.run(
+            'DELETE FROM articles WHERE author_id = ?',
+            [userId]
+          );
+        } else {
+          console.log('标记用户文章为已删除');
+          // 将文章标记为已删除用户
+          await tx.run(
+            'UPDATE articles SET author_id = NULL, status = ? WHERE author_id = ?',
+            ['pending', userId]
+          );
+        }
+
+        // 删除用户头像文件
+        if (user.avatar_url && !user.avatar_url.includes('default.png')) {
+          console.log('删除用户头像文件');
+          const avatarPath = path.join(process.cwd(), user.avatar_url);
+          if (fs.existsSync(avatarPath)) {
+            fs.unlinkSync(avatarPath);
+          }
+        }
+        
+        console.log('删除用户账号');
+        // 最后删除用户账号
+        await tx.run(
+          'DELETE FROM users WHERE id = ?',
+          [userId]
+        );
+
+        console.log('用户账号删除成功:', { userId });
+      } catch (error) {
+        console.error('删除用户数据事务失败:', error);
+        throw error;
       }
-      
-      // 最后删除用户账号
-      await tx.run(
-        'DELETE FROM users WHERE id = ?',
-        [userId]
-      );
     });
 
     res.json({ message: '账号删除成功' });
   } catch (error) {
+    console.error('删除账号失败:', error);
     next(error);
   }
 });

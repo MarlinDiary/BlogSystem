@@ -78,6 +78,7 @@ const translations = {
     'validation.passwordMinLength': '至少8个字符',
     'validation.passwordRequireLetter': '包含字母',
     'validation.passwordRequireNumber': '包含数字',
+    'validation.passwordRequired': '请输入密码',
     'validation.invalidEmail': '邮箱格式无效',
     'validation.invalidDate': '日期格式无效',
     'validation.usernameLength': '6-20个字符',
@@ -289,6 +290,8 @@ const translations = {
     'account.hasAccount': '已经有账号了？',
     'account.avatar': '头像',
     'account.avatarTip': '推荐使用正方形图片，支持 PNG、JPG 格式，大小不超过 2 MB',
+    'account.password': '密码',
+    'account.enterPassword': 'Enter your password to confirm',
     
     // 好友卡片相关
     'friendCard.articles': '文章',
@@ -374,6 +377,7 @@ const translations = {
     'validation.passwordMinLength': 'At least 8 characters',
     'validation.passwordRequireLetter': 'Include letters',
     'validation.passwordRequireNumber': 'Include numbers',
+    'validation.passwordRequired': 'Please enter password',
     'validation.invalidEmail': 'Invalid email format',
     'validation.invalidDate': 'Invalid date format',
     'validation.usernameLength': '6-20 characters',
@@ -585,6 +589,8 @@ const translations = {
     'account.hasAccount': 'Already have an account?',
     'account.avatar': 'Avatar',
     'account.avatarTip': 'Square images recommended, PNG/JPG format, max 2MB',
+    'account.password': 'Password',
+    'account.enterPassword': 'Enter your password to confirm',
     
     // Friend card
     'friendCard.articles': 'Articles',

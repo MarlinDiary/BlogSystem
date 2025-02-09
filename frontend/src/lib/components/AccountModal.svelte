@@ -362,13 +362,27 @@
   }
 
   async function deleteAccount() {
+    if (!deleteForm.password) {
+      error = $t('validation.passwordRequired');
+      return;
+    }
+
+    if (!confirm($t('account.deleteConfirm'))) {
+      return;
+    }
+
     try {
       loading = true;
       error = '';
-      await userApi.deleteAccount(deleteForm);
+      await userApi.deleteAccount({
+        password: deleteForm.password,
+        deleteArticles: deleteForm.deleteArticles,
+        deleteComments: deleteForm.deleteComments
+      });
       auth.logout();
       close();
     } catch (err) {
+      console.error('删除账号失败:', err);
       error = err.message;
     } finally {
       loading = false;
@@ -515,8 +529,8 @@
     const input = event.target;
     let value = input.value.replace(/\D/g, '');
     if (value.length > 8) value = value.slice(0, 8);
-    if (value.length >= 4) value = value.slice(0, 4) + '-' + value.slice(4);
-    if (value.length >= 7) value = value.slice(0, 7) + '-' + value.slice(7);
+    if (value.length >= 4) value = value.slice(0, 4) + (value.length > 4 ? '-' : '') + value.slice(4);
+    if (value.length >= 7) value = value.slice(0, 7) + (value.length > 7 ? '-' : '') + value.slice(7);
     input.value = value;
     tempEditValue = value;
     validationState.dateOfBirth = validateField('dateOfBirth', value);
@@ -889,22 +903,50 @@
                       {#if editingField === 'dateOfBirth'}
                         <div class="flex items-center space-x-2">
                           <input
+                            id="birth-input"
                             type="text"
                             bind:value={tempEditValue}
                             placeholder="YYYY-MM-DD"
                             pattern="\d{4}-\d{2}-\d{2}"
-                            on:input={handleDateInput}
-                            on:keydown={e => {
-                              handleKeydown(e);
-                              if (e.key === 'Enter' && validationState.dateOfBirth) saveField('dateOfBirth');
+                            maxlength="10"
+                            on:keydown={(e) => {
+                              // 允许删除键和退格键
+                              if (e.key === 'Backspace' || e.key === 'Delete') {
+                                return;
+                              }
+                              
+                              // 阻止非数字输入
+                              if (!/^\d$/.test(e.key) && !['Tab', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+                                e.preventDefault();
+                              }
+
+                              // 按回车保存
+                              if (e.key === 'Enter' && validationState.dateOfBirth) {
+                                saveField('dateOfBirth');
+                              }
                             }}
-                            data-field="dateOfBirth"
-                            class="block flex-1 h-[38px] rounded-md border-zinc-300 bg-white/50 shadow-sm focus:border-zinc-500 focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800/50 dark:text-zinc-100"
+                            on:input={(e) => {
+                              let value = e.target.value.replace(/\D/g, '');
+                              if (value.length >= 4) {
+                                value = value.slice(0, 4) + (value.length > 4 ? '-' : '') + value.slice(4);
+                              }
+                              if (value.length >= 7) {
+                                value = value.slice(0, 7) + (value.length > 7 ? '-' : '') + value.slice(7);
+                              }
+                              if (value.length > 10) {
+                                value = value.slice(0, 10);
+                              }
+                              tempEditValue = value;
+                              validationState.dateOfBirth = validateField('dateOfBirth', value);
+                            }}
+                            class="mt-1 block w-full rounded-md border-zinc-300 bg-white/50 shadow-sm focus:border-zinc-500 focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800/50 dark:text-zinc-100 dark:focus:border-zinc-400 dark:focus:ring-zinc-400 {validationState.dateOfBirth ? '' : 'border-red-500 focus:border-red-500 focus:ring-red-500'}"
+                            required
                           />
                           <button
                             type="button"
                             class="p-1 text-zinc-900 hover:text-zinc-700 dark:text-zinc-100 dark:hover:text-zinc-300"
-                            on:click={() => saveField('dateOfBirth')}
+                            on:click={() => validationState.dateOfBirth && saveField('dateOfBirth')}
+                            disabled={!validationState.dateOfBirth}
                             aria-label={$t('common.save')}
                           >
                             <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1285,12 +1327,13 @@
                   <div class="space-y-4">
                     <p class="text-sm text-zinc-500 dark:text-zinc-400">{$t('account.dangerZoneDesc')}</p>
                     <div>
-                      <label for="deletePassword" class="block text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-1">{$t('account.passwordRequired')}</label>
+                      <label for="deletePassword" class="block text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-1">{$t('account.password')}</label>
                       <input
                         type="password"
                         id="deletePassword"
                         bind:value={deleteForm.password}
                         class="block w-full h-[38px] rounded-md border-zinc-300 bg-white/50 shadow-sm focus:border-zinc-500 focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800/50 dark:text-zinc-100"
+                        placeholder={$t('account.enterPassword')}
                       />
                     </div>
                     <div class="space-y-2">
@@ -1315,7 +1358,7 @@
                     </div>
                     <button
                       type="button"
-                      class="w-full px-4 py-2 text-sm bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      class="w-full px-4 py-2 text-sm bg-red-600 text-white rounded-md hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       on:click={deleteAccount}
                       disabled={loading || !deleteForm.password}
                     >

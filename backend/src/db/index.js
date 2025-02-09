@@ -203,16 +203,52 @@ export async function run(sql, params = []) {
 }
 
 // 事务辅助函数
-export async function transaction(callback) {
+export async function transaction(callback, maxRetries = 3) {
   const db = getDb();
-  try {
-    await db.run('BEGIN');
-    const result = await callback(db);
-    await db.run('COMMIT');
-    return result;
-  } catch (error) {
-    await db.run('ROLLBACK');
-    throw error;
+  let retryCount = 0;
+
+  while (retryCount < maxRetries) {
+    try {
+      await db.run('BEGIN');
+      console.log('事务开始');
+
+      const result = await callback({
+        run: async (sql, params = []) => {
+          console.log('执行 SQL:', sql, '参数:', params);
+          return await db.run(sql, params);
+        },
+        get: async (sql, params = []) => {
+          console.log('执行 SQL:', sql, '参数:', params);
+          return await db.get(sql, params);
+        },
+        query: async (sql, params = []) => {
+          console.log('执行 SQL:', sql, '参数:', params);
+          return await db.all(sql, params);
+        }
+      });
+
+      await db.run('COMMIT');
+      console.log('事务提交成功');
+      return result;
+    } catch (error) {
+      console.error(`事务执行失败 (尝试 ${retryCount + 1}/${maxRetries}):`, error);
+      
+      try {
+        await db.run('ROLLBACK');
+        console.log('事务回滚成功');
+      } catch (rollbackError) {
+        console.error('事务回滚失败:', rollbackError);
+      }
+
+      if (error.code === 'SQLITE_BUSY' && retryCount < maxRetries - 1) {
+        retryCount++;
+        console.log(`等待后重试 (${retryCount}/${maxRetries})`);
+        await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+        continue;
+      }
+
+      throw error;
+    }
   }
 }
 

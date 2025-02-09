@@ -267,16 +267,22 @@ export const userApi = {
     // Delete account
     deleteAccount: async (data) => {
         try {
-            console.log('[User] Deleting account');
+            console.log('[User] Deleting account', { deleteArticles: data.deleteArticles, deleteComments: data.deleteComments });
             const result = await api('/api/users/me', {
                 method: 'DELETE',
                 body: data
             });
-            console.log('[User] Account deleted');
+            console.log('[User] Account deleted successfully');
             return result;
         } catch (error) {
-            console.error('[User] Account deletion failed', error);
-            throw error;
+            console.error('[User] Account deletion failed:', error);
+            if (error.message === '密码错误') {
+                throw new Error('密码错误，请重试');
+            } else if (error.message === '请提供密码以确认删除') {
+                throw new Error('请输入密码以确认删除账号');
+            } else {
+                throw new Error('删除账号失败，请稍后重试');
+            }
         }
     },
 
