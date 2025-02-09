@@ -10,6 +10,7 @@
   import { getImageUrl } from '$lib/utils/api';
   import { t, locale } from '$lib/i18n';
   import { setPageTitle } from '$lib/utils/title';
+  import Loading from '$lib/components/Loading.svelte';
 
   const API_URL = env.PUBLIC_API_URL;
   
@@ -570,9 +571,7 @@
 
 <div class="mx-auto max-w-4xl px-2 sm:px-3 md:px-4 py-8">
   {#if loading}
-    <div class="flex justify-center py-16">
-      <div class="h-8 w-8 animate-spin rounded-full border-2 border-primary-500 border-t-transparent"></div>
-    </div>
+    <Loading fullscreen={true} />
   {:else if error}
     <div class="py-16 text-center text-red-500">{error}</div>
   {:else if article}

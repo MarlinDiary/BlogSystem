@@ -3,6 +3,7 @@
   import ColorThief from 'colorthief';
   import { t, locale } from '$lib/i18n';
   import { setPageTitle } from '$lib/utils/title';
+  import Loading from '$lib/components/Loading.svelte';
   
   let articles = [];
   let loading = false;
@@ -206,9 +207,7 @@
   {/if}
 
   {#if loading}
-    <div class="flex justify-center items-center py-12">
-      <div class="animate-spin rounded-full h-8 w-8 border-2 border-lime-500 border-t-transparent"></div>
-    </div>
+    <Loading />
   {:else}
     <div class="grid gap-4 md:gap-6 xl:gap-8 grid-cols-1 md:grid-cols-2 xl:grid-cols-3 max-w-screen-md md:max-w-screen-xl xl:max-w-none mx-auto">
       {#each articles as article}

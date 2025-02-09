@@ -15,6 +15,7 @@
   import { getImageUrl } from '$lib/utils/api';
   import { t, locale } from '$lib/i18n';
   import { setPageTitle } from '$lib/utils/title';
+  import Loading from '$lib/components/Loading.svelte';
   
   const lowlight = createLowlight(common);
   const API_URL = env.PUBLIC_API_URL;
@@ -757,7 +758,7 @@
             {:else}
               <div class="flex flex-col items-center justify-center h-full text-center p-4">
                 {#if isGeneratingTags}
-                  <div class="w-12 h-12 border-4 border-lime-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                  <Loading size="lg" />
                   <p class="text-sm text-zinc-500 dark:text-zinc-400">{$t('common.processing')}</p>
                 {:else if !title}
                   <svg class="w-12 h-12 text-zinc-400 dark:text-zinc-500 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
@@ -912,7 +913,7 @@
         >
           {#if loading}
             <div class="flex items-center gap-2">
-              <div class="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              <Loading size="sm" color="white" />
               <span>{$t('common.processing')}</span>
             </div>
           {:else}

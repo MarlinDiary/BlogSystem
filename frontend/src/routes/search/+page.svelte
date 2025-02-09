@@ -1,8 +1,10 @@
 <script>
   import { onMount } from 'svelte';
+  import Loading from '$lib/components/Loading.svelte';
   
   let searchQuery = '';
   let searchResults = [];
+  let loading = false;
   
   function handleSearch() {
     // TODO: 实现搜索逻辑
@@ -33,7 +35,9 @@
   </div>
 
   <div class="mt-8">
-    {#if searchResults.length > 0}
+    {#if loading}
+      <Loading />
+    {:else if searchResults.length > 0}
       <div class="space-y-4">
         {#each searchResults as result}
           <div class="rounded-lg border border-zinc-100 p-4 dark:border-zinc-700/40">

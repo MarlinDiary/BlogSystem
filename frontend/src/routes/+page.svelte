@@ -5,6 +5,7 @@
   import { env } from '$env/dynamic/public';
   import { t, locale } from '$lib/i18n';
   import { setPageTitle } from '$lib/utils/title';
+  import Loading from '$lib/components/Loading.svelte';
   
   let latestArticles = [];
   let loading = true;
@@ -82,9 +83,7 @@
   {/if}
 
   {#if loading}
-    <div class="flex h-screen items-center justify-center">
-      <div class="h-32 w-32 animate-pulse rounded-full bg-white/10"></div>
-    </div>
+    <Loading fullscreen={true} size="lg" color="white" />
   {:else}
     <Carousel 
       slides={carouselSlides}
