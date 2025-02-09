@@ -116,9 +116,10 @@ const defaultUsers = [
 ];
 
 // 默认文章数据
-const defaultArticle = {
-  title: 'Exploring the History of the Macintosh',
-  content: `The Macintosh, or Mac, has revolutionized personal computing since its introduction in 1984. This iconic product line from Apple has consistently pushed the boundaries of technology and design, creating a legacy that spans nearly four decades.
+const defaultArticles = [
+  {
+    title: 'Exploring the History of the Macintosh',
+    content: `The Macintosh, or Mac, has revolutionized personal computing since its introduction in 1984. This iconic product line from Apple has consistently pushed the boundaries of technology and design, creating a legacy that spans nearly four decades.
 
 The story of Mac begins with Steve Jobs and his vision for creating a computer that anyone could use. The original Macintosh 128K was unveiled on January 24, 1984, during Super Bowl XVIII, with the now-famous "1984" commercial directed by Ridley Scott. This groundbreaking advertisement, which cost $1.5 million to produce, portrayed Apple as the rebellious alternative to IBM's dominant but rigid computing paradigm.
 
@@ -137,7 +138,7 @@ Perhaps the most significant recent development is the introduction of Apple Sil
 The Mac's influence extends far beyond its market share. Its emphasis on typography and consistent user interface guidelines helped establish desktop publishing as a viable industry. The Mac's support for multimedia capabilities made it the preferred platform for creative professionals, a position it largely maintains today.
 
 Looking ahead, the Mac continues to evolve while maintaining its core principles of user-friendly design and innovative technology. The integration of iOS features into macOS, the advancement of Apple Silicon, and the continued refinement of the user experience suggest that the Mac's influence on computing will persist well into the future.`,
-  html_content: `<p>The Macintosh, or Mac, has revolutionized personal computing since its introduction in 1984. This iconic product line from Apple has consistently pushed the boundaries of technology and design, creating a legacy that spans nearly four decades.</p>
+    html_content: `<p>The Macintosh, or Mac, has revolutionized personal computing since its introduction in 1984. This iconic product line from Apple has consistently pushed the boundaries of technology and design, creating a legacy that spans nearly four decades.</p>
 
 <h2>The Birth of Macintosh</h2>
 
@@ -162,10 +163,49 @@ Looking ahead, the Mac continues to evolve while maintaining its core principles
 <p>The Mac's influence extends far beyond its market share. Its emphasis on typography and consistent user interface guidelines helped establish desktop publishing as a viable industry. The Mac's support for multimedia capabilities made it the preferred platform for creative professionals, a position it largely maintains today.</p>
 
 <p>Looking ahead, the Mac continues to evolve while maintaining its core principles of user-friendly design and innovative technology. The integration of iOS features into macOS, the advancement of Apple Silicon, and the continued refinement of the user experience suggest that the Mac's influence on computing will persist well into the future.</p>`,
-  image_url: 'https://images.unsplash.com/photo-1611262588019-db6cc2032da3?q=80&w=2874&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
-  tags: ['Technology', 'Apple', 'Computing History', 'Innovation'],
-  author: 'Leo'
-};
+    image_url: 'https://images.unsplash.com/photo-1611262588019-db6cc2032da3?q=80&w=2874&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+    tags: ['Technology', 'Apple', 'Computing History', 'Innovation'],
+    author: 'Leo',
+    published_at: '2024-01-15',
+    created_at: '2024-01-15'
+  },
+  {
+    title: 'Unveiling the Age of Constant Monitoring',
+    content: `In a world where technology continues to evolve at an exponential pace, constant monitoring has become an inescapable reality. From surveillance cameras on every corner to digital tracking embedded in our personal devices, the Age of Constant Monitoring has arrived.
+
+The Rise of Digital Surveillance
+In the last decade, advancements in artificial intelligence, big data, and cloud computing have enabled organizations to monitor individuals and environments on an unprecedented scale. Governments deploy smart city technologies to enhance public safety, while corporations analyze user data to deliver targeted advertisements. However, the rise of digital surveillance is not without its challenges. Critics argue that it creates a culture of overreach, where personal freedoms are increasingly restricted.
+
+Benefits of Constant Monitoring
+Despite privacy concerns, constant monitoring offers tangible benefits. In healthcare, wearable devices track vital signs, enabling early detection of potential health issues. Smart home systems provide convenience and energy efficiency, responding to our habits and needs in real-time. Public safety has also seen improvements, with law enforcement using predictive analytics to prevent crimes before they occur. Such applications highlight the potential for technology to enhance human life when used responsibly.
+
+Ethical Implications and Privacy Concerns
+The ethical implications of constant monitoring cannot be overstated. Who owns the data collected about us? How is it being used, and by whom? Without clear regulations, the potential for misuse is significant. Privacy advocates warn that without transparency and accountability, individuals may lose control over their personal information. The growing use of facial recognition technology, for example, has sparked debates about racial bias, false positives, and the erosion of anonymity.
+
+Navigating the Future of Monitoring
+As the Age of Constant Monitoring unfolds, finding a balance between innovation and privacy is paramount. Governments and organizations must work together to establish ethical guidelines, ensuring technology serves humanity rather than exploiting it. Public awareness and education are also crucial. By understanding the technologies that shape our lives, individuals can make informed decisions and advocate for policies that protect their rights.
+
+In conclusion, constant monitoring is a double-edged sword. While it offers opportunities to improve our lives, it also poses significant challenges. The key lies in harnessing its potential responsibly, ensuring it aligns with societal values and ethical standards.`,
+    html_content: `<p>In a world where technology continues to evolve at an exponential pace, constant monitoring has become an inescapable reality. From surveillance cameras on every corner to digital tracking embedded in our personal devices, the Age of Constant Monitoring has arrived.</p>
+
+<h2>The Rise of Digital Surveillance</h2>
+<p>In the last decade, advancements in artificial intelligence, big data, and cloud computing have enabled organizations to monitor individuals and environments on an unprecedented scale...</p>
+
+<h2>Benefits of Constant Monitoring</h2>
+<p>Despite privacy concerns, constant monitoring offers tangible benefits. In healthcare, wearable devices track vital signs...</p>
+
+<h2>Ethical Implications and Privacy Concerns</h2>
+<p>The ethical implications of constant monitoring cannot be overstated...</p>
+
+<h2>Navigating the Future of Monitoring</h2>
+<p>As the Age of Constant Monitoring unfolds, finding a balance between innovation and privacy is paramount...</p>`,
+    image_url: 'https://images.unsplash.com/photo-1546803073-23568b8c98e6?q=80&w=2400&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+    tags: ['Surveillance', 'Privacy', 'Technology', 'Ethics'],
+    author: 'Kevin',
+    published_at: '2024-02-10',
+    created_at: '2024-02-10',
+  },
+];
 
 // 根据环境使用不同的数据库路径
 const dbPath = process.env.NODE_ENV === 'production'
@@ -227,144 +267,175 @@ async function initializeDatabase() {
     }
     
     // 初始化默认用户后，创建默认文章
-    const existingArticle = await db.get(
-      'SELECT * FROM articles WHERE title = ?',
-      [defaultArticle.title]
-    );
+    for (const article of defaultArticles) {
+      const existingArticle = await db.get(
+        'SELECT * FROM articles WHERE title = ?',
+        [article.title]
+      );
 
-    if (!existingArticle) {
-      await transaction(async ({ run, get }) => {
-        // 获取作者ID
-        const author = await get('SELECT id FROM users WHERE username = ?', [defaultArticle.author]);
-        
-        // 插入文章
-        const result = await run(
-          `INSERT INTO articles (
-            title, content, html_content, image_url, status, 
-            view_count, author_id, published_at, created_at
-          ) VALUES (?, ?, ?, ?, 'published', ?, ?, ?, ?)`,
-          [
-            defaultArticle.title,
-            defaultArticle.content,
-            defaultArticle.html_content,
-            defaultArticle.image_url,
-            Math.floor(Math.random() * 1000) + 500, // 随机浏览量
-            author.id,
-            new Date('2024-01-15').toISOString(),
-            new Date('2024-01-15').toISOString()
-          ]
-        );
-
-        const articleId = result.lastID;
-
-        // 创建标签
-        for (const tagName of defaultArticle.tags) {
-          // 检查标签是否存在，不存在则创建
-          let tag = await get('SELECT id FROM tags WHERE name = ?', [tagName]);
-          if (!tag) {
-            const tagResult = await run('INSERT INTO tags (name) VALUES (?)', [tagName]);
-            tag = { id: tagResult.lastID };
-          }
-
-          // 关联文章和标签
-          await run(
-            'INSERT INTO article_tags (article_id, tag_id) VALUES (?, ?)',
-            [articleId, tag.id]
+      if (!existingArticle) {
+        await transaction(async ({ run, get }) => {
+          // 获取作者ID
+          const author = await get('SELECT id FROM users WHERE username = ?', [article.author]);
+          
+          // 插入文章
+          const result = await run(
+            `INSERT INTO articles (
+              title, content, html_content, image_url, status, 
+              view_count, author_id, published_at, created_at
+            ) VALUES (?, ?, ?, ?, 'published', ?, ?, ?, ?)`,
+            [
+              article.title,
+              article.content,
+              article.html_content,
+              article.image_url,
+              Math.floor(Math.random() * 1000) + 500, // 随机浏览量
+              author.id,
+              new Date(article.published_at).toISOString(),
+              new Date(article.created_at).toISOString()
+            ]
           );
-        }
 
-        // 添加更多反应
-        const reactions = ['like', 'love', 'celebrate', 'insightful', 'support'];
-        const users = await db.all('SELECT id FROM users');
-        for (const user of users) {
-          // 每个用户有70%的概率添加反应
-          if (Math.random() < 0.7) {
-            const randomReaction = reactions[Math.floor(Math.random() * reactions.length)];
+          const articleId = result.lastID;
+
+          // 创建标签
+          for (const tagName of article.tags) {
+            // 检查标签是否存在，不存在则创建
+            let tag = await get('SELECT id FROM tags WHERE name = ?', [tagName]);
+            if (!tag) {
+              const tagResult = await run('INSERT INTO tags (name) VALUES (?)', [tagName]);
+              tag = { id: tagResult.lastID };
+            }
+
+            // 关联文章和标签
             await run(
-              'INSERT INTO article_reactions (article_id, user_id, type) VALUES (?, ?, ?)',
-              [articleId, user.id, randomReaction]
+              'INSERT INTO article_tags (article_id, tag_id) VALUES (?, ?)',
+              [articleId, tag.id]
             );
           }
-        }
 
-        // 添加更丰富的评论
-        const comments = [
-          {
-            content: "This is an excellent overview of Mac's history! The impact of the original Macintosh on the computing industry cannot be overstated. I particularly appreciate how you've highlighted the evolution from the original 128K to modern M-series chips.",
-            replies: [
-              {
-                content: "Absolutely agree! The 1984 commercial was a masterpiece of marketing that set the tone for Apple's brand identity for decades to come.",
-                replies: [
-                  {
-                    content: "Not just marketing - it represented a genuine paradigm shift in how we interact with computers. The GUI was revolutionary.",
-                  },
-                  {
-                    content: "The commercial was directed by Ridley Scott - shows how serious Apple was about making a statement!",
-                  }
-                ]
-              },
-              {
-                content: "The transition from PowerPC to Intel and now to Apple Silicon is another fascinating chapter in Mac history.",
-                replies: [
-                  {
-                    content: "The M1 launch was particularly impressive - it showed Apple's chip design prowess.",
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            content: "As someone who has been using Macs since the early 90s, this article brings back so many memories. The iMac G3 truly did save Apple - it was a bold design choice that paid off tremendously.",
-            replies: [
-              {
-                content: "Those translucent colored cases were revolutionary at the time. Every other computer was beige!",
-                replies: [
-                  {
-                    content: "And now we're seeing that design influence coming full circle with the colored M1 iMacs.",
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            content: "Great article! Would love to see a follow-up piece about the development of macOS from System 1 through to Sonoma.",
-            replies: [
-              {
-                content: "The evolution of the OS is fascinating - from the original System Software to OS X was a huge leap.",
-                replies: [
-                  {
-                    content: "The Unix foundation of OS X was a game-changer for developers.",
-                  }
-                ]
-              }
-            ]
-          }
-        ];
-
-        // 递归函数来插入评论
-        async function insertComment(comment, parentId = null) {
-          // 随机选择一个用户作为评论作者
-          const randomUser = users[Math.floor(Math.random() * users.length)];
-          
-          const commentResult = await run(
-            'INSERT INTO comments (content, user_id, article_id, parent_id) VALUES (?, ?, ?, ?)',
-            [comment.content, randomUser.id, articleId, parentId]
-          );
-
-          if (comment.replies) {
-            for (const reply of comment.replies) {
-              await insertComment(reply, commentResult.lastID);
+          // 添加更多反应
+          const reactions = ['like', 'love', 'celebrate', 'insightful', 'support'];
+          const users = await db.all('SELECT id FROM users');
+          for (const user of users) {
+            // 每个用户有70%的概率添加反应
+            if (Math.random() < 0.7) {
+              const randomReaction = reactions[Math.floor(Math.random() * reactions.length)];
+              await run(
+                'INSERT INTO article_reactions (article_id, user_id, type) VALUES (?, ?, ?)',
+                [articleId, user.id, randomReaction]
+              );
             }
           }
-        }
 
-        // 插入所有评论
-        for (const comment of comments) {
-          await insertComment(comment);
-        }
-      });
-      
-      console.log('默认文章创建成功');
+          // 添加评论模板池
+          const commentTemplates = {
+            tech: [
+              {
+                main: [
+                  "Excellent analysis! The technical depth really shows your expertise in this area.",
+                  "This is a fascinating perspective on the evolution of technology. Really enjoyed reading it.",
+                  "Great article! The historical context you've provided really helps understand the current state.",
+                  "Very comprehensive overview. I particularly appreciate the technical details you've included.",
+                  "This is exactly the kind of in-depth analysis I've been looking for on this topic.",
+                  "Brilliant piece! The way you've connected different aspects of tech evolution is enlightening.",
+                  "Your insights on this topic are spot-on. Really helped clarify some concepts for me."
+                ],
+                replies: [
+                  "Completely agree with your points. Would love to see more articles like this.",
+                  "You've raised some interesting points. I think this deserves more discussion.",
+                  "This perspective adds a lot to the conversation. Thanks for sharing!",
+                  "Your analysis is quite thorough. I've learned something new today.",
+                  "Really insightful comment. It's great to see such informed discussion.",
+                  "This is a great addition to the main article. Thanks for the detailed explanation."
+                ],
+                deepReplies: [
+                  "That's an excellent point! Hadn't considered that aspect before.",
+                  "Thanks for the additional context. Really helps complete the picture.",
+                  "Your technical knowledge really shines through in this explanation.",
+                  "This kind of detailed discussion is what makes these comments valuable.",
+                  "Appreciate you sharing your expertise on this matter.",
+                  "Very well explained. This adds another layer to the discussion."
+                ]
+              }
+            ],
+            privacy: [
+              {
+                main: [
+                  "Important discussion on privacy concerns in the digital age.",
+                  "The balance between security and privacy is crucial - great analysis.",
+                  "This raises some critical points about data protection.",
+                  "Thoughtful examination of modern surveillance challenges.",
+                  "Really appreciate the balanced perspective on this sensitive topic.",
+                  "The ethical implications discussed here are particularly relevant today."
+                ],
+                replies: [
+                  "Privacy is indeed becoming increasingly important in our connected world.",
+                  "These concerns need more attention in public discourse.",
+                  "The technical safeguards mentioned are crucial for future developments.",
+                  "This kind of awareness is essential for informed decision-making.",
+                  "The regulatory aspects discussed here are particularly interesting."
+                ],
+                deepReplies: [
+                  "Regulation definitely needs to keep pace with technology.",
+                  "User awareness is key to maintaining digital privacy.",
+                  "The technical solutions proposed here are promising.",
+                  "This kind of detailed analysis helps inform better policy.",
+                  "Security and privacy don't have to be mutually exclusive."
+                ]
+              }
+            ]
+          };
+
+          // 随机选择评论函数
+          function getRandomComment(type = 'tech') {
+            const templates = commentTemplates[type];
+            const template = templates[Math.floor(Math.random() * templates.length)];
+            const mainComments = template.main;
+            const replies = template.replies;
+            const deepReplies = template.deepReplies;
+
+            return {
+              content: mainComments[Math.floor(Math.random() * mainComments.length)],
+              replies: Array(Math.floor(Math.random() * 3) + 1).fill(null).map(() => ({
+                content: replies[Math.floor(Math.random() * replies.length)],
+                replies: Array(Math.floor(Math.random() * 2)).fill(null).map(() => ({
+                  content: deepReplies[Math.floor(Math.random() * deepReplies.length)]
+                }))
+              }))
+            };
+          }
+
+          // 在文章创建部分，替换原有的静态评论数组
+          const comments = Array(Math.floor(Math.random() * 3) + 2).fill(null).map(() => 
+            getRandomComment(article.title.toLowerCase().includes('monitoring') ? 'privacy' : 'tech')
+          );
+
+          // 递归函数来插入评论
+          async function insertComment(comment, parentId = null) {
+            // 随机选择一个用户作为评论作者
+            const randomUser = users[Math.floor(Math.random() * users.length)];
+            
+            const commentResult = await run(
+              'INSERT INTO comments (content, user_id, article_id, parent_id) VALUES (?, ?, ?, ?)',
+              [comment.content, randomUser.id, articleId, parentId]
+            );
+
+            if (comment.replies) {
+              for (const reply of comment.replies) {
+                await insertComment(reply, commentResult.lastID);
+              }
+            }
+          }
+
+          // 插入所有评论
+          for (const comment of comments) {
+            await insertComment(comment);
+          }
+        });
+        
+        console.log(`默认文章 "${article.title}" 创建成功`);
+      }
     }
     
     console.log('数据库初始化完成');
