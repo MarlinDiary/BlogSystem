@@ -64,7 +64,7 @@
   }
 
   button:hover {
-    animation: wiggle 0.3s ease-in-out infinite;
+    animation: wiggle 0.2s ease-in-out infinite;
   }
 
   button:hover:active {
