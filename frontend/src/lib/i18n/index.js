@@ -201,6 +201,7 @@ const translations = {
     
     // 时间相关
     'time.justNow': '刚刚',
+    'time.secondsAgo': '{seconds} 秒前',
     'time.minutesAgo': '{minutes} 分钟前',
     'time.hoursAgo': '{hours} 小时前',
     'time.daysAgo': '{days} 天前',
@@ -507,6 +508,7 @@ const translations = {
     
     // Time related
     'time.justNow': 'Just now',
+    'time.secondsAgo': '{seconds} seconds ago',
     'time.minutesAgo': '{minutes} minutes ago',
     'time.hoursAgo': '{hours} hours ago',
     'time.daysAgo': '{days} days ago',

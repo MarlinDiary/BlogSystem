@@ -151,17 +151,32 @@
   }
 
   function formatRelativeTime(dateStr) {
-    const date = new Date(dateStr);
+    // 将服务器的 UTC 时间转换为本地时间
+    const utcDate = new Date(dateStr);
+    const localDate = new Date(utcDate.getTime() - (utcDate.getTimezoneOffset() * 60000));
     const now = new Date();
-    const diff = now.getTime() - date.getTime();
     
-    const seconds = Math.floor(diff / 1000);
+    // 计算时间差（毫秒）
+    const diff = now.getTime() - localDate.getTime();
+    
+    // 添加调试日志
+    console.log({
+      utc_time: utcDate.toISOString(),
+      local_time: localDate.toLocaleString(),
+      current_time: now.toLocaleString(),
+      timezone_offset: utcDate.getTimezoneOffset(),
+      diff_ms: diff
+    });
+    
+    const seconds = Math.floor(Math.abs(diff) / 1000);
     const minutes = Math.floor(seconds / 60);
     const hours = Math.floor(minutes / 60);
     const days = Math.floor(hours / 24);
 
-    if (seconds < 60) {
+    if (seconds < 30) {
       return $t('time.justNow');
+    } else if (seconds < 60) {
+      return $t('time.secondsAgo', { seconds });
     } else if (minutes < 60) {
       return $t('time.minutesAgo', { minutes });
     } else if (hours < 24) {
