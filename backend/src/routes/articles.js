@@ -39,7 +39,7 @@ router.get('/', async (req, res, next) => {
     // 构建基础查询
     let sql = `
       SELECT 
-        a.id, a.title, a.content, a.image_url as imageUrl, 
+        a.id, a.title, SUBSTRING(a.content, 1, 200) as content, a.image_url as imageUrl, 
         a.status, a.view_count as viewCount, 
         a.created_at as createdAt, a.updated_at as updatedAt,
         u.id as author_id, u.username as author_username, 
