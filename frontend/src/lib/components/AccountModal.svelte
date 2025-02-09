@@ -32,6 +32,7 @@
   };
   
   let tempEditValue = '';
+  let editingRef;
   
   const USERNAME_REGEX = /^[a-zA-Z0-9_]{3,20}$/;
   const REALNAME_REGEX = /^[\u4e00-\u9fa5a-zA-Z0-9_\s]{2,20}$/;
@@ -600,6 +601,20 @@
       console.log('Failed to toggle comment visibility:', err);
     }
   }
+
+  function handleClickOutside(event) {
+    if (editingField && editingRef && !editingRef.contains(event.target)) {
+      cancelEditing();
+    }
+  }
+
+  onMount(() => {
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.body.style.overflow = '';
+    };
+  });
 </script>
 
 {#if isOpen}
@@ -836,7 +851,7 @@
                     </div>
                     <div class="flex-1">
                       {#if editingField === 'username'}
-                        <div class="flex items-center space-x-2">
+                        <div class="flex items-center space-x-2" bind:this={editingRef}>
                           <input
                             type="text"
                             bind:value={tempEditValue}
@@ -877,7 +892,7 @@
                     </div>
                     <div class="flex-1">
                       {#if editingField === 'realName'}
-                        <div class="flex items-center space-x-2">
+                        <div class="flex items-center space-x-2" bind:this={editingRef}>
                           <input
                             type="text"
                             bind:value={tempEditValue}
@@ -922,15 +937,16 @@
                     </div>
                     <div class="flex-1">
                       {#if editingField === 'dateOfBirth'}
-                        <div class="flex items-center space-x-2">
+                        <div class="flex items-center space-x-2" bind:this={editingRef}>
                           <input
-                            id="birth-input"
                             type="text"
                             bind:value={tempEditValue}
+                            data-field="dateOfBirth"
                             placeholder="YYYY-MM-DD"
                             pattern="\d{4}-\d{2}-\d{2}"
                             maxlength="10"
-                            on:keydown={(e) => {
+                            on:keydown={e => {
+                              handleKeydown(e);
                               // 允许删除键和退格键
                               if (e.key === 'Backspace' || e.key === 'Delete') {
                                 return;
@@ -960,12 +976,11 @@
                               tempEditValue = value;
                               validationState.dateOfBirth = validateField('dateOfBirth', value);
                             }}
-                            class="mt-1 block w-full rounded-md border-zinc-300 bg-white/50 shadow-sm focus:border-zinc-500 focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800/50 dark:text-zinc-100 dark:focus:border-zinc-400 dark:focus:ring-zinc-400 {validationState.dateOfBirth ? '' : 'border-red-500 focus:border-red-500 focus:ring-red-500'}"
-                            required
+                            class="block flex-1 h-[38px] rounded-md border-zinc-300 bg-white/50 shadow-sm focus:border-zinc-500 focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800/50 dark:text-zinc-100 {!validationState.dateOfBirth ? 'border-red-300' : ''}"
                           />
                           <button
                             type="button"
-                            class="p-1 text-zinc-900 hover:text-zinc-700 dark:text-zinc-100 dark:hover:text-zinc-300"
+                            class="p-1 {validationState.dateOfBirth ? 'text-zinc-900 hover:text-zinc-700 dark:text-zinc-100 dark:hover:text-zinc-300' : 'text-zinc-400 cursor-not-allowed'}"
                             on:click={() => validationState.dateOfBirth && saveField('dateOfBirth')}
                             disabled={!validationState.dateOfBirth}
                             aria-label={$t('common.save')}
@@ -997,7 +1012,7 @@
                     </div>
                     <div class="flex-1">
                       {#if editingField === 'bio'}
-                        <div class="flex items-center space-x-2">
+                        <div class="flex items-center space-x-2" bind:this={editingRef}>
                           <input
                             type="text"
                             bind:value={tempEditValue}
