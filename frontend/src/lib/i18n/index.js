@@ -80,6 +80,10 @@ const translations = {
     'validation.passwordRequireNumber': '包含数字',
     'validation.invalidEmail': '邮箱格式无效',
     'validation.invalidDate': '日期格式无效',
+    'validation.usernameLength': '6-20个字符',
+    'validation.usernameFormat': '仅支持字母、数字和下划线',
+    'validation.realNameMinLength': '至少2个字符',
+    'validation.dateFormat': '格式：YYYY-MM-DD',
     
     // 文章相关
     'article.title': '标题',
@@ -185,6 +189,7 @@ const translations = {
     'log.generateArticleError': '生成文章失败',
     'log.publishingArticle': '正在发布文章',
     'log.publishError': '发布文章失败',
+    'log.checkUsernameError': '检查用户名失败',
     
     // 时间相关
     'time.justNow': '刚刚',
@@ -276,8 +281,8 @@ const translations = {
     'account.deleteArticlesConfirm': '同时删除我的所有文章',
     'account.deleteCommentsConfirm': '同时删除我的所有评论',
     'account.deleting': '删除中...',
-    'account.noAccount': 'Don\'t have an account?',
-    'account.hasAccount': 'Already have an account?',
+    'account.noAccount': '还没有账号？',
+    'account.hasAccount': '已经有账号了？',
     'account.avatar': '头像',
     'account.avatarTip': '推荐使用正方形图片，支持 PNG、JPG 格式，大小不超过 2 MB',
     
@@ -367,6 +372,10 @@ const translations = {
     'validation.passwordRequireNumber': 'Include numbers',
     'validation.invalidEmail': 'Invalid email format',
     'validation.invalidDate': 'Invalid date format',
+    'validation.usernameLength': '6-20 characters',
+    'validation.usernameFormat': 'Letters, numbers, underscore only',
+    'validation.realNameMinLength': 'At least 2 characters',
+    'validation.dateFormat': 'Format: YYYY-MM-DD',
     
     // Article related
     'article.title': 'Title',
@@ -472,6 +481,7 @@ const translations = {
     'log.generateArticleError': 'Failed to generate article',
     'log.publishingArticle': 'Publishing article',
     'log.publishError': 'Failed to publish article',
+    'log.checkUsernameError': 'Failed to check username',
     
     // Time related
     'time.justNow': 'Just now',

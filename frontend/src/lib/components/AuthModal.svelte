@@ -51,7 +51,7 @@
             const response = await authApi.checkUsername(value);
             usernameExists = !response.available;
         } catch (err) {
-            console.error('检查用户名失败:', err);
+            console.error($t('log.checkUsernameError'), err);
             usernameExists = true; // 检查失败时假设用户名不可用
         } finally {
             usernameChecking = false;
@@ -301,11 +301,11 @@
                                     <span class={username && (username.length >= 6 && username.length <= 20) ? 'text-green-600 dark:text-green-400' : 'text-zinc-400 dark:text-zinc-500'}>
                                         {username && (username.length >= 6 && username.length <= 20) ? '✓' : '•'}
                                     </span>
-                                    <span class={username && (username.length < 6 || username.length > 20) ? 'text-red-500' : ''}>6-20 characters</span>
+                                    <span class={username && (username.length < 6 || username.length > 20) ? 'text-red-500' : ''}>{$t('validation.usernameLength')}</span>
                                     <span class={username && /^[a-zA-Z0-9_]*$/.test(username) ? 'text-green-600 dark:text-green-400' : 'text-zinc-400 dark:text-zinc-500'}>
                                         {username && /^[a-zA-Z0-9_]*$/.test(username) ? '✓' : '•'}
                                     </span>
-                                    <span class={username && !/^[a-zA-Z0-9_]*$/.test(username) ? 'text-red-500' : ''}>letters, numbers, underscore only</span>
+                                    <span class={username && !/^[a-zA-Z0-9_]*$/.test(username) ? 'text-red-500' : ''}>{$t('validation.usernameFormat')}</span>
                                     {#if username}
                                         {#if !isValidUsername(username)}
                                             <span class="text-red-500">{$t('validation.invalidFormat')}</span>
@@ -398,7 +398,7 @@
                                     <span class={realName && realName.length >= 2 ? 'text-green-600 dark:text-green-400' : 'text-zinc-400 dark:text-zinc-500'}>
                                         {realName && realName.length >= 2 ? '✓' : '•'}
                                     </span>
-                                    <span class={realName && realName.length < 2 ? 'text-red-500' : ''}>at least 2 characters</span>
+                                    <span class={realName && realName.length < 2 ? 'text-red-500' : ''}>{$t('validation.realNameMinLength')}</span>
                                 </div>
                             </div>
                             
@@ -440,7 +440,7 @@
                                     <span class={dateOfBirth && /^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth) ? 'text-green-600 dark:text-green-400' : 'text-zinc-400 dark:text-zinc-500'}>
                                         {dateOfBirth && /^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth) ? '✓' : '•'}
                                     </span>
-                                    <span>Format: YYYY-MM-DD</span>
+                                    <span>{$t('validation.dateFormat')}</span>
                                     {#if dateOfBirth && !/^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth)}
                                         <span class="text-red-500">{$t('validation.invalidFormat')}</span>
                                     {:else if dateOfBirth && new Date(dateOfBirth) > new Date()}
