@@ -122,6 +122,7 @@ const translations = {
     'article.sortByReactions': '按反应数排序',
     'article.editTitle': '编辑文章 - {title}',
     'article.newArticle': '新建文章',
+    'article.noMore': '没有更多文章了',
     
     // 用户相关
     'user.username': '用户名',
@@ -429,6 +430,7 @@ const translations = {
     'article.sortByReactions': 'Sort by Reactions',
     'article.editTitle': 'Edit Article - {title}',
     'article.newArticle': 'New Article',
+    'article.noMore': 'No more articles',
     
     // User related
     'user.username': 'Username',

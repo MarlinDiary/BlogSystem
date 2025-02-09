@@ -16,6 +16,12 @@
   let observer;
   let colorThief;
   let colorCache = new Map();
+  
+  // 添加分页相关状态
+  let currentPage = 1;
+  let hasMore = true;
+  let pageSize = 10;
+  let loadingMore = false;
 
   // 监听排序变化并保存到 localStorage
   $: if (typeof window !== 'undefined' && sortBy) {
@@ -51,11 +57,19 @@
     }
   });
 
-  async function fetchArticles() {
-    loading = true;
+  async function fetchArticles(loadMore = false) {
+    if (!loadMore) {
+      loading = true;
+      currentPage = 1;
+      articles = [];
+    } else {
+      if (loadingMore || !hasMore) return;
+      loadingMore = true;
+    }
+
     error = '';
     try {
-      const response = await fetch(`${API_BASE}/api/articles?sort=${sortBy}`);
+      const response = await fetch(`${API_BASE}/api/articles?sort=${sortBy}&page=${currentPage}&pageSize=${pageSize}`);
       const contentType = response.headers.get('content-type');
       
       if (!response.ok) {
@@ -67,30 +81,48 @@
       }
       
       const data = await response.json();
-      // 初始化所有文章为可见状态
-      articles = data.items.map(article => ({
+      
+      // 处理新文章数据
+      const newArticles = data.items.map(article => ({
         ...article,
         isVisible: true,
-        imagePreloaded: false // 添加预加载标记
+        imagePreloaded: false
       }));
+      
+      // 更新文章列表
+      if (loadMore) {
+        articles = [...articles, ...newArticles];
+      } else {
+        articles = newArticles;
+      }
+      
+      // 更新分页状态
+      hasMore = articles.length < data.total;
+      if (hasMore) {
+        currentPage++;
+      }
       
       // 更新可见文章列表
       visibleArticles = articles;
       
-      // 立即预加载前面的图片
-      preloadNextImages(articles, 0);
+      // 预加载图片
+      const startIndex = loadMore ? articles.length - newArticles.length : 0;
+      preloadNextImages(articles, startIndex);
       
-      // 使用 requestIdleCallback 预加载更多图片
       if (window.requestIdleCallback) {
         requestIdleCallback(() => {
-          preloadNextImages(articles, 10); // 预加载第二批图片
+          preloadNextImages(articles, startIndex + 10);
         });
       }
     } catch (e) {
       console.error('Error fetching article list:', e);
       error = e instanceof Error ? e.message : $t('error.fetchArticlesFailed');
     } finally {
-      loading = false;
+      if (loadMore) {
+        loadingMore = false;
+      } else {
+        loading = false;
+      }
     }
   }
 
@@ -111,6 +143,11 @@
             const currentIndex = articles.findIndex(a => a.id === articleId);
             if (currentIndex !== -1) {
               preloadNextImages(articles, currentIndex);
+              
+              // 如果是最后几篇文章，加载更多
+              if (currentIndex >= articles.length - 5) {
+                fetchArticles(true);
+              }
             }
           }
         });
@@ -134,7 +171,7 @@
       },
       {
         root: null,
-        rootMargin: '500px', // 增大预加载区域到 500px
+        rootMargin: '500px',
         threshold: [0, 0.1, 0.5, 1],
       }
     );
@@ -537,5 +574,11 @@
         </article>
       {/each}
     </div>
+
+    {#if loadingMore}
+      <div class="flex justify-center items-center py-8">
+        <div class="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-lime-500"></div>
+      </div>
+    {/if}
   {/if}
 </div>
