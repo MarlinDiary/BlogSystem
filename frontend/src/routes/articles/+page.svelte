@@ -82,8 +82,22 @@
 
   // 生成卡片样式
   function getCardStyle(article) {
-    if (!article.dominantColor) return '';
-    return `--card-color: ${article.dominantColor}`;
+    let style = [];
+    if (article.dominantColor) {
+      style.push(`--card-color: ${article.dominantColor}`);
+    }
+    return style.join(';');
+  }
+
+  // 生成随机高度
+  function getRandomHeight(article) {
+    // 使用文章ID作为种子来保持刷新前后高度一致
+    const seed = parseInt(article.id, 16);
+    const rand = Math.abs(Math.sin(seed)) * 100; // 0-100之间的随机数
+    const minHeight = 200;
+    const maxHeight = 400;
+    const height = minHeight + (rand * (maxHeight - minHeight) / 100);
+    return `${height}px`;
   }
 
   onMount(() => {
@@ -99,6 +113,8 @@
     border: none;
     overflow: hidden;
     padding: 0 0 1.5rem 0;
+    break-inside: avoid;
+    margin-bottom: 1.5rem;
   }
 
   .article-card:hover {
@@ -113,7 +129,39 @@
   .article-card .image-container {
     margin-bottom: 1.5rem;
     overflow: hidden;
-    height: clamp(200px, 30vh, 280px);
+    transition: height 0.3s ease;
+  }
+
+  @media (min-width: 1280px) {
+    .articles-container {
+      column-count: 3;
+      column-gap: 1.5rem;
+    }
+    .article-card {
+      margin-bottom: 1.5rem;
+    }
+  }
+
+  @media (min-width: 768px) and (max-width: 1279px) {
+    .articles-container {
+      column-count: 2;
+      column-gap: 1.5rem;
+    }
+    .article-card {
+      margin-bottom: 1.5rem;
+    }
+  }
+
+  @media (max-width: 767px) {
+    .articles-container {
+      column-count: 1;
+    }
+    .article-card {
+      margin-bottom: 1.5rem;
+    }
+    .article-card .image-container {
+      height: 280px !important;
+    }
   }
 
   .article-card .content {
@@ -131,18 +179,6 @@
   .article-card .excerpt {
     color: white;
     opacity: 0.6;
-  }
-
-  @media (max-width: 1280px) {
-    .article-card .image-container {
-      height: clamp(200px, 30vh, 280px);
-    }
-  }
-
-  @media (max-width: 768px) {
-    .article-card .image-container {
-      height: clamp(200px, 30vh, 280px);
-    }
   }
 </style>
 
@@ -209,14 +245,15 @@
   {#if loading}
     <Loading />
   {:else}
-    <div class="grid gap-4 md:gap-6 xl:gap-8 grid-cols-1 md:grid-cols-2 xl:grid-cols-3 max-w-screen-md md:max-w-screen-xl xl:max-w-none mx-auto">
+    <div class="articles-container">
       {#each articles as article}
         <article 
           class="article-card group flex flex-col rounded-2xl transition-all duration-300 hover:shadow-xl relative"
           style={getCardStyle(article)}
         >
           {#if article.imageUrl}
-            <div class="w-full h-48 relative image-container">
+            <div class="relative image-container w-full"
+                 style="height: {getRandomHeight(article)}">
               <img
                 src={getImageUrl(article.imageUrl)}
                 alt={article.title}
