@@ -760,6 +760,7 @@
                    currentSection === 'articles' ? $t('account.articles') : 
                    currentSection === 'comments' ? $t('account.comments') : 
                    currentSection === 'security' ? $t('account.security') : 
+                   currentSection === 'settings' ? $t('account.generalSettings') :
                    $t('account.danger')}
                 </h3>
               </div>
