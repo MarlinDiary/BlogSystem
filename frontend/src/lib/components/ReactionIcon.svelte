@@ -55,4 +55,19 @@
   button.active:hover {
     @apply scale-125;
   }
+
+  @keyframes wiggle {
+    0% { transform: rotate(0deg) scale(1.1); }
+    25% { transform: rotate(-5deg) scale(1.1); }
+    75% { transform: rotate(5deg) scale(1.1); }
+    100% { transform: rotate(0deg) scale(1.1); }
+  }
+
+  button:hover {
+    animation: wiggle 0.3s ease-in-out infinite;
+  }
+
+  button:hover:active {
+    animation: none;
+  }
 </style> 
