@@ -16,6 +16,8 @@
   import { t, locale } from '$lib/i18n';
   import { setPageTitle } from '$lib/utils/title';
   import Loading from '$lib/components/Loading.svelte';
+  import { auth } from '$lib/stores/auth';
+  import AuthModal from '$lib/components/AuthModal.svelte';
   
   const lowlight = createLowlight(common);
   const API_URL = env.PUBLIC_API_URL;
@@ -38,6 +40,9 @@
   let isDirty = false;
   const MAX_TITLE_LENGTH = 50;
   let isGeneratingArticle = false;
+  let showAuthModal = false;
+  let authMode = 'login';
+  let hasShownAuthModal = false;
   
   $: titleLength = title.length;
   $: isValidTitle = titleLength <= MAX_TITLE_LENGTH;
@@ -386,6 +391,17 @@
       error = err instanceof Error ? err.message : $t('error.uploadFailed');
     }
   }
+
+  // 检查用户是否已登录的函数
+  function checkAuth(e) {
+    if (!$auth.isAuthenticated && !hasShownAuthModal) {
+      e?.preventDefault();
+      showAuthModal = true;
+      hasShownAuthModal = true;
+      return false;
+    }
+    return $auth.isAuthenticated;
+  }
 </script>
 
 <style lang="postcss">
@@ -626,6 +642,16 @@
 
 <div class="mx-auto max-w-4xl px-4 py-12">
   <div class="space-y-12">
+    <!-- 添加 AuthModal 组件 -->
+    <AuthModal 
+      isOpen={showAuthModal}
+      mode={authMode}
+      on:close={() => {
+        showAuthModal = false;
+        hasShownAuthModal = false;
+      }}
+    />
+    
     <div class="text-center space-y-4">
       <h1 class="text-5xl font-extrabold tracking-tight text-zinc-800 dark:text-zinc-100 bg-clip-text text-transparent bg-gradient-to-r from-zinc-800 to-zinc-600 dark:from-zinc-100 dark:to-zinc-300">
         {$t('article.createNew')}
@@ -665,6 +691,7 @@
           type="text"
           bind:value={title}
           maxlength={MAX_TITLE_LENGTH}
+          on:input={(e) => checkAuth(e)}
           class="w-full rounded-xl border border-zinc-200 bg-white/80 px-4 py-3 text-lg text-zinc-800 shadow-sm backdrop-blur-sm transition-all duration-200 ease-in-out focus:border-lime-500 focus:ring-2 focus:ring-lime-500/20 hover:border-zinc-300 dark:border-zinc-700/50 dark:bg-zinc-800/80 dark:text-zinc-200 dark:focus:border-lime-400 dark:focus:ring-lime-400/20 dark:hover:border-zinc-600 {!isValidTitle ? 'border-red-300 dark:border-red-700' : ''}"
           placeholder={$t('article.titlePlaceholder')}
         />
@@ -686,15 +713,38 @@
                   class="h-full w-full object-cover rounded-xl shadow-sm transition-all duration-300 group-hover:scale-[1.02] group-hover:shadow-md" 
                 />
                 <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-all duration-300 rounded-xl flex items-center justify-center backdrop-blur-sm">
-                  <label for="cover-image" class="cursor-pointer text-white text-sm font-medium px-4 py-2 bg-white/20 rounded-lg hover:bg-white/30 transition-colors">
+                  <button 
+                    type="button"
+                    class="cursor-pointer text-white text-sm font-medium px-4 py-2 bg-white/20 rounded-lg hover:bg-white/30 transition-colors"
+                    on:click={(e) => {
+                      if (checkAuth(e)) {
+                        document.getElementById('cover-image').click();
+                      }
+                    }}
+                    on:keydown={(e) => {
+                      if (e.key === 'Enter' && checkAuth(e)) {
+                        document.getElementById('cover-image').click();
+                      }
+                    }}
+                  >
                     {$t('article.changeCover')}
-                  </label>
+                  </button>
                 </div>
               </div>
             {:else}
-              <label 
-                for="cover-image" 
+              <button 
+                type="button"
                 class="cursor-pointer flex flex-col items-center justify-center h-full w-full rounded-xl border-2 border-dashed border-zinc-200 bg-white/50 px-4 py-4 text-center shadow-sm backdrop-blur-sm transition-all duration-300 hover:border-lime-500 hover:bg-lime-50/50 dark:border-zinc-700/50 dark:bg-zinc-800/50 dark:hover:border-lime-400 dark:hover:bg-lime-950/50"
+                on:click={(e) => {
+                  if (checkAuth(e)) {
+                    document.getElementById('cover-image').click();
+                  }
+                }}
+                on:keydown={(e) => {
+                  if (e.key === 'Enter' && checkAuth(e)) {
+                    document.getElementById('cover-image').click();
+                  }
+                }}
               >
                 <svg class="mx-auto h-12 w-12 text-zinc-400 dark:text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
@@ -703,7 +753,7 @@
                   <span>{$t('article.uploadCover')}</span>
                 </div>
                 <p class="mt-1 text-xs text-zinc-500 dark:text-zinc-500">{$t('article.dragImageTip')}</p>
-              </label>
+              </button>
             {/if}
             <input
               id="cover-image"
@@ -725,8 +775,8 @@
             id="tag-area"
             type="button"
             class="h-[240px] w-full rounded-xl border-2 border-dashed border-zinc-200 bg-white/50 dark:border-zinc-700/50 dark:bg-zinc-800/50 backdrop-blur-sm transition-all duration-300 hover:border-lime-500 hover:bg-lime-50/50 dark:hover:border-lime-400 dark:hover:bg-lime-950/50 shadow-sm overflow-auto text-left"
-            on:click={() => !isGeneratingTags && title && generateTags()}
-            on:keydown={(e) => e.key === 'Enter' && !isGeneratingTags && title && generateTags()}
+            on:click={(e) => !isGeneratingTags && title && checkAuth(e) && generateTags()}
+            on:keydown={(e) => e.key === 'Enter' && !isGeneratingTags && title && checkAuth(e) && generateTags()}
             disabled={isGeneratingTags || !title}
             aria-label={$t('article.generateTags')}
           >
@@ -786,7 +836,7 @@
           <button
             class="toolbar-button"
             class:is-active={editor?.isActive('heading', { level: 1 })}
-            on:click={() => editor?.chain().focus().toggleHeading({ level: 1 }).run()}
+            on:click={(e) => checkAuth(e) && editor?.chain().focus().toggleHeading({ level: 1 }).run()}
             title={$t('editor.h1')}
             aria-label={$t('editor.h1')}
           >
@@ -795,7 +845,7 @@
           <button
             class="toolbar-button"
             class:is-active={editor?.isActive('heading', { level: 2 })}
-            on:click={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}
+            on:click={(e) => checkAuth(e) && editor?.chain().focus().toggleHeading({ level: 2 }).run()}
             title={$t('editor.h2')}
             aria-label={$t('editor.h2')}
           >
@@ -804,7 +854,7 @@
           <button
             class="toolbar-button"
             class:is-active={editor?.isActive('bold')}
-            on:click={() => editor?.chain().focus().toggleBold().run()}
+            on:click={(e) => checkAuth(e) && editor?.chain().focus().toggleBold().run()}
             title={$t('editor.bold')}
             aria-label={$t('editor.bold')}
           >
@@ -813,7 +863,7 @@
           <button
             class="toolbar-button"
             class:is-active={editor?.isActive('italic')}
-            on:click={() => editor?.chain().focus().toggleItalic().run()}
+            on:click={(e) => checkAuth(e) && editor?.chain().focus().toggleItalic().run()}
             title={$t('editor.italic')}
             aria-label={$t('editor.italic')}
           >
@@ -822,7 +872,7 @@
           <button
             class="toolbar-button"
             class:is-active={editor?.isActive('underline')}
-            on:click={() => editor?.chain().focus().toggleUnderline().run()}
+            on:click={(e) => checkAuth(e) && editor?.chain().focus().toggleUnderline().run()}
             title={$t('editor.underline')}
             aria-label={$t('editor.underline')}
           >
@@ -830,7 +880,7 @@
           </button>
           <button
             class="toolbar-button"
-            on:click={handleEditorImageUpload}
+            on:click={(e) => checkAuth(e) && handleEditorImageUpload()}
             disabled={imageUploading}
             title={$t('editor.image')}
             aria-label={$t('editor.image')}
@@ -842,7 +892,7 @@
           <button
             class="toolbar-button"
             class:is-active={editor?.isActive('bulletList')}
-            on:click={() => editor?.chain().focus().toggleBulletList().run()}
+            on:click={(e) => checkAuth(e) && editor?.chain().focus().toggleBulletList().run()}
             title={$t('editor.bulletList')}
             aria-label={$t('editor.bulletList')}
           >
@@ -853,7 +903,7 @@
           <button
             class="toolbar-button"
             class:is-active={editor?.isActive('codeBlock')}
-            on:click={() => editor?.chain().focus().toggleCodeBlock().run()}
+            on:click={(e) => checkAuth(e) && editor?.chain().focus().toggleCodeBlock().run()}
             title={$t('editor.codeBlock')}
             aria-label={$t('editor.codeBlock')}
           >
@@ -864,7 +914,7 @@
           <!-- 修改AI生成按钮 -->
           <button
             class="toolbar-button flex items-center justify-center {isGeneratingArticle ? 'is-active' : ''}"
-            on:click={generateArticle}
+            on:click={(e) => checkAuth(e) && generateArticle()}
             disabled={isGeneratingArticle || !title}
             title={$t('editor.aiWriting')}
             aria-label={$t('editor.aiWriting')}
@@ -907,7 +957,7 @@
           {/if}
         </div>
         <button
-          on:click={handlePublish}
+          on:click={(e) => checkAuth(e) && handlePublish()}
           disabled={loading || !isDirty || !title || !content || !imageUrl || tags.length === 0}
           class="rounded-xl bg-lime-600 dark:bg-lime-500 backdrop-blur-sm px-8 py-3 text-base font-medium text-white shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-1 active:translate-y-0 focus:outline-none focus:ring-2 focus:ring-lime-500 focus:ring-offset-2 dark:focus:ring-offset-zinc-900 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none hover:bg-lime-700 dark:hover:bg-lime-600 border border-lime-500/20 dark:border-lime-400/20"
         >
