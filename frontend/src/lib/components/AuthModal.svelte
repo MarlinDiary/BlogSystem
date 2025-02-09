@@ -233,24 +233,13 @@
         <div class="flex min-h-full items-center justify-center p-4">
             <!-- 背景遮罩按钮 - 用于处理点击背景关闭 -->
             <button
-                class="fixed inset-0 w-full h-full bg-transparent cursor-default"
+                class="fixed inset-0 w-full h-full bg-transparent cursor-pointer"
                 on:click={close}
                 aria-label="关闭对话框"
             ></button>
             <!-- 卡片 -->
-            <div class="relative bg-white/70 dark:bg-zinc-800/70 backdrop-blur-[2px] rounded-lg shadow-2xl shadow-zinc-500/20 dark:shadow-zinc-900/30 w-full max-w-md {isClosing ? 'modal-closing' : 'modal-open'}">
+            <div class="relative bg-white/70 dark:bg-zinc-800/70 backdrop-blur-[2px] rounded-lg shadow-2xl shadow-zinc-500/20 dark:shadow-zinc-900/30 w-full max-w-md max-h-[90vh] overflow-y-auto {isClosing ? 'modal-closing' : 'modal-open'}">
                 <div class="p-8">
-                    <!-- 关闭按钮 -->
-                    <button 
-                        class="absolute top-4 right-4 text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors"
-                        on:click={close}
-                        aria-label={$t('account.closeDialog')}
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </button>
-                    
                     <!-- 标题 -->
                     <h2 id="modal-title" class="text-2xl font-bold text-center mb-6 text-zinc-800 dark:text-zinc-100">
                         {mode === 'login' ? $t('common.login') : $t('common.register')}
@@ -298,23 +287,25 @@
                             </div>
                             {#if mode === 'register'}
                                 <div class="mt-1 text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-2">
-                                    <span class={username && (username.length >= 6 && username.length <= 20) ? 'text-green-600 dark:text-green-400' : 'text-zinc-400 dark:text-zinc-500'}>
-                                        {username && (username.length >= 6 && username.length <= 20) ? '✓' : '•'}
-                                    </span>
-                                    <span class={username && (username.length < 6 || username.length > 20) ? 'text-red-500' : ''}>{$t('validation.usernameLength')}</span>
-                                    <span class={username && /^[a-zA-Z0-9_]*$/.test(username) ? 'text-green-600 dark:text-green-400' : 'text-zinc-400 dark:text-zinc-500'}>
-                                        {username && /^[a-zA-Z0-9_]*$/.test(username) ? '✓' : '•'}
-                                    </span>
-                                    <span class={username && !/^[a-zA-Z0-9_]*$/.test(username) ? 'text-red-500' : ''}>{$t('validation.usernameFormat')}</span>
-                                    {#if username}
-                                        {#if !isValidUsername(username)}
-                                            <span class="text-red-500">{$t('validation.invalidFormat')}</span>
-                                        {:else if usernameChecking}
+                                    {#if !isValidUsername(username)}
+                                        <span class={username && (username.length >= 6 && username.length <= 20) ? 'text-green-600 dark:text-green-400' : 'text-zinc-400 dark:text-zinc-500'}>
+                                            {username && (username.length >= 6 && username.length <= 20) ? '✓' : '•'}
+                                        </span>
+                                        <span class={username && (username.length < 6 || username.length > 20) ? 'text-red-500' : ''}>{$t('validation.usernameLength')}</span>
+                                        <span class={username && /^[a-zA-Z0-9_]*$/.test(username) ? 'text-green-600 dark:text-green-400' : 'text-zinc-400 dark:text-zinc-500'}>
+                                            {username && /^[a-zA-Z0-9_]*$/.test(username) ? '✓' : '•'}
+                                        </span>
+                                        <span class={username && !/^[a-zA-Z0-9_]*$/.test(username) ? 'text-red-500' : ''}>{$t('validation.usernameFormat')}</span>
+                                    {:else if username}
+                                        {#if usernameChecking}
                                             <svg class="animate-spin h-3 w-3 text-zinc-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                             </svg>
                                         {:else}
+                                            <span class={usernameExists ? 'text-red-500' : 'text-green-600 dark:text-green-400'}>
+                                                {usernameExists ? '✗' : '✓'}
+                                            </span>
                                             <span class={usernameExists ? 'text-red-500' : 'text-green-600 dark:text-green-400'}>
                                                 {usernameExists ? $t('validation.usernameExists') : $t('validation.usernameAvailable')}
                                             </span>
@@ -449,12 +440,12 @@
                                 </div>
                             </div>
                             
-                            <div>
+                            <div class="hidden md:block">
                                 <label for="bio-input" class="block text-sm font-medium text-zinc-700 dark:text-zinc-300">{$t('user.bio')}</label>
                                 <textarea
                                     id="bio-input"
                                     bind:value={bio}
-                                    class="mt-1 block w-full rounded-md border-zinc-300 bg-white/50 shadow-sm focus:border-zinc-500 focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800/50 dark:text-zinc-100 dark:focus:border-zinc-400 dark:focus:ring-zinc-400 resize-none"
+                                    class="mt-1 w-full rounded-md border-zinc-300 bg-white/50 shadow-sm focus:border-zinc-500 focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800/50 dark:text-zinc-100 dark:focus:border-zinc-400 dark:focus:ring-zinc-400 resize-none"
                                     rows="3"
                                 ></textarea>
                             </div>
