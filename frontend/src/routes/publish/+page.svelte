@@ -638,6 +638,23 @@
     height: 100%;
     align-content: flex-start;
   }
+
+  /* 添加移动端适配样式 */
+  @media (max-width: 768px) {
+    .validation-hints {
+      display: none;
+    }
+    
+    .publish-button-container {
+      justify-content: center;
+    }
+    
+    .publish-button {
+      width: 100%;
+      max-width: 320px;
+      justify-content: center;
+    }
+  }
 </style>
 
 <div class="mx-auto max-w-4xl px-4 py-12">
@@ -698,7 +715,7 @@
       </div>
       
       <!-- 封面和标签区域 -->
-      <div class="grid grid-cols-2 gap-6">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <!-- 封面图片上传 -->
         <div>
           <label for="cover-image" class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
@@ -938,8 +955,8 @@
       </div>
       
       <!-- 发布按钮 -->
-      <div class="flex items-center justify-between pt-6">
-        <div class="text-sm text-zinc-500 dark:text-zinc-400">
+      <div class="flex items-center justify-between pt-6 publish-button-container">
+        <div class="text-sm text-zinc-500 dark:text-zinc-400 validation-hints">
           {#if !title}
             <span class="inline-flex relative"><span class="animate-ping absolute inline-flex h-2 w-2 rounded-full bg-red-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span></span>
             <span class="ml-2">{$t('validation.titleRequired')}</span>
@@ -959,15 +976,15 @@
         <button
           on:click={(e) => checkAuth(e) && handlePublish()}
           disabled={loading || !isDirty || !title || !content || !imageUrl || tags.length === 0}
-          class="rounded-xl bg-lime-600 dark:bg-lime-500 backdrop-blur-sm px-8 py-3 text-base font-medium text-white shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-1 active:translate-y-0 focus:outline-none focus:ring-2 focus:ring-lime-500 focus:ring-offset-2 dark:focus:ring-offset-zinc-900 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none hover:bg-lime-700 dark:hover:bg-lime-600 border border-lime-500/20 dark:border-lime-400/20"
+          class="publish-button rounded-xl bg-lime-600 dark:bg-lime-500 backdrop-blur-sm px-8 py-3 text-base font-medium text-white shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-1 active:translate-y-0 focus:outline-none focus:ring-2 focus:ring-lime-500 focus:ring-offset-2 dark:focus:ring-offset-zinc-900 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none hover:bg-lime-700 dark:hover:bg-lime-600 border border-lime-500/20 dark:border-lime-400/20"
         >
           {#if loading}
-            <div class="flex items-center gap-2">
+            <div class="flex items-center justify-center w-full gap-2">
               <Loading size="sm" color="white" />
               <span>{$t('common.processing')}</span>
             </div>
           {:else}
-            <div class="flex items-center gap-2">
+            <div class="flex items-center justify-center w-full gap-2">
               <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
               </svg>
