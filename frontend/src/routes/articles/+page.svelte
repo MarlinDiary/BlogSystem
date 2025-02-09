@@ -135,13 +135,13 @@
 
   @media (max-width: 1280px) {
     .article-card .image-container {
-      height: clamp(180px, 25vh, 240px);
+      height: clamp(200px, 30vh, 280px);
     }
   }
 
   @media (max-width: 768px) {
     .article-card .image-container {
-      height: clamp(160px, 20vh, 200px);
+      height: clamp(200px, 30vh, 280px);
     }
   }
 </style>
