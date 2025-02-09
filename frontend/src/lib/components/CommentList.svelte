@@ -6,8 +6,15 @@
   }
 
   .comment__message {
-    font-size: 13px;
-    line-height: 1.5;
+    font-size: 1.125rem;
+    line-height: 1.8;
+    color: #374151;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  :global(.dark) .comment__message {
+    color: #d1d5db;
   }
 
   [contenteditable="true"].comment__message {
@@ -69,9 +76,24 @@
   /* 回复输入框的间距 */
   .temp-reply-input {
     margin-top: 1rem;
-    margin-bottom: 2rem;  /* 增加底部间距 */
+    margin-bottom: 0;  /* 移除底部间距 */
     position: relative;
     z-index: 1;
+  }
+
+  /* 调整子评论列表的间距 */
+  .temp-reply-input + ul.mt-4 {
+    margin-top: 1rem;
+  }
+
+  /* 调整子评论列表的默认间距 */
+  ul.mt-4 {
+    margin-top: 1rem;
+  }
+
+  /* 当有回复输入框时，移除子评论列表的上边距 */
+  .temp-reply-input + ul.mt-4:not(:empty) {
+    margin-top: 1rem;
   }
 
   .comment-actions {
@@ -118,7 +140,6 @@
   import { fade } from 'svelte/transition';
   import CommentInput from './CommentInput.svelte';
   import { env } from '$env/dynamic/public';
-  import MarkdownRenderer from './MarkdownRenderer.svelte';
   import AuthModal from './AuthModal.svelte';
   import { t } from '$lib/i18n';
   import { auth } from '../stores/auth';
@@ -495,6 +516,17 @@
     hasShownAuthModal = false;
   }
 
+  // 将评论内容中的换行符转换为 <br> 标签
+  function formatContent(content) {
+    return content
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;')
+      .replace(/\n/g, '<br>');
+  }
+
   onMount(() => {
     loadComments();
     document.addEventListener('click', handleClickOutside);
@@ -585,8 +617,8 @@
                     </div>
                   </header>
 
-                  <div class="comment__message prose-zinc dark:prose-invert text-[13px] [&>p]:m-0 [&>p:first-child]:-mt-1">
-                    <MarkdownRenderer content={comment.content} />
+                  <div class="comment__message">
+                    {@html formatContent(comment.content)}
                   </div>
 
                   {#if replyingToId === comment.id}
@@ -696,8 +728,8 @@
                                   </div>
                                 </header>
 
-                                <div class="comment__message prose-zinc dark:prose-invert text-[13px] [&>p]:m-0 [&>p:first-child]:-mt-1">
-                                  <MarkdownRenderer content={child.content} />
+                                <div class="comment__message">
+                                  {@html formatContent(child.content)}
                                 </div>
 
                                 {#if replyingToId === child.id}
@@ -796,8 +828,8 @@
                                                 </div>
                                               </header>
 
-                                              <div class="comment__message prose-zinc dark:prose-invert text-[13px] [&>p]:m-0 [&>p:first-child]:-mt-1">
-                                                <MarkdownRenderer content={grandChild.content} />
+                                              <div class="comment__message">
+                                                {@html formatContent(grandChild.content)}
                                               </div>
                                             </div>
                                           </article>
