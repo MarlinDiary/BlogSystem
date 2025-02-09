@@ -1,10 +1,9 @@
 <script>
   import { enhance } from '$app/forms';
   import { fade, scale } from 'svelte/transition';
-  import { createEventDispatcher } from 'svelte';
+  import { createEventDispatcher, onDestroy } from 'svelte';
   import { auth } from '../stores/auth';
   import AuthModal from './AuthModal.svelte';
-  import MarkdownRenderer from './MarkdownRenderer.svelte';
   import { env } from '$env/dynamic/public';
   import { t } from '$lib/i18n';
 
@@ -13,7 +12,6 @@
   export let parentId = null;
 
   let content = '';
-  let isPreview = false;
   let isSubmitting = false;
   let lastTextareaHeight = '24px'; // 记住textarea的高度
   const MAX_LENGTH = 1000;
@@ -24,6 +22,8 @@
   // 鼠标位置状态
   let mouseX = 0;
   let mouseY = 0;
+
+  let hiddenDiv;
 
   // 获取头像 URL
   function getAvatarUrl(userId) {
@@ -67,7 +67,7 @@
         const newComment = await response.json();
         dispatch('commentAdded', newComment);
         content = '';
-        isPreview = false;
+        lastTextareaHeight = '28px';
       } else {
         const error = await response.json();
         console.error($t('comment.sendFailed'), error);
@@ -81,16 +81,35 @@
 
   function adjustHeight(e) {
     const textarea = e.target;
-    const lineHeight = 24;
+    const lineHeight = 28;
     const maxHeight = 200;
     
-    // 计算实际需要的行数（向上取整）
-    const lines = Math.ceil(textarea.scrollHeight / lineHeight);
-    // 设置为对应行数的高度
-    const newHeight = Math.min(lines * lineHeight, maxHeight);
+    if (!hiddenDiv) {
+      hiddenDiv = document.createElement('div');
+      hiddenDiv.style.cssText = `
+        position: absolute;
+        top: -9999px;
+        width: ${textarea.clientWidth}px;
+        font-size: ${getComputedStyle(textarea).fontSize};
+        line-height: ${lineHeight}px;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        visibility: hidden;
+      `;
+      document.body.appendChild(hiddenDiv);
+    }
+
+    hiddenDiv.textContent = textarea.value + '\n';
+    const newHeight = Math.min(Math.max(hiddenDiv.clientHeight, lineHeight), maxHeight);
     textarea.style.height = `${newHeight}px`;
-    lastTextareaHeight = `${newHeight}px`; // 保存当前高度
+    lastTextareaHeight = `${newHeight}px`;
   }
+
+  onDestroy(() => {
+    if (hiddenDiv) {
+      hiddenDiv.remove();
+    }
+  });
 
   function handleAuth() {
     showAuthModal = true;
@@ -136,35 +155,18 @@
       </div>
 
       <div class="ml-2 flex-1 shrink-0 md:ml-4">
-        {#if isPreview}
-          <div 
-            class="comment__message flex-1 shrink-0 px-2 py-1 text-sm text-zinc-800 dark:text-zinc-200"
-            style="min-height: {lastTextareaHeight};"
-          >
-            <MarkdownRenderer {content} />
-          </div>
-        {:else}
-          <textarea
-            bind:value={content}
-            placeholder={$t('comment.placeholder')}
-            class="block w-full shrink-0 resize-none border-0 bg-transparent p-0 text-sm leading-6 text-zinc-800 placeholder-zinc-400 outline-none transition-[height] will-change-[height] focus:outline-none focus:ring-0 dark:text-zinc-200 dark:placeholder-zinc-500"
-            maxlength={MAX_LENGTH}
-            on:input={adjustHeight}
-            style="height: {lastTextareaHeight};"
-          ></textarea>
-        {/if}
+        <textarea
+          bind:value={content}
+          placeholder={$t('comment.placeholder')}
+          class="block w-full shrink-0 resize-none border-0 bg-transparent p-0 text-base leading-7 text-zinc-800 placeholder-zinc-400 outline-none transition-[height] will-change-[height] focus:outline-none focus:ring-0 dark:text-zinc-200 dark:placeholder-zinc-500"
+          maxlength={MAX_LENGTH}
+          on:input={adjustHeight}
+          style="height: {lastTextareaHeight};"
+        ></textarea>
         
         <footer class="-mb-1.5 mt-3 flex h-5 w-full items-center justify-between">
           <span class="flex-1 shrink-0 select-none text-[10px] text-zinc-500 transition-opacity {content.length > 0 ? 'opacity-100' : 'opacity-0'}">
-            {$t('comment.markdownSupport')} <b>Markdown</b> & 
-            <a 
-              href="https://docs.github.com/zh/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax"
-              class="font-bold hover:underline"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              {$t('comment.gfmLink')}
-            </a>
+            Made By <b>Mia</b> & <b>Love</b>
           </span>
 
           {#if content.length > 0}
@@ -179,28 +181,12 @@
               <button
                 type="button"
                 class="appearance-none transform transition-transform hover:scale-105 active:scale-95"
-                on:click={() => isPreview = !isPreview}
-                aria-label={isPreview ? $t('comment.closePreview') : $t('comment.preview')}
-              >
-                <svg class="h-5 w-5 text-zinc-800 dark:text-zinc-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
-                  {#if isPreview}
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-                  {:else}
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                  {/if}
-                </svg>
-              </button>
-
-              <button
-                type="button"
-                class="appearance-none transform transition-transform hover:scale-105 active:scale-95"
                 on:click={handleSubmit}
                 disabled={!content.trim() || isSubmitting}
                 aria-label={isSubmitting ? $t('comment.sending') : $t('comment.send')}
               >
                 <svg class="h-5 w-5 text-zinc-800 dark:text-zinc-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                  <path d="M15.59 14.37a6 6 0 01-5.84 7.38v-4.8m5.84-2.58a14.98 14.98 0 006.16-12.12A14.98 14.98 0 009.631 8.41m5.96 5.96a14.926 14.926 0 01-5.841 2.58m-.119-8.54a6 6 0 00-7.381 5.84h4.8m2.581-5.84a14.927 14.927 0 00-2.58 5.84m2.699 2.7c-.103.021-.207.041-.311.06a15.09 15.09 0 01-2.448-2.448 14.9 14.9 0 01.06-.312m-2.24 2.39a4.493 4.493 0 00-1.757 4.306 4.493 4.493 0 004.306-1.758M16.5 9a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" />
                 </svg>
               </button>
             </aside>
@@ -218,13 +204,9 @@
 />
 
 <style>
-  :global(.dark) .comment__message {
-    color: rgb(229 231 235);
-  }
-
   textarea {
-    height: 24px;           /* 初始一行高度 */
-    line-height: 24px;      /* 确保行高一致 */
+    height: 28px;           /* 初始一行高度 */
+    line-height: 28px;      /* 确保行高一致 */
     max-height: 200px;
     overflow-y: hidden;     /* 隐藏滚动条 */
     resize: none;           /* 禁止手动调整大小 */
