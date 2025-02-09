@@ -19,17 +19,22 @@ router.get('/users', async (req, res) => {
         u.date_of_birth as dateOfBirth, u.bio,
         u.avatar_url as avatarUrl,
         u.created_at as createdAt,
+        u.status,
+        u.ban_reason as banReason,
+        u.ban_expire_at as banExpireAt,
         COUNT(DISTINCT a.id) as articleCount,
         COUNT(DISTINCT c.id) as commentCount
       FROM users u
       LEFT JOIN articles a ON a.author_id = u.id
       LEFT JOIN comments c ON c.user_id = u.id
       GROUP BY u.id
+      ORDER BY u.created_at DESC
     `);
 
     const formattedUsers = usersWithStats.map(user => ({
       ...user,
       createdAt: user.createdAt ? new Date(user.createdAt).toLocaleString('zh-CN') : '',
+      banExpireAt: user.banExpireAt ? new Date(user.banExpireAt).toLocaleString('zh-CN') : null,
       hasAvatar: !!user.avatarUrl
     }));
 
