@@ -55,6 +55,12 @@
       return count.toString();
     }
   
+    // 添加 bio 处理函数
+    function truncateBio(bio) {
+        if (!bio) return '';
+        return bio.length > 30 ? bio.slice(0, 30) + '...' : bio;
+    }
+  
     // 从头像提取颜色
     async function extractColors() {
       try {
@@ -136,11 +142,11 @@
         style="color: color-mix(in srgb, var(--card-color) 70%, transparent)">
         @{user.username}
       </span>
-      <div class="mt-3 h-12 flex items-center">
+      <div class="mt-3 h-8 flex items-center justify-center">
         {#if user.bio}
-          <p class="text-center text-sm line-clamp-2 max-w-[85%] text-gray-400 dark:text-gray-500"
+          <p class="text-center text-sm line-clamp-1 max-w-[240px] text-gray-400 dark:text-gray-500 overflow-hidden text-ellipsis whitespace-nowrap"
             style="color: color-mix(in srgb, var(--card-color) 60%, transparent)">
-            {user.bio}
+            {truncateBio(user.bio)}
           </p>
         {/if}
       </div>
