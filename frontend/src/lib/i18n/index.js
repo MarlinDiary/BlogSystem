@@ -3,8 +3,8 @@ import { writable, derived } from 'svelte/store';
 // Create language store
 export const locale = writable(
   typeof window !== 'undefined' 
-    ? localStorage.getItem('locale') || 'zh'
-    : 'zh'
+    ? localStorage.getItem('locale') || 'en'
+    : 'en'
 );
 
 // Listen for language changes and save to localStorage
