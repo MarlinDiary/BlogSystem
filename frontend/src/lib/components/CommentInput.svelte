@@ -18,6 +18,7 @@
   let avatarTimestamp = Date.now();
   let showAuthModal = false;
   let authMode = 'login';
+  let hasShownAuthModal = false;
 
   // 鼠标位置状态
   let mouseX = 0;
@@ -45,8 +46,21 @@
     img.src = '/uploads/avatars/default.png';
   }
 
+  // 检查用户是否已登录
+  function checkAuth(e) {
+    if (!$auth.isAuthenticated && !hasShownAuthModal) {
+      e?.preventDefault();
+      showAuthModal = true;
+      hasShownAuthModal = true;
+      return false;
+    }
+    return $auth.isAuthenticated;
+  }
+
   async function handleSubmit() {
     if (!content.trim() || isSubmitting) return;
+    
+    if (!checkAuth()) return;
     
     isSubmitting = true;
     try {
@@ -111,13 +125,9 @@
     }
   });
 
-  function handleAuth() {
-    showAuthModal = true;
-    authMode = 'login';
-  }
-
   function handleCloseModal() {
     showAuthModal = false;
+    hasShownAuthModal = false;
   }
 
   $: background = `radial-gradient(320px circle at ${mouseX}px ${mouseY}px, var(--spotlight-color) 0%, transparent 85%)`;
@@ -138,7 +148,14 @@
 
   {#if !user}
     <div class="text-center py-8 text-sm text-zinc-500 dark:text-zinc-400">
-      {$t('comment.loginToComment')}
+      {$t('comment.please')}
+      <button 
+        class="text-lime-600 dark:text-lime-500 hover:underline" 
+        on:click={() => checkAuth()}
+      >
+        {$t('common.login')}
+      </button>
+      {$t('comment.toComment')}
     </div>
   {:else}
     <div class="relative flex space-x-4">

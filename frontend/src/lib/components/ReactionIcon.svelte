@@ -1,11 +1,15 @@
 <script>
   import { createEventDispatcher } from 'svelte';
+  import { auth } from '../stores/auth';
+  import AuthModal from './AuthModal.svelte';
 
   export let type;
   export let count = 0;
   export let isActive = false;
 
   const dispatch = createEventDispatcher();
+  let showAuthModal = false;
+  let hasShownAuthModal = false;
 
   // 格式化数字
   function prettifyNumber(num) {
@@ -16,11 +20,37 @@
     }
     return num.toString();
   }
+
+  // 检查用户是否已登录
+  function checkAuth(e) {
+    if (!$auth.isAuthenticated && !hasShownAuthModal) {
+      e?.preventDefault();
+      showAuthModal = true;
+      hasShownAuthModal = true;
+      return false;
+    }
+    return $auth.isAuthenticated;
+  }
+
+  function handleReact(e) {
+    if (checkAuth(e)) {
+      dispatch('react');
+    }
+  }
 </script>
+
+<AuthModal 
+  isOpen={showAuthModal}
+  mode="login"
+  on:close={() => {
+    showAuthModal = false;
+    hasShownAuthModal = false;
+  }}
+/>
 
 <div class="relative flex flex-col items-center">
   <button
-    on:click={() => dispatch('react')}
+    on:click={handleReact}
     class="relative flex h-10 w-10 items-center justify-center
       transition-transform duration-200 ease-in-out
       hover:scale-110 active:scale-95"

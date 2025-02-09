@@ -208,6 +208,9 @@ const translations = {
     // 评论相关
     'comment.inputArea': '评论输入区域',
     'comment.loginToComment': '请登录后发表评论',
+    'comment.please': '请',
+    'comment.toComment': '后发表评论',
+    'comment.replyToLogin': '请登录后回复评论',
     'comment.placeholder': '说点什么吧，万一火不了呢...',
     'comment.markdownSupport': '支持',
     'comment.gfmLink': 'GFM',
@@ -511,6 +514,9 @@ const translations = {
     // Comments
     'comment.inputArea': 'Comment input area',
     'comment.loginToComment': 'Please login to comment',
+    'comment.please': 'Please',
+    'comment.toComment': 'to comment',
+    'comment.replyToLogin': 'Please login to reply',
     'comment.placeholder': 'Write something here...',
     'comment.markdownSupport': 'Supports',
     'comment.gfmLink': 'GFM',

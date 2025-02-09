@@ -121,6 +121,7 @@
   import MarkdownRenderer from './MarkdownRenderer.svelte';
   import AuthModal from './AuthModal.svelte';
   import { t } from '$lib/i18n';
+  import { auth } from '../stores/auth';
 
   export let articleId;
   export let user = null;
@@ -136,6 +137,18 @@
   let currentKeydownHandler = null;
   let showAuthModal = false;
   let authMode = 'login';
+  let hasShownAuthModal = false;
+
+  // 检查用户是否已登录
+  function checkAuth(e) {
+    if (!$auth.isAuthenticated && !hasShownAuthModal) {
+      e?.preventDefault();
+      showAuthModal = true;
+      hasShownAuthModal = true;
+      return false;
+    }
+    return $auth.isAuthenticated;
+  }
 
   function formatRelativeTime(dateStr) {
     const date = new Date(dateStr);
@@ -247,6 +260,9 @@
 
   function handleReplyClick(event, commentId) {
     event.stopPropagation();
+    
+    if (!checkAuth(event)) return;
+    
     // 如果当前已经在回复这条评论，则取消回复
     if (replyingToId === commentId) {
       replyingToId = null;
@@ -461,6 +477,7 @@
 
   function handleCloseModal() {
     showAuthModal = false;
+    hasShownAuthModal = false;
   }
 
   onMount(() => {
