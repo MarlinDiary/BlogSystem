@@ -202,6 +202,8 @@
             if (mode === 'login') {
                 const data = await authApi.login(username, password);
                 auth.login(data.token, data.user);
+                close();
+                window.location.reload();
             } else {
                 const data = await authApi.register({
                     username,
@@ -211,9 +213,10 @@
                     bio
                 });
                 auth.login(data.token, data.user);
+                close();
+                window.location.reload();
             }
             
-            close();
         } catch (err) {
             error = err.message;
         } finally {
