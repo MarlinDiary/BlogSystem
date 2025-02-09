@@ -4,6 +4,7 @@
   import { fade } from 'svelte/transition';
   import { env } from '$env/dynamic/public';
   import { t, locale } from '$lib/i18n';
+  import { setPageTitle } from '$lib/utils/title';
   
   let latestArticles = [];
   let loading = true;
@@ -47,6 +48,7 @@
   
   onMount(() => {
     console.log('Home - Component mounted, start loading data');
+    setPageTitle('');  // 主页不需要额外的标题
     fetchArticles();
     // Disable scrolling
     document.body.style.overflow = 'hidden';

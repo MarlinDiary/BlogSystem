@@ -9,6 +9,7 @@
   import { env } from '$env/dynamic/public';
   import { getImageUrl } from '$lib/utils/api';
   import { t, locale } from '$lib/i18n';
+  import { setPageTitle } from '$lib/utils/title';
 
   const API_URL = env.PUBLIC_API_URL;
   
@@ -297,6 +298,13 @@
     window.removeEventListener('scroll', handleScroll);
     window.removeEventListener('resize', handleResize);
   });
+
+  // 监听内容变化
+  $: {
+    if (article?.title) {
+      setPageTitle(article.title);
+    }
+  }
 </script>
 
 <style lang="postcss">

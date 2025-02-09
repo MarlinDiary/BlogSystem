@@ -1,7 +1,8 @@
 <script>
   import { onMount } from 'svelte';
   import ColorThief from 'colorthief';
-  import { t } from '$lib/i18n';
+  import { t, locale } from '$lib/i18n';
+  import { setPageTitle } from '$lib/utils/title';
   
   let articles = [];
   let loading = false;
@@ -84,7 +85,10 @@
     return `--card-color: ${article.dominantColor}`;
   }
 
-  onMount(fetchArticles);
+  onMount(() => {
+    setPageTitle($t('nav.articles'));
+    fetchArticles();
+  });
 </script>
 
 <style lang="postcss">

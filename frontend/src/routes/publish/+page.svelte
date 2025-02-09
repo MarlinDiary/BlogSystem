@@ -14,6 +14,7 @@
   import { env } from '$env/dynamic/public';
   import { getImageUrl } from '$lib/utils/api';
   import { t, locale } from '$lib/i18n';
+  import { setPageTitle } from '$lib/utils/title';
   
   const lowlight = createLowlight(common);
   const API_URL = env.PUBLIC_API_URL;
@@ -48,6 +49,7 @@
   }
 
   onMount(() => {
+    setPageTitle($t('article.createNew'));
     editor = new Editor({
       element: editorElement,
       extensions: [

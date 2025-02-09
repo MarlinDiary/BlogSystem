@@ -1,8 +1,14 @@
 <script>
   import FriendCard from '$lib/components/FriendCard.svelte';
   import { t } from '$lib/i18n';
+  import { setPageTitle } from '$lib/utils/title';
+  import { onMount } from 'svelte';
 
   export let data;
+
+  onMount(() => {
+    setPageTitle($t('nav.community'));
+  });
 </script>
 
 <div class="container mx-auto max-w-6xl px-4 py-12">
