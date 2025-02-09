@@ -304,7 +304,13 @@
     position: relative;
     max-width: 800px;
     margin: 0 auto;
-    padding: 2rem;
+    padding: 0.5rem;
+    @media (min-width: 640px) {
+      padding: 1rem;
+    }
+    @media (min-width: 768px) {
+      padding: 2rem;
+    }
   }
 
   .cover-container {
@@ -554,7 +560,7 @@
   }
 </style>
 
-<div class="mx-auto max-w-4xl px-4 py-8">
+<div class="mx-auto max-w-4xl px-2 sm:px-3 md:px-4 py-8">
   {#if loading}
     <div class="flex justify-center py-16">
       <div class="h-8 w-8 animate-spin rounded-full border-2 border-primary-500 border-t-transparent"></div>
@@ -666,8 +672,10 @@
             <span class="meta-text">{getTimeAgo(article.createdAt)}</span>
             <div class="divider"></div>
             <span class="meta-text">{article.viewCount} {$t('article.views')}</span>
-            <div class="divider"></div>
-            <span class="meta-text">{article.commentCount} {$t('article.comments')}</span>
+            <div class="hidden md:contents">
+              <div class="divider"></div>
+              <span class="meta-text">{article.commentCount} {$t('article.comments')}</span>
+            </div>
             <div class="hidden md:contents">
               {#if article.tags && article.tags.length > 0}
                 <div class="divider"></div>
