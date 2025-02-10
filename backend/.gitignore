@@ -8,10 +8,6 @@ uploads/*
 !uploads/avatars/default.png
 !uploads/articles/.gitkeep
 
-# 日志文件
-logs/*
-!logs/.gitkeep
-
 # 临时文件
 temp/*
 !temp/.gitkeep
