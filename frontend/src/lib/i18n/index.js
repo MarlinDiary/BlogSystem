@@ -156,6 +156,7 @@ const translations = {
     'error.invalidContentType': '预期接收 JSON 数据，但收到 {type}',
     'error.fetchArticleDetailFailed': '获取文章详情失败',
     'error.updateFailed': '更新失败，请稍后重试',
+    'error.accountBanned': '账号已被封禁',
     
     // 成功消息
     'success.saved': '保存成功',
@@ -291,6 +292,7 @@ const translations = {
     'account.commentOn': '评论于：{title}',
     'account.hideComment': '隐藏评论',
     'account.showComment': '显示评论',
+    'account.deleteComment': '删除评论',
     'account.dangerZoneDesc': '删除账号后，您的所有数据将被永久删除且无法恢复。请谨慎操作。',
     'account.deleteArticlesConfirm': '同时删除我的所有文章',
     'account.deleteCommentsConfirm': '同时删除我的所有评论',
@@ -300,7 +302,8 @@ const translations = {
     'account.avatar': '头像',
     'account.avatarTip': '推荐使用正方形图片，支持 PNG、JPG 格式，大小不超过 2 MB',
     'account.password': '密码',
-    'account.enterPassword': 'Enter your password to confirm',
+    'account.enterPassword': '请输入密码以确认',
+    'account.deleteAllWarning': '警告：删除账号将永久删除您的所有文章和评论',
     
     // 好友卡片相关
     'friendCard.articles': '文章',
@@ -464,6 +467,7 @@ const translations = {
     'error.invalidContentType': 'Expected JSON data but received {type}',
     'error.fetchArticleDetailFailed': 'Failed to fetch article detail',
     'error.updateFailed': 'Update failed, please try again later',
+    'error.accountBanned': 'Account has been banned',
     
     // Success messages
     'success.saved': 'Saved successfully',
@@ -599,6 +603,7 @@ const translations = {
     'account.commentOn': 'Commented on: {title}',
     'account.hideComment': 'Hide comment',
     'account.showComment': 'Show comment',
+    'account.deleteComment': 'Delete comment',
     'account.dangerZoneDesc': 'After deleting your account, all your data will be permanently deleted and cannot be recovered. Please proceed with caution.',
     'account.deleteArticlesConfirm': 'Also delete all my articles',
     'account.deleteCommentsConfirm': 'Also delete all my comments',
@@ -609,6 +614,7 @@ const translations = {
     'account.avatarTip': 'Square images recommended, PNG/JPG format, max 2MB',
     'account.password': 'Password',
     'account.enterPassword': 'Enter your password to confirm',
+    'account.deleteAllWarning': 'Warning: Deleting your account will permanently delete all your articles and comments.',
     
     // Friend card
     'friendCard.articles': 'Articles',

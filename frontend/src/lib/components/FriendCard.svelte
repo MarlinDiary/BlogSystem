@@ -8,6 +8,19 @@
   
     export let user;
   
+    let isMobile = false;
+    
+    // 检查是否为移动设备
+    function checkMobile() {
+      isMobile = window.matchMedia('(max-width: 768px)').matches;
+    }
+    
+    onMount(() => {
+      checkMobile();
+      window.addEventListener('resize', checkMobile);
+      return () => window.removeEventListener('resize', checkMobile);
+    });
+
     let dominantColor = 'rgba(55, 65, 81, 0.1)';  // 初始透明色
     let lightColor = '';
     let darkColor = '';
@@ -21,21 +34,26 @@
   
     // 处理鼠标移动事件
     function handleMouseMove(event) {
+      // 在移动端不处理这些效果
+      if (window.matchMedia('(max-width: 768px)').matches) return;
+      
       const bounds = event.currentTarget.getBoundingClientRect();
       mouseX = event.clientX - bounds.left;
       mouseY = event.clientY - bounds.top;
-      radius = Math.sqrt(bounds.width ** 2 + bounds.height ** 2) / 1.8;
-      spotlightBackground = `radial-gradient(${radius}px circle at ${mouseX}px ${mouseY}px, color-mix(in srgb, var(--card-color) 8%, transparent) 0%, transparent 80%)`;
+      radius = Math.sqrt(bounds.width ** 2 + bounds.height ** 2) / 1.5;
+      spotlightBackground = `radial-gradient(${radius}px circle at ${mouseX}px ${mouseY}px, color-mix(in srgb, var(--card-color) 15%, transparent) 0%, transparent 90%)`;
     }
   
     // 处理鼠标进入事件
     function handleMouseEnter(event) {
+      if (window.matchMedia('(max-width: 768px)').matches) return;
       focusingFriendId.set(user.id.toString());
       handleMouseMove(event);
     }
   
     // 处理鼠标离开事件
     function handleMouseLeave() {
+      if (window.matchMedia('(max-width: 768px)').matches) return;
       focusingFriendId.set(null);
     }
   
@@ -101,25 +119,24 @@
     onMount(extractColors);
 </script>
   
-<TiltCard maxTilt={10} lerpSpeed={0.15} scale={1.05}>
+<TiltCard maxTilt={isMobile ? 0 : 10} lerpSpeed={0.15} scale={isMobile ? 1 : 1.05}>
   <div
     role="article"
     aria-label={$t('friendCard.userCard', { name: user.realName })}
     class="friend-card group relative not-prose h-[400px] flex flex-col rounded-2xl p-6
-      border transition-all duration-300 backdrop-blur-md
-      {$focusingFriendId && $focusingFriendId !== user.id.toString() ? 'md:opacity-80 md:blur-[1px]' : 'blur-none'}"
+      border transition-all duration-300 backdrop-blur-md"
     style="--card-color: {dominantColor};
       --bg-base: white;
-      --bg-mix: 98%;
+      --bg-mix: 92%;
       background-color: color-mix(in srgb, var(--bg-base) var(--bg-mix), var(--card-color));
-      border-color: color-mix(in srgb, var(--card-color) 10%, transparent)"
+      border-color: color-mix(in srgb, var(--card-color) 20%, transparent)"
     on:mouseenter={handleMouseEnter}
     on:mouseleave={handleMouseLeave}
     on:mousemove={handleMouseMove}
   >
     <!-- 光晕效果背景 -->
     <div
-      class="pointer-events-none absolute inset-0 rounded-2xl opacity-0 transition-opacity duration-500 group-hover:opacity-100"
+      class="spotlight-effect pointer-events-none absolute inset-0 rounded-2xl opacity-0 transition-opacity duration-500 group-hover:opacity-100"
       style="background: {spotlightBackground}"
       aria-hidden="true"
     ></div>
@@ -198,22 +215,34 @@
     border-color: rgba(0, 0, 0, 0.1);
   }
   
-  .friend-card:hover {
-    border-width: 1.5px;
+  @media (min-width: 769px) {
+    .friend-card:hover {
+      border-width: 1.5px;
+    }
+  }
+
+  .spotlight-effect {
+    display: none;
+  }
+
+  @media (min-width: 769px) {
+    .spotlight-effect {
+      display: block;
+    }
   }
 
   div {
     --bg-base: white;
-    --bg-mix: 98%;
+    --bg-mix: 85%;
   }
 
   @media (prefers-color-scheme: dark) {
     div {
       --bg-base: rgb(28, 25, 23);
-      --bg-mix: 97%;
+      --bg-mix: 85%;
     }
     .friend-card {
-      border-color: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.2);
     }
   }
 </style>  

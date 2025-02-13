@@ -6,7 +6,6 @@ import { articlesRouter } from './routes/articles.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { usersRouter } from './routes/users.js';
 import { commentsRouter } from './routes/comments.js';
-import { logger } from './middleware/logger.js';
 import { adminRouter } from './routes/admin.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -146,9 +145,6 @@ app.use('/api/articles', articlesRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/comments', commentsRouter);
 app.use('/api/admin', adminRouter);
-
-// 添加日志中间件
-app.use(logger);
 
 // 错误处理中间件
 app.use(errorHandler);

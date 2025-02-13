@@ -159,68 +159,78 @@ router.delete('/me', authMiddleware, async (req, res, next) => {
     console.log('开始删除用户数据事务:', { userId, deleteArticles, deleteComments });
     await transaction(async (tx) => {
       try {
-        // 先删除用户的所有点赞
-        console.log('删除用户点赞');
+        // 1. 删除用户的所有文章反应
         await tx.run(
           'DELETE FROM article_reactions WHERE user_id = ?',
           [userId]
         );
-        
-        // 删除用户的所有评论
+        console.log('已删除用户的文章反应');
+
+        if (deleteArticles) {
+          // 2. 删除用户文章的所有反应
+          await tx.run(
+            'DELETE FROM article_reactions WHERE article_id IN (SELECT id FROM articles WHERE author_id = ?)',
+            [userId]
+          );
+          console.log('已删除用户文章的反应');
+
+          // 3. 删除用户文章的标签关联
+          await tx.run(
+            'DELETE FROM article_tags WHERE article_id IN (SELECT id FROM articles WHERE author_id = ?)',
+            [userId]
+          );
+          console.log('已删除用户文章的标签关联');
+        }
+
         if (deleteComments) {
-          console.log('删除用户评论');
-          // 先删除子评论
-          await tx.run(
-            'DELETE FROM comments WHERE parent_id IN (SELECT id FROM comments WHERE user_id = ?)',
+          // 4. 递归删除所有评论及其子评论
+          // 4.1 首先获取所有相关评论ID
+          const userComments = await tx.query(
+            'WITH RECURSIVE comment_tree AS (SELECT id FROM comments WHERE user_id = ? UNION ALL SELECT c.id FROM comments c JOIN comment_tree ct ON c.parent_id = ct.id) SELECT id FROM comment_tree',
             [userId]
           );
-          // 再删除用户的评论
-          await tx.run(
-            'DELETE FROM comments WHERE user_id = ?',
-            [userId]
-          );
+          
+          if (userComments.length > 0) {
+            const commentIds = userComments.map(c => c.id);
+            // 4.2 删除这些评论
+            await tx.run(
+              'DELETE FROM comments WHERE id IN (' + commentIds.join(',') + ')'
+            );
+            console.log('已删除用户的所有评论及其子评论');
+          }
         } else {
-          console.log('标记用户评论为已删除');
           // 将评论标记为已删除用户
           await tx.run(
             'UPDATE comments SET user_id = NULL WHERE user_id = ?',
             [userId]
           );
+          console.log('已将用户评论标记为已删除用户');
         }
-        
-        // 删除用户的所有文章
+
         if (deleteArticles) {
-          console.log('删除用户文章');
-          // 先删除文章的评论
+          // 5. 删除用户文章的所有评论
           await tx.run(
             'DELETE FROM comments WHERE article_id IN (SELECT id FROM articles WHERE author_id = ?)',
             [userId]
           );
-          // 删除文章的标签关联
-          await tx.run(
-            'DELETE FROM article_tags WHERE article_id IN (SELECT id FROM articles WHERE author_id = ?)',
-            [userId]
-          );
-          // 删除文章的点赞
-          await tx.run(
-            'DELETE FROM article_reactions WHERE article_id IN (SELECT id FROM articles WHERE author_id = ?)',
-            [userId]
-          );
-          // 最后删除文章
+          console.log('已删除用户文章的评论');
+
+          // 6. 删除用户的所有文章
           await tx.run(
             'DELETE FROM articles WHERE author_id = ?',
             [userId]
           );
+          console.log('已删除用户的文章');
         } else {
-          console.log('标记用户文章为已删除');
           // 将文章标记为已删除用户
           await tx.run(
             'UPDATE articles SET author_id = NULL, status = ? WHERE author_id = ?',
             ['pending', userId]
           );
+          console.log('已将用户文章标记为已删除用户');
         }
 
-        // 删除用户头像文件
+        // 7. 删除用户头像文件
         if (user.avatar_url && !user.avatar_url.includes('default.png')) {
           console.log('删除用户头像文件');
           const avatarPath = path.join(process.cwd(), user.avatar_url);
@@ -228,15 +238,14 @@ router.delete('/me', authMiddleware, async (req, res, next) => {
             fs.unlinkSync(avatarPath);
           }
         }
-        
-        console.log('删除用户账号');
-        // 最后删除用户账号
+
+        // 8. 最后删除用户账号
         await tx.run(
           'DELETE FROM users WHERE id = ?',
           [userId]
         );
-
         console.log('用户账号删除成功:', { userId });
+
       } catch (error) {
         console.error('删除用户数据事务失败:', error);
         throw error;

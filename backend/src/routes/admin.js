@@ -6,15 +6,15 @@ import fs from 'fs';
 
 const router = express.Router();
 
-// 管理员路由中间件
+//use the middleware
 router.use(authMiddleware);
 router.use(isAdmin);
 
-// 获取所有用户列表
+//get all users
 router.get('/users', async (req, res) => {
   try {
-    const usersWithStats = await query(`
-      SELECT 
+    const users = await query(
+        `SELECT 
         u.id, u.username, u.real_name as realName,
         u.date_of_birth as dateOfBirth, u.bio,
         u.avatar_url as avatarUrl,
@@ -28,27 +28,32 @@ router.get('/users', async (req, res) => {
       LEFT JOIN articles a ON a.author_id = u.id
       LEFT JOIN comments c ON c.user_id = u.id
       GROUP BY u.id
-      ORDER BY u.created_at DESC
-    `);
+      ORDER BY u.created_at DESC`);
 
-    const formattedUsers = usersWithStats.map(user => ({
+      //format the data
+    const usersWithStats = users.map(user => 
+        ({
       ...user,
       createdAt: user.createdAt ? new Date(user.createdAt).toLocaleString('zh-CN') : '',
       banExpireAt: user.banExpireAt ? new Date(user.banExpireAt).toLocaleString('zh-CN') : null,
       hasAvatar: !!user.avatarUrl
-    }));
+    })
+);
 
-    res.json(formattedUsers);
+    res.json(usersWithStats);
+
   } catch (error) {
-    res.status(500).json({ error: '获取用户列表失败' });
+    res.status(500).json({ error: 'Fail to get users.' });
   }
 });
 
-// 获取用户详情
+
+//get user by id
 router.get('/users/:id', async (req, res) => {
   try {
+    //get the user id, if it is not a number, return 400
     const userId = parseInt(req.params.id);
-    if (isNaN(userId)) return res.status(400).json({ error: '无效的用户ID' });
+    if (isNaN(userId)) return res.status(400).json({ error: 'Invalid Id. The Id must be an interger.' });
 
     const user = await get(`
       SELECT 
@@ -62,46 +67,154 @@ router.get('/users/:id', async (req, res) => {
       LEFT JOIN articles a ON a.author_id = u.id
       LEFT JOIN comments c ON c.user_id = u.id
       WHERE u.id = ?
-      GROUP BY u.id
-    `, [userId]);
+      GROUP BY u.id`,
+       [userId]);
 
-    if (!user) return res.status(404).json({ error: '用户不存在' });
+    if (!user) 
+        return res.status(404).json({ error: "User doesn't exists." });
+
     res.json(user);
+
   } catch (error) {
-    res.status(500).json({ error: '获取用户详情失败' });
+    res.status(500).json({ error: 'Fail to get user detail.' });
   }
 });
 
-// 删除用户
+
+//delete user by id
 router.delete('/users/:id', async (req, res) => {
   const userId = parseInt(req.params.id);
-  if (isNaN(userId)) return res.status(400).json({ error: '无效的用户ID' });
+  if (isNaN(userId)) return res.status(400).json({ error: 'Invalid Id. The Id must be an interger.' });
 
   try {
-    await transaction(async (tx) => {
-      await tx.run('DELETE FROM comments WHERE user_id = ?', [userId]);
-      await tx.run('DELETE FROM articles WHERE author_id = ?', [userId]);
-      await tx.run('DELETE FROM users WHERE id = ?', [userId]);
-    });
-    res.json({ message: '用户删除成功' });
+    console.log(`开始删除用户 ID: ${userId}`);
+    
+    // 检查用户是否存在
+    const user = await get('SELECT * FROM users WHERE id = ?', [userId]);
+    if (!user) {
+      console.log(`用户 ${userId} 不存在`);
+      return res.status(404).json({ error: "User doesn't exist." });
+    }
+
+    // 检查是否试图删除最后一个管理员
+    if (user.role === 'admin') {
+      const [adminCount] = await query('SELECT COUNT(*) as count FROM users WHERE role = "admin"');
+      if (adminCount.count <= 1) {
+        console.log('尝试删除最后一个管理员');
+        return res.status(400).json({ error: "Cannot delete the last admin user." });
+      }
+    }
+
+    try {
+      await transaction(async (tx) => {
+        console.log('开始事务');
+        
+        // 1. 删除用户的所有文章反应
+        await tx.run(
+          'DELETE FROM article_reactions WHERE user_id = ?',
+          [userId]
+        );
+        console.log('已删除用户的文章反应');
+
+        // 2. 删除用户文章的所有反应
+        await tx.run(
+          'DELETE FROM article_reactions WHERE article_id IN (SELECT id FROM articles WHERE author_id = ?)',
+          [userId]
+        );
+        console.log('已删除用户文章的反应');
+
+        // 3. 删除用户文章的标签关联
+        await tx.run(
+          'DELETE FROM article_tags WHERE article_id IN (SELECT id FROM articles WHERE author_id = ?)',
+          [userId]
+        );
+        console.log('已删除用户文章的标签关联');
+
+        // 4. 递归删除所有评论及其子评论
+        // 4.1 首先获取所有相关评论ID
+        const userComments = await tx.query(
+          'WITH RECURSIVE comment_tree AS (SELECT id FROM comments WHERE user_id = ? UNION ALL SELECT c.id FROM comments c JOIN comment_tree ct ON c.parent_id = ct.id) SELECT id FROM comment_tree',
+          [userId]
+        );
+        
+        if (userComments.length > 0) {
+          const commentIds = userComments.map(c => c.id);
+          // 4.2 删除这些评论
+          await tx.run(
+            'DELETE FROM comments WHERE id IN (' + commentIds.join(',') + ')'
+          );
+          console.log('已删除用户的所有评论及其子评论');
+        }
+
+        // 5. 删除用户文章的所有评论
+        await tx.run(
+          'DELETE FROM comments WHERE article_id IN (SELECT id FROM articles WHERE author_id = ?)',
+          [userId]
+        );
+        console.log('已删除用户文章的评论');
+
+        // 6. 删除用户的所有文章
+        await tx.run(
+          'DELETE FROM articles WHERE author_id = ?',
+          [userId]
+        );
+        console.log('已删除用户的文章');
+
+        // 7. 删除用户的头像文件（如果有）
+        if (user.avatar_url && !user.avatar_url.includes('default.png')) {
+          console.log('删除用户头像');
+          try {
+            const avatarPath = path.join(process.cwd(), user.avatar_url);
+            if (fs.existsSync(avatarPath)) {
+              fs.unlinkSync(avatarPath);
+            }
+          } catch (fileError) {
+            console.error('删除头像文件失败:', fileError);
+            // 继续执行，不中断事务
+          }
+        }
+        
+        // 8. 删除管理员记录（如果存在）
+        console.log('删除管理员记录');
+        await tx.run('DELETE FROM admin_users WHERE user_id = ?', [userId]);
+        
+        // 9. 最后删除用户本身
+        console.log('删除用户记录');
+        await tx.run('DELETE FROM users WHERE id = ?', [userId]);
+        
+        console.log('事务完成');
+      });
+
+      console.log(`用户 ${userId} 删除成功`);
+      res.json({ message: 'Successfully deleted user.' });
+
+    } catch (txError) {
+      console.error('事务执行错误:', txError);
+      throw txError;
+    }
+
   } catch (error) {
-    res.status(500).json({ error: '删除用户失败' });
+    console.error('删除用户时发生错误:', error);
+    res.status(500).json({ 
+      error: 'Failed to delete user.',
+      details: error.message 
+    });
   }
 });
 
-// 获取系统统计信息
+//get the statistics
 router.get('/stats', async (req, res) => {
   try {
-    // 用户统计
-    const [userStats] = await query(`
+    //the query function will always return an array
+    // userStats
+    const [userStats]=await query(`
       SELECT 
         COUNT(*) as totalUsers,
         COUNT(CASE WHEN status = 'active' THEN 1 END) as activeUsers,
         COUNT(CASE WHEN status = 'banned' THEN 1 END) as bannedUsers
-      FROM users
-    `);
+      FROM users`);
 
-    // 文章统计
+    //articleStats
     const [articleStats] = await query(`
       SELECT 
         COUNT(*) as totalArticles,
@@ -111,7 +224,7 @@ router.get('/stats', async (req, res) => {
       FROM articles
     `);
 
-    // 评论统计
+    //commentStats
     const [commentStats] = await query(`
       SELECT 
         COUNT(*) as totalComments,
@@ -120,12 +233,13 @@ router.get('/stats', async (req, res) => {
       FROM comments
     `);
 
-    // 反应统计
+    // reactionStats
     const [reactionStats] = await query(`
       SELECT COUNT(*) as totalReactions
       FROM article_reactions
     `);
 
+    //format the stats
     res.json({
       users: {
         total: Number(userStats.totalUsers),
@@ -145,391 +259,246 @@ router.get('/stats', async (req, res) => {
       },
       reactions: {
         total: Number(reactionStats.totalReactions)
-      }
-    });
+      }});
+
   } catch (error) {
-    res.status(500).json({ error: '获取统计数据失败' });
+    res.status(500).json({ error: "Fail to get stats." });
   }
+
 });
 
-// 封禁用户
+// ban user by id
 router.post('/users/:id/ban', async (req, res) => {
   try {
-    const { reason, duration } = req.body; // duration in hours
-    const userId = parseInt(req.params.id);
+    const { reason, durationInHours } = req.body; 
 
-    if (!reason || !duration) {
-      return res.status(400).json({ message: '请提供封禁原因和时长' });
+    const userId = parseInt(req.params.id);
+    if (isNaN(userId)) return res.status(400).json({ error: 'Invalid Id. The Id must be an interger.' });
+
+    if (!reason||!durationInHours) {
+      return res.status(400).json({ message: "Please provide both reason and duration" });
     }
 
-    const banExpireAt = new Date(Date.now() + duration * 60 * 60 * 1000).toISOString();
+    //ban_expire_at
+    const banExpireAt = new Date(Date.now() + durationInHours * 60 * 60 * 1000).toISOString();
 
-    await run(`
-      UPDATE users 
+    await run(`UPDATE users 
       SET status = 'banned',
           ban_reason = ?,
           ban_expire_at = ?
-      WHERE id = ?
-    `, [reason, banExpireAt, userId]);
+      WHERE id = ?`, [reason, banExpireAt, userId]);
 
-    res.json({ message: '用户已被封禁' });
+    res.json({ message: 'The user has been banned.' });
+
   } catch (error) {
-    res.status(500).json({ error: '封禁用户失败' });
+    res.status(500).json({ error: 'Fail to ban user.' });
   }
+
 });
 
-// 解封用户
+// unban user by id
 router.post('/users/:id/unban', async (req, res) => {
   try {
-    const userId = parseInt(req.params.id);
+        const userId = parseInt(req.params.id);
 
-    await run(`
-      UPDATE users 
-      SET status = 'active',
+        if (isNaN(userId)) return res.status(400).json({ error: 'Invalid Id. The Id must be an interger.' });
+
+    await run(`UPDATE users 
+            SET status = 'active',
           ban_reason = NULL,
           ban_expire_at = NULL
-      WHERE id = ?
-    `, [userId]);
+      WHERE id = ?`, [userId]);
 
-    res.json({ message: '用户已解封' });
+    res.json({ message: 'The user has been unbanned.' });
+
   } catch (error) {
-    res.status(500).json({ error: '解封用户失败' });
+    res.status(500).json({ error: 'Fail to unban user.' });
   }
+
 });
 
-// 获取所有文章列表
-router.get('/articles', async (req, res) => {
+//promote user to admin
+router.post('/users/:id/promote', async (req, res) => {
   try {
-    const { status = 'all', page = 1, pageSize = 10 } = req.query;
-    const offset = (Number(page) - 1) * Number(pageSize);
+    const userId = parseInt(req.params.id);
+    //if the id is not a number, return 400
+    if (isNaN(userId)) return res.status(400).json({ error: 'Invalid Id. The Id must be an interger.' });
 
-    let query = `
-      SELECT 
-        a.id, a.title, a.content, a.status,
-        a.view_count as viewCount,
-        a.created_at as createdAt,
-        u.id as author_id,
-        u.username as author_username
-      FROM articles a
-      LEFT JOIN users u ON u.id = a.author_id
-    `;
+    const user = await get('SELECT role FROM users WHERE id = ?', [userId]);
 
-    const countQuery = 'SELECT COUNT(*) as count FROM articles';
-    const params = [];
-    const countParams = [];
+    //if the user doesn't exist, return 404
+    if(!user) return res.status(404).json({ error: "User doesn't exists." });
 
-    if (status !== 'all') {
-      query += ' WHERE a.status = ?';
-      countQuery += ' WHERE status = ?';
-      params.push(status);
-      countParams.push(status);
+    await run(`UPDATE users 
+      SET role = 'admin'
+      WHERE id = ?`, [userId]);
+
+    res.json({ message: 'The user has been promoted to admin.' });
+
+  } catch (error) {
+    res.status(500).json({ error: "Fail to promote user." });
+  }
+
+});
+
+//demote admin to user
+router.post('/users/:id/demote', async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id);
+    if (isNaN(userId)) return res.status(400).json({ error: 'Invalid Id. The Id must be an interger.' });
+
+    const user = await get('SELECT role FROM users WHERE id = ?', [userId]);
+
+    if(!user) return res.status(404).json({ error: "User doesn't exists." });
+
+
+    //calculate the number of admins. If there is only one admin, return 400
+    const [adminCount] = await query('SELECT COUNT(*) as count FROM users WHERE role = "admin"');
+
+    if(adminCount.count <= 1) {
+      return res.status(400).json({ error: "There must be at least one admin." });
     }
 
-    query += ` LIMIT ? OFFSET ?`;
-    params.push(Number(pageSize), offset);
+    await run(`UPDATE users 
+      SET role = 'user'
+      WHERE id = ?`, [userId]);
 
-    const [articlesList, [total]] = await Promise.all([
-      query(query, params),
-      query(countQuery, countParams)
-    ]);
+    res.json({ message: 'The user has been demoted to user.' });
 
-    const formattedArticles = articlesList.map(article => ({
-      id: article.id,
-      title: article.title,
-      content: article.content,
-      status: article.status,
-      viewCount: article.viewCount,
-      createdAt: article.createdAt,
-      author: {
-        id: article.author_id,
-        username: article.author_username
+  } catch (error) {
+    res.status(500).json({ error: "Fail to demote user." });
+  }
+
+});
+
+
+//set the role of the user
+router.post('/users/:id/role', async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id);
+    if (isNaN(userId)) return res.status(400).json({ error: 'Invalid Id. The Id must be an interger.' });
+
+    const { role } = req.body;
+
+    //The role must either be 'admin' or 'user.'
+    if (!['user', 'admin'].includes(role)) return res.status(400).json({ error: "The role must either be 'admin' or 'user.' " });
+
+    const user = await get('SELECT role FROM users WHERE id = ?', [userId]);
+
+    if(!user) return res.status(404).json({ error: "User doesn't exists." });
+
+    await run(`UPDATE users 
+      SET role = ?
+      WHERE id = ?`, [role, userId]);
+
+    if(role === 'admin') {
+        res.json({ message: 'The user has been promoted to admin.' });
+      } else {
+        res.json({ message: 'The user has been demoted to user.' });
       }
+
+  } catch (error) {
+    res.status(500).json({ error: "Fail to update role." });
+  }
+
+});
+
+// 获取所有文章
+router.get('/articles', async (req, res) => {
+  try {
+    const articles = await query(`
+      SELECT 
+        a.id, a.title, SUBSTRING(a.content, 1, 200) as content,
+        a.status, a.view_count as viewCount,
+        a.created_at as createdAt,
+        u.username as authorUsername,
+        COUNT(DISTINCT c.id) as commentCount
+      FROM articles a
+      LEFT JOIN users u ON u.id = a.author_id
+      LEFT JOIN comments c ON c.article_id = a.id
+      GROUP BY a.id
+      ORDER BY a.created_at DESC`);
+
+    const formattedArticles = articles.map(article => ({
+      ...article,
+      createdAt: new Date(article.createdAt).toLocaleString('zh-CN')
     }));
 
-    res.json({
-      items: formattedArticles,
-      total: Number(total.count),
-      page: Number(page),
-      pageSize: Number(pageSize)
-    });
+    res.json(formattedArticles);
   } catch (error) {
     res.status(500).json({ error: '获取文章列表失败' });
   }
 });
 
-// 审核文章
-router.patch('/articles/:id/review', async (req, res) => {
+// 删除文章
+router.delete('/articles/:id', async (req, res) => {
   try {
     const articleId = parseInt(req.params.id);
-    const { status, reason } = req.body;
-
-    if (!['published', 'rejected'].includes(status)) {
-      return res.status(400).json({ message: '无效的状态值' });
+    if (isNaN(articleId)) {
+      return res.status(400).json({ error: '无效的文章ID' });
     }
 
-    if (status === 'rejected' && !reason) {
-      return res.status(400).json({ message: '拒绝时必须提供原因' });
+    const article = await get('SELECT * FROM articles WHERE id = ?', [articleId]);
+    if (!article) {
+      return res.status(404).json({ error: '文章不存在' });
     }
 
-    await run(`
-      UPDATE articles 
-      SET status = ?,
-          review_reason = ?,
-          reviewed_at = ?,
-          updated_at = ?
-      WHERE id = ?
-    `, [
-      status,
-      reason || null,
-      new Date().toISOString(),
-      new Date().toISOString(),
-      articleId
-    ]);
+    await transaction(async (tx) => {
+      // 删除文章相关的所有数据
+      await tx.run('DELETE FROM article_tags WHERE article_id = ?', [articleId]);
+      await tx.run('DELETE FROM article_reactions WHERE article_id = ?', [articleId]);
+      await tx.run('DELETE FROM comments WHERE article_id = ?', [articleId]);
+      await tx.run('DELETE FROM articles WHERE id = ?', [articleId]);
+    });
 
-    res.json({ message: '文章审核完成' });
+    res.json({ message: '文章删除成功' });
   } catch (error) {
-    res.status(500).json({ error: '审核文章失败' });
+    res.status(500).json({ error: '删除文章失败' });
   }
 });
 
-// 获取所有评论列表
+// 获取所有评论
 router.get('/comments', async (req, res) => {
   try {
-    const { visibility = 'all', page = 1, pageSize = 10 } = req.query;
-    const offset = (Number(page) - 1) * Number(pageSize);
-
-    let query = `
+    const comments = await query(`
       SELECT 
-        c.id, c.content, c.visibility,
+        c.id, c.content,
         c.created_at as createdAt,
-        u.id as user_id,
-        u.username as user_username,
-        a.id as article_id,
-        a.title as article_title
+        u.username as authorUsername,
+        a.title as articleTitle
       FROM comments c
       LEFT JOIN users u ON u.id = c.user_id
       LEFT JOIN articles a ON a.id = c.article_id
-    `;
+      ORDER BY c.created_at DESC`);
 
-    const countQuery = 'SELECT COUNT(*) as count FROM comments';
-    const params = [];
-    const countParams = [];
-
-    if (visibility !== 'all') {
-      query += ' WHERE c.visibility = ?';
-      countQuery += ' WHERE visibility = ?';
-      params.push(visibility);
-      countParams.push(visibility);
-    }
-
-    query += ` LIMIT ? OFFSET ?`;
-    params.push(Number(pageSize), offset);
-
-    const [commentsList, [total]] = await Promise.all([
-      query(query, params),
-      query(countQuery, countParams)
-    ]);
-
-    const formattedComments = commentsList.map(comment => ({
-      id: comment.id,
-      content: comment.content,
-      visibility: comment.visibility,
-      createdAt: comment.createdAt,
-      user: {
-        id: comment.user_id,
-        username: comment.user_username
-      },
-      article: {
-        id: comment.article_id,
-        title: comment.article_title
-      }
+    const formattedComments = comments.map(comment => ({
+      ...comment,
+      createdAt: new Date(comment.createdAt).toLocaleString('zh-CN')
     }));
 
-    res.json({
-      items: formattedComments,
-      total: Number(total.count),
-      page: Number(page),
-      pageSize: Number(pageSize)
-    });
+    res.json(formattedComments);
   } catch (error) {
     res.status(500).json({ error: '获取评论列表失败' });
   }
 });
 
-// 更新评论可见性
-router.patch('/comments/:id/visibility', async (req, res) => {
+// 删除评论
+router.delete('/comments/:id', async (req, res) => {
   try {
     const commentId = parseInt(req.params.id);
-    const { visibility } = req.body;
-
-    if (!['visible', 'hidden'].includes(visibility)) {
-      return res.status(400).json({ message: '无效的可见性值' });
+    if (isNaN(commentId)) {
+      return res.status(400).json({ error: '无效的评论ID' });
     }
 
-    await run(`
-      UPDATE comments 
-      SET visibility = ?
-      WHERE id = ?
-    `, [visibility, commentId]);
+    const comment = await get('SELECT * FROM comments WHERE id = ?', [commentId]);
+    if (!comment) {
+      return res.status(404).json({ error: '评论不存在' });
+    }
 
-    res.json({ message: '评论可见性已更新' });
+    await run('DELETE FROM comments WHERE id = ?', [commentId]);
+    res.json({ message: '评论删除成功' });
   } catch (error) {
-    res.status(500).json({ error: '更新评论可见性失败' });
-  }
-});
-
-// 批量删除评论
-router.post('/comments/batch-delete', async (req, res) => {
-  try {
-    const { commentIds } = req.body;
-    
-    if (!Array.isArray(commentIds) || commentIds.length === 0) {
-      return res.status(400).json({ message: '请提供要删除的评论ID列表' });
-    }
-
-    const placeholders = commentIds.map(() => '?').join(',');
-    await run(
-      `DELETE FROM comments WHERE id IN (${placeholders})`,
-      commentIds
-    );
-
-    res.json({ message: '评论已批量删除' });
-  } catch (error) {
-    res.status(500).json({ error: '批量删除评论失败' });
-  }
-});
-
-// 批量删除文章
-router.post('/articles/batch-delete', async (req, res) => {
-  try {
-    const { articleIds } = req.body;
-    
-    if (!Array.isArray(articleIds) || articleIds.length === 0) {
-      return res.status(400).json({ message: '请提供要删除的文章ID列表' });
-    }
-
-    const placeholders = articleIds.map(() => '?').join(',');
-
-    await transaction(async (tx) => {
-      // 删除文章的所有点赞
-      await tx.run(
-        `DELETE FROM article_reactions WHERE article_id IN (${placeholders})`,
-        articleIds
-      );
-      
-      // 删除文章的所有评论
-      await tx.run(
-        `DELETE FROM comments WHERE article_id IN (${placeholders})`,
-        articleIds
-      );
-      
-      // 获取要删除的文章列表（用于删除封面图）
-      const articlesToDelete = await tx.query(
-        `SELECT id, image_url as imageUrl FROM articles WHERE id IN (${placeholders})`,
-        articleIds
-      );
-      
-      // 删除文章
-      await tx.run(
-        `DELETE FROM articles WHERE id IN (${placeholders})`,
-        articleIds
-      );
-
-      // 删除封面图文件
-      for (const article of articlesToDelete) {
-        if (article.imageUrl) {
-          const imagePath = path.join(process.cwd(), article.imageUrl);
-          fs.unlink(imagePath, (err) => {
-            if (err) console.error(`删除文章 ${article.id} 的封面图失败:`, err);
-          });
-        }
-      }
-    });
-
-    res.json({ message: '文章已批量删除' });
-  } catch (error) {
-    res.status(500).json({ error: '批量删除文章失败' });
-  }
-});
-
-// 提升为管理员
-router.post('/users/:id/promote', async (req, res) => {
-  try {
-    const userId = parseInt(req.params.id);
-    
-    const user = await get(
-      'SELECT * FROM users WHERE id = ?',
-      [userId]
-    );
-      
-    if (!user) {
-      return res.status(404).json({ message: '用户不存在' });
-    }
-
-    await run(
-      'UPDATE users SET role = ? WHERE id = ?',
-      ['admin', userId]
-    );
-
-    res.json({ message: '已成功设置为管理员' });
-  } catch (error) {
-    res.status(500).json({ error: '操作失败' });
-  }
-});
-
-// 撤销管理员权限
-router.post('/users/:id/demote', async (req, res) => {
-  try {
-    const userId = parseInt(req.params.id);
-    
-    // 检查是否为最后一个管理员
-    const [adminCount] = await query(
-      'SELECT COUNT(*) as count FROM users WHERE role = ?',
-      ['admin']
-    );
-      
-    if (adminCount.count <= 1) {
-      return res.status(400).json({ message: '系统必须保留至少一个管理员' });
-    }
-
-    await run(
-      'UPDATE users SET role = ? WHERE id = ?',
-      ['user', userId]
-    );
-
-    res.json({ message: '已成功撤销管理员权限' });
-  } catch (error) {
-    res.status(500).json({ error: '操作失败' });
-  }
-});
-
-// 设置用户角色
-router.put('/users/:id/role', async (req, res) => {
-  try {
-    const userId = parseInt(req.params.id);
-    const { role } = req.body;
-
-    if (!['user', 'admin'].includes(role)) {
-      return res.status(400).json({ message: '无效的角色类型' });
-    }
-
-    const user = await get(
-      'SELECT * FROM users WHERE id = ?',
-      [userId]
-    );
-
-    if (!user) {
-      return res.status(404).json({ message: '用户不存在' });
-    }
-
-    await run(
-      'UPDATE users SET role = ? WHERE id = ?',
-      [role, userId]
-    );
-
-    res.json({ message: `已${role === 'admin' ? '设置' : '撤销'}管理员权限` });
-  } catch (error) {
-    res.status(500).json({ message: '更新用户角色失败' });
+    res.status(500).json({ error: '删除评论失败' });
   }
 });
 

@@ -2,6 +2,7 @@ import { auth } from '../stores/auth';
 import { get } from 'svelte/store';
 import { env } from '$env/dynamic/public';
 import { getToken } from './auth';
+import { t } from '$lib/i18n';
 
 const API_URL = env.PUBLIC_API_URL;
 console.log('当前使用的 API_URL:', API_URL);
@@ -73,14 +74,22 @@ export async function api(endpoint, options = {}) {
         }
 
         if (response.status === 403) {
-            throw new Error('没有权限访问此资源');
+            const data = await response.json().catch(() => ({}));
+            if (data.reason && data.expireAt) {
+                throw new Error(get(t)('error.accountBanned'));
+            }
+            throw new Error(data?.message || get(t)('error.unauthorized'));
         }
 
         if (response.status === 401) {
-            // 清除本地存储的 token
-            localStorage.removeItem('token');
-            auth.update(state => ({ ...state, isAuthenticated: false, token: null, user: null }));
-            throw new Error('登录已过期，请重新登录');
+            const data = await response.json().catch(() => ({}));
+            // 只有在非登录接口且有 token 时才清除 token 并登出
+            if (!endpoint.includes('/api/auth/login') && (localStorage.getItem('token') || get(auth).token)) {
+                // 清除本地存储的 token
+                localStorage.removeItem('token');
+                auth.logout();
+            }
+            throw new Error(data?.message || '登录已过期，请重新登录');
         }
 
         // For 204 status, return null

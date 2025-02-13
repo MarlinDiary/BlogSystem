@@ -1,9 +1,4 @@
-import { logError } from './logger.js';
-
 export const errorHandler = (err, req, res, next) => {
-  // 记录错误日志
-  logError(err, req, res);
-
   // 打印详细错误信息到控制台
   console.error('Error details:', {
     name: err.name,
