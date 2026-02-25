@@ -23,6 +23,8 @@ npm install
 ```
 PORT=3000
 SERVER_URL=http://localhost:3000
+# 支持多个域名，使用英文逗号分隔
+CORS_ORIGINS=http://localhost:5173,http://localhost:4173
 ```
 
 ### 前端配置 | Frontend Configuration

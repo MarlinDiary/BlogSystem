@@ -13,7 +13,7 @@ numReplicas = 1
 NODE_ENV = "production"
 PORT = "3000"
 SERVER_URL = "https://blog-production-154c.up.railway.app"
-CORS_ORIGIN = "https://blog-production-154c.up.railway.app"
+CORS_ORIGINS = "https://blog-production-154c.up.railway.app"
 
 # 持久存储配置
 [[volume]]

@@ -20,25 +20,33 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 // CORS 配置
-const corsOrigins = process.env.NODE_ENV === 'production'
-  ? [
-      'https://blog-blush-nine-72.vercel.app',
-      'https://blog-blush-nine-72.vercel.app/',
-      'https://blog-production-154c.up.railway.app',
-      'https://blog-production-154c.up.railway.app/',
-      'https://www.huizha.com',
-      'https://www.huizha.com/',
-      'http://blog-production-154c.up.railway.app',
-      'http://blog-production-154c.up.railway.app/',
-      'https://huizha.com',
-      'https://huizha.com/',
-      'http://huizha.com',
-      'http://huizha.com/'
-    ]
+const normalizeOrigin = (origin = '') => origin.trim().replace(/\/+$/, '').toLowerCase();
+
+const parseOrigins = (origins = '') => origins
+  .split(',')
+  .map(normalizeOrigin)
+  .filter(Boolean);
+
+const configuredOrigins = parseOrigins(
+  process.env.CORS_ORIGINS || process.env.CORS_ORIGIN || ''
+);
+
+const fallbackOrigins = process.env.NODE_ENV === 'production'
+  ? parseOrigins(process.env.SERVER_URL || '')
   : ['http://localhost:5173', 'http://localhost:4173'];
 
+const corsOrigins = configuredOrigins.length > 0 ? configuredOrigins : fallbackOrigins;
+
 app.use(cors({
-  origin: corsOrigins,  // 直接使用域名列表
+  origin: (origin, callback) => {
+    // 服务端调用或同源请求通常不会带 Origin 头，直接放行
+    if (!origin) {
+      callback(null, true);
+      return;
+    }
+
+    callback(null, corsOrigins.includes(normalizeOrigin(origin)));
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: [
